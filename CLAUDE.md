@@ -7,14 +7,13 @@ This repository applies Item Response Theory (IRT) to SWE-bench Verified benchma
 ## Repository Structure
 
 ```
-trajectory-embeddings/
-├── py_irt/                     # IRT library (shared, with ClippedAdam support)
-├── experiments/                # Gitignored - SWE-bench data & trajectories
-├── predict_question_difficulty.py  # Original difficulty prediction
-├── trajectory_data/            # Original trajectory scripts
-├── out/                        # Original outputs
+model_irt/
+├── py_irt/                     # IRT library (with ClippedAdam support)
+├── experiments/                # SWE-bench experiments repo (has own .git)
+│   ├── evaluation/             # Agent results
+│   └── analysis/               # Analysis scripts
 │
-├── swebench_irt/               # Chris's IRT recreation code
+├── swebench_irt/               # IRT model training code
 │   ├── train.py                # Train 1D-6D IRT models
 │   ├── train_rep.py            # Multi-seed training
 │   ├── compare_dims.py         # AIC/BIC model comparison
@@ -26,12 +25,16 @@ trajectory-embeddings/
 │   ├── lunette_analysis.py     # Lunette-based analysis
 │   └── predict_difficulty.py   # Heuristic feature prediction
 │
-├── chris_output/               # Chris's outputs
+├── chris_output/               # Outputs and trained models
 │   ├── clean_data/             # Trained IRT models
 │   ├── figures/                # Visualizations
 │   └── difficulty_prediction/  # Prediction outputs
 │
+├── trajectory_data/            # Trajectory processing scripts
+├── predict_question_difficulty.py  # Original difficulty prediction
+├── out/                        # Original outputs
 ├── tests/                      # Test suite
+├── requirements.txt            # Python dependencies
 └── CLAUDE.md                   # This file
 ```
 
