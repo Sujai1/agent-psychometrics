@@ -23,7 +23,13 @@ model_irt/
 ├── llm_judge/                  # LLM-as-judge for difficulty prediction
 │   ├── llm_judge.py            # Direct LLM feature extraction
 │   ├── lunette_analysis.py     # Lunette-based analysis
-│   └── predict_difficulty.py   # Heuristic feature prediction
+│   ├── predict_difficulty.py   # Heuristic feature prediction
+│   └── evolutionary/           # Evolutionary feature discovery (PromptBreeder-inspired)
+│       ├── evolution_loop.py   # Main CLI and orchestration
+│       ├── feature_generator.py # Initial feature generation
+│       ├── feature_evaluator.py # Score extraction & correlation
+│       ├── feature_refiner.py  # 5 mutation operators
+│       └── analyze_results.py  # Visualization & reports
 │
 ├── chris_output/               # Outputs and trained models
 │   ├── clean_data/             # Trained IRT models
@@ -105,6 +111,7 @@ chris_output/clean_data/swebench_verified_20250930_full/{1d,2d,3d}/
 | `swebench_irt/check_matrix.py` | Verify agents/tasks/observations in JSONL |
 | `llm_judge/llm_judge.py` | Direct LLM feature extraction |
 | `llm_judge/predict_difficulty.py` | Heuristic feature prediction |
+| `llm_judge/evolutionary/` | Evolutionary feature discovery (PromptBreeder-inspired) |
 | `py_irt/` | Local fork of py_irt with Multidim2PL model |
 | `tests/test_irt_pipeline.py` | 26 tests covering preprocessing, training, evaluation |
 
@@ -221,6 +228,85 @@ Using linear models (Ridge/Lasso) with heuristic features:
 - **R² = 0.14**, correlation = 0.405
 - Top predictors: repo effects (scikit-learn, pylint hardest), human labels, test complexity
 - ~86% of variance unexplained by heuristics → semantic understanding needed
+
+### Evolutionary Feature Discovery (llm_judge/evolutionary/)
+
+Automatically discover and evolve LLM-extracted features that predict IRT difficulty. Inspired by **PromptBreeder** (Fernando et al., 2023).
+
+#### How It Works
+
+1. **Generation 0**: Sample high/low difficulty tasks, prompt LLM to hypothesize distinguishing features
+2. **Evaluate**: Extract 1-5 scores for each feature × task, compute Pearson correlation with IRT `b`
+3. **Select**: Keep top-K features, remove redundant ones (score correlation > 0.8)
+4. **Evolve**: Apply mutation operators to surviving features
+5. **Repeat**: Until correlation plateaus or max generations reached
+
+#### Mutation Operators (PromptBreeder-inspired)
+
+| Operator | Weight | Description |
+|----------|--------|-------------|
+| direct_mutation | 30% | Refine based on failure cases |
+| eda_mutation | 20% | Crossover between two features |
+| hypermutation | 20% | Self-referentially evolve the mutation prompt |
+| lamarckian | 15% | Simplify working features |
+| zero_order | 15% | Generate novel features with context |
+
+#### Usage
+
+```bash
+source .venv/bin/activate
+
+# Dry run (see execution plan, no API calls)
+python -m llm_judge.evolutionary.evolution_loop --dry_run
+
+# Small test run with Sonnet (~$127)
+python -m llm_judge.evolutionary.evolution_loop
+
+# Full run with Opus 4.5 (~$600-800)
+python -m llm_judge.evolutionary.evolution_loop \
+    --model claude-opus-4-5-20251101 \
+    --initial_features 20 \
+    --top_k 10 \
+    --tasks_per_eval 100 \
+    --max_generations 10
+
+# Resume from checkpoint
+python -m llm_judge.evolutionary.evolution_loop --resume
+
+# Analyze results
+python -m llm_judge.evolutionary.analyze_results
+```
+
+#### CLI Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--model` | claude-sonnet-4-20250514 | LLM model (use opus for full runs) |
+| `--initial_features` | 10 | Features to generate in gen 0 |
+| `--top_k` | 5 | Features to keep each generation |
+| `--tasks_per_eval` | 50 | Tasks per evaluation batch |
+| `--max_generations` | 5 | Maximum generations |
+| `--output_dir` | llm_judge/evolutionary_results | Results directory |
+| `--dry_run` | - | Show plan without running |
+| `--resume` | - | Resume from checkpoint |
+
+#### Output Structure
+
+```
+llm_judge/evolutionary_results/
+├── generations/
+│   ├── gen_000/
+│   │   ├── features.json      # Feature definitions
+│   │   ├── evaluations.json   # Per-task scores + correlations
+│   │   └── summary.json       # Best correlation, surviving features
+│   └── gen_001/...
+├── best_features.json         # Top K across all generations
+├── evolution_log.json         # Full run history + cost tracking
+├── checkpoint.json            # For resume capability
+├── report.txt                 # Text summary (after analyze)
+├── correlation_progression.png
+└── feature_genealogy.png
+```
 
 ### Lunette Integration
 
