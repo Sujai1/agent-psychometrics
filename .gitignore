@@ -1,9 +1,37 @@
+# Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
 .venv/
+venv/
+env/
+
+# Experiments and large data (SWE-bench trajectories, logs)
+experiments/
 aws/
 embeddings_takehome/
 samples/
+
+# Output files
 *.out
 *.jsonl
 *.jsonlines
 *.npz
+
+# Matplotlib cache
+.cache/
+.mplconfig/
+
+# OS files
+.DS_Store
+*.swp
+*~
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace

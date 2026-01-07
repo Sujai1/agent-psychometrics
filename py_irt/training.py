@@ -158,14 +158,21 @@ class IrtModelTrainer:
         self._pyro_model = self.irt_model.get_model()
         self._pyro_guide = self.irt_model.get_guide()
         device = torch.device(device)
-        scheduler = pyro.optim.ExponentialLR(
-            {
-                "optimizer": torch.optim.Adam,
-                "optim_args": {"lr": self._config.lr},
-                "gamma": self._config.lr_decay,
-            }
-        )
-        svi = SVI(self._pyro_model, self._pyro_guide, scheduler, loss=Trace_ELBO())
+        if self._config.clip_norm is not None:
+            optimizer = pyro.optim.ClippedAdam(
+                {"lr": self._config.lr, "clip_norm": self._config.clip_norm}
+            )
+            scheduler = None
+        else:
+            optimizer = pyro.optim.ExponentialLR(
+                {
+                    "optimizer": torch.optim.Adam,
+                    "optim_args": {"lr": self._config.lr},
+                    "gamma": self._config.lr_decay,
+                }
+            )
+            scheduler = optimizer
+        svi = SVI(self._pyro_model, self._pyro_guide, optimizer, loss=Trace_ELBO())
         subjects = torch.tensor(
             self._dataset.observation_subjects, dtype=torch.long, device=device
         )
@@ -203,8 +210,9 @@ class IrtModelTrainer:
                 if loss < best_loss:
                     best_loss = loss
                     self.best_params = self.export(items)
-                scheduler.step()
-                current_lr = current_lr * self._config.lr_decay
+                if scheduler is not None:
+                    scheduler.step()
+                    current_lr = current_lr * self._config.lr_decay
                 if epoch % self._config.log_every == 0:
                     table.add_row(
                         f"{epoch + 1}",
