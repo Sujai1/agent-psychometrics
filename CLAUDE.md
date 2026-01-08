@@ -203,24 +203,31 @@ Potential approaches:
 2. **Few-shot prompting**: Provide examples with known `b` values
 3. **Fine-tuning**: Train on (task_description, b) pairs
 
-### Current LLM Judge Results (llm_judge/llm_judge.py)
+### LLM Judge Approaches
 
-Initial results from 48 tasks using Claude Sonnet to extract discrete features:
+Two approaches have been tested for predicting IRT difficulty from task features:
 
-| Feature | Correlation with IRT difficulty |
-|---------|--------------------------------|
-| fix_complexity | +0.41 |
-| domain_knowledge_required | +0.39 |
-| error_message_provided | -0.33 |
-| fix_in_description | -0.30 |
+#### 1. Direct LLM Feature Extraction (llm_judge/llm_judge.py)
 
-Best regression model (3 features): **r = 0.43** with IRT difficulty (p = 0.002)
+Prompts an LLM to extract discrete features (1-5 scales) from the problem statement and gold patch. Features include: fix_in_description, problem_clarity, error_message_provided, reproduction_steps, fix_locality, domain_knowledge_required, fix_complexity.
 
-```
-predicted_b = -2.66 + 0.87×fix_complexity + 0.36×domain_knowledge - 1.40×error_message_provided
+**Status:** Code exists but no saved results. Run with:
+```bash
+python llm_judge/llm_judge.py --num_tasks 50 --output_path chris_output/llm_judge/features.csv
 ```
 
-Limitations: Small sample (n=48), model underpredicts difficulty for hardest tasks.
+#### 2. Lunette-Based Grading (llm_judge/lunette_analysis.py)
+
+Uses Lunette's GradingPlan API to analyze task + agent trajectory together. The judge has environment access and can examine the actual codebase.
+
+**Results (n=39 tasks, 2025-01-07):**
+| Feature | Correlation | p-value |
+|---------|-------------|---------|
+| fix_in_description | -0.57 | 0.001 |
+| problem_clarity | -0.38 | 0.025 |
+| fix_complexity | +0.34 | 0.046 |
+
+See `chris_output/lunette/correlation_summary.csv` for full results.
 
 ### Heuristic Feature Prediction (llm_judge/predict_difficulty.py)
 
@@ -332,9 +339,26 @@ lunette eval swebench --model openai/gpt-4o-mini --limit 1
 #   --sandbox_config_template_file (Lunette's swebench preset)
 ```
 
-#### Lunette Grading API (LLM-as-Judge Replacement)
+#### Lunette Grading Results (2025-01-07)
 
-The Grading API can replace direct LLM feature extraction. It returns structured scores (0-1) with explanations.
+Graded 50 SWE-bench tasks using Lunette's GradingPlan API to extract difficulty features. The judge analyzes both the task description and agent trajectory to predict IRT difficulty.
+
+**Correlations with IRT Difficulty (statistically significant, p < 0.05):**
+
+| Feature | Correlation | n | Interpretation |
+|---------|-------------|---|----------------|
+| fix_in_description | -0.57 | 30 | More hints in description → easier |
+| score_aggregate | +0.47 | 25 | Higher Lunette score → harder |
+| problem_clarity | -0.38 | 34 | Clearer problems → easier |
+| fix_complexity | +0.34 | 36 | Complex fixes → harder |
+
+**Non-significant features:** reproduction_steps (+0.29), domain_knowledge_required (+0.24), fix_locality (+0.11), error_message_provided (+0.05)
+
+**Trajectory signals:** agent_looping, agent_declared_success_wrongly, etc. had zero variance (all successful runs), so no correlation computed.
+
+**Key finding:** `fix_in_description` is the strongest predictor (r=-0.57, p=0.001). When the problem statement contains hints about the fix, tasks are significantly easier for agents.
+
+#### Lunette Grading API
 
 **Retrieving Runs:**
 ```python
@@ -361,41 +385,16 @@ async def grade_trajectory(run_id: str):
         results = await client.investigate(
             run_id=run_id,
             plan=GradingPlan(
-                name="swebench-difficulty",
-                prompt="""Grade this SWE-bench agent trajectory on:
-1. Task Understanding: Did the agent correctly identify the problem?
-2. Code Localization: How effectively did the agent find relevant code?
-3. Fix Quality: Was the proposed fix correct and minimal?
-4. Process Efficiency: Did the agent work systematically?
-
-Provide a score (0-1) and brief explanation for each dimension."""
+                name="task-difficulty",
+                prompt="""Analyze this SWE-bench task to predict difficulty...
+                (see llm_judge/lunette_analysis.py for full prompt)"""
             ),
             limit=1,
         )
-
-        for result in results.results:
-            print(f"Dimension: {result.data['name']}")
-            print(f"Score: {result.data['score']}")
-            print(f"Explanation: {result.data['explanation']}")
+        # Returns structured scores or aggregate explanation
 
 asyncio.run(grade_trajectory("your-run-id"))
 ```
-
-**Example Output:**
-```
-Dimension: task_understanding
-Score: 0.85
-Explanation: The agent correctly identified that the AuthenticationForm's username
-field doesn't render the maxlength HTML attribute. The agent found the exact location
-in the code (line 194 of forms.py) where max_length is set on the form field but not
-on the widget's attrs dictionary...
-```
-
-**Tested Runs (2025-01-07):**
-| Model | Run ID | Task Solved | Grading Score |
-|-------|--------|-------------|---------------|
-| claude-sonnet-4 | c891a8ba-fd7c-468e-ad80-7b99ce332196 | No | 0.85 |
-| gpt-4o-mini | 36df6e4f-0960-4e7d-8a9b-3cdb330b7201 | Yes | 0.94 |
 
 #### Downloaded Trajectories
 
@@ -411,6 +410,7 @@ python -m analysis.download_logs evaluation/verified/20240620_sweagent_claude3.5
 
 | File | Purpose |
 |------|---------|
-| `llm_judge/llm_judge.py` | Direct LLM feature extraction (working) |
-| `llm_judge/lunette_analysis.py` | Lunette-based analysis (uses SDK) |
-| `chris_output/llm_judge/features_50.csv` | LLM judge results for 49 tasks |
+| `llm_judge/llm_judge.py` | Direct LLM feature extraction |
+| `llm_judge/lunette_analysis.py` | Lunette-based grading (run with `--grade_tasks 50`) |
+| `chris_output/lunette/task_features_50_extracted.csv` | Raw feature values for 39 tasks |
+| `chris_output/lunette/correlation_summary.csv` | Correlation results with IRT difficulty |

@@ -47,7 +47,7 @@ def fit_1d_irt(data: Dataset, epochs: int, output_name: str) -> IrtModelTrainer:
         model_type=TwoParamLog,
         priors="hierarchical",
         initializers=[
-            {"name": "difficulty_from_accuracy", "eps": 1e-3, "log_limit": 0},
+            {"name": "difficulty_from_accuracy", "eps": 1e-3},
         ],
     )
     trainer = IrtModelTrainer(config=config, data_path=None, dataset=data)
@@ -103,7 +103,6 @@ def fit_md_irt(data: Dataset, dims:int, epochs:int, output_name:str) -> IrtModel
                 "jitter_std": 0.1,
                 "init_disc_std": 0.0,      # PCA will set disc/ability
                 "init_ability_std": 0.0,
-                "log_limit": 0,
             },
             {
                 "name": "mirt_pca",
