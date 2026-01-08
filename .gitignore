@@ -17,6 +17,9 @@ embeddings_takehome/
 samples/
 logs/
 papers/
+trajectory_data/unified_trajs/
+trajectory_data/filtered_unified/
+
 
 # Output files
 *.out
@@ -37,3 +40,4 @@ papers/
 .idea/
 .vscode/
 *.code-workspace
+trajectory_data/unified_trajs/_blob_style/
