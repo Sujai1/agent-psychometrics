@@ -29,8 +29,8 @@ from typing import Optional
 MODEL_PATTERNS = [
     r'claude', r'gpt-?4', r'gpt-?3\.?5', r'sonnet', r'opus', r'haiku',
     r'gemini', r'llama', r'mistral', r'qwen', r'deepseek',
-    r'sweagent', r'swe-agent', r'autocoderover', r'openhands',
-    r'anthropic', r'openai',
+    r'sweagent', r'swe-agent', r'autocoderrover', r'openhands',  # Note: autocodeRRover has two r's
+    r'anthropic', r'openai', r'agentless', r'moatless',
 ]
 
 
