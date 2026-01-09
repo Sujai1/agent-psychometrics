@@ -1,0 +1,1538 @@
+Current Collection:
+Agent Runs
+Rubrics
+Charts
+Label Sets
+Chats
+Ingestion Jobs
+Collection: SWE-Bench Pro Trajectories (v3)
+032fb63d
+Docs
+Slack
+Read-only
+Toggle theme
+Agent Run Table
+728 agent runs matching the current view
+Add data
+Filters
+DQL
+Filter by
+Select field
+Operator
+==
+Value
+ 
+Add filter
+metadata.model_name
+==
+Gemini 2.5 Pro Preview -- debug-oct22
+Select field
+Download
+Columns (5/5)
+Agent Run
+	
+metadata.instance_id
+	
+metadata.model_name
+	
+metadata.resolved
+	
+metadata.turns
+	
+created_at
+
+
+8054a872
+	
+instance_internetarchive__openlibrary-c506c1b0b678892af5cb22c1c1dbc35d96787a0a-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+20
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+32fc76c2
+	
+instance_internetarchive__openlibrary-7c8dc180281491ccaa1b4b43518506323750d1e4-v298a7a812ceed28c4c18355a091f1b268fe56d86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b35429db
+	
+instance_ansible__ansible-be59caa59bf47ca78a4760eb7ff38568372a8260-v1055803c3a812189a1133297f7f5468579283f86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+251
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+d4161740
+	
+instance_internetarchive__openlibrary-7f7e53aa4cf74a4f8549a5bcd4810c527e2f6d7e-v13642507b4fc1f8d234172bf8129942da2c2ca26
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+12
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+09f61d3a
+	
+instance_internetarchive__openlibrary-53e02a22972e9253aeded0e1981e6845e1e521fe-vfa6ff903cb27f336e17654595dd900fa943dcd91
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+9f098db8
+	
+instance_internetarchive__openlibrary-4b7ea2977be2747496ba792a678940baa985f7ea-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+27
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+4a5dd52e
+	
+instance_ansible__ansible-3b823d908e8a5d17674f8c26d337d3114b7493b1-v0f01c69f1e2528b935359cfe578530722bca2c59
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+20
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+437e2064
+	
+instance_internetarchive__openlibrary-4a5d2a7d24c9e4c11d3069220c0685b736d5ecde-v13642507b4fc1f8d234172bf8129942da2c2ca26
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+8
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+d6335df9
+	
+instance_ansible__ansible-3889ddeb4b780ab4bac9ca2e75f8c1991bcabe83-v0f01c69f1e2528b935359cfe578530722bca2c59
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+163
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b6176483
+	
+instance_qutebrowser__qutebrowser-2dd8966fdcf11972062c540b7a787e4d0de8d372-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+22
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+6d7d82a6
+	
+instance_internetarchive__openlibrary-6a117fab6c963b74dc1ba907d838e74f76d34a4b-v13642507b4fc1f8d234172bf8129942da2c2ca26
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+54
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+624d4262
+	
+instance_internetarchive__openlibrary-b112069e31e0553b2d374abb5f9c5e05e8f3dbbe-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+30
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c8d8b207
+	
+instance_ansible__ansible-29aea9ff3466e4cd2ed00524b9e56738d568ce8b-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+44
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+9bd07301
+	
+instance_ansible__ansible-cb94c0cc550df9e98f1247bc71d8c2b861c75049-v1055803c3a812189a1133297f7f5468579283f86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+251
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+14fd88a1
+	
+instance_gravitational__teleport-f432a71a13e698b6e1c4672a2e9e9c1f32d35c12
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+42
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+17262e75
+	
+instance_qutebrowser__qutebrowser-44e64199ed38003253f0296badd4a447645067b6-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+9
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+8225bb4f
+	
+instance_internetarchive__openlibrary-7bf3238533070f2d24bafbb26eedf675d51941f6-v08d8e8889ec945ab821fb156c04c7d2e2810debb
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+30
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b195d025
+	
+instance_qutebrowser__qutebrowser-0d2afd58f3d0e34af21cee7d8a3fc9d855594e9f-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+25
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+5436b36a
+	
+instance_internetarchive__openlibrary-d109cc7e6e161170391f98f9a6fa1d02534c18e4-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+68
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+f283193a
+	
+instance_ansible__ansible-d58e69c82d7edd0583dd8e78d76b075c33c3151e-v173091e2e36d38c978002990795f66cfc0af30ad
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+89
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c25e5cfc
+	
+instance_ansible__ansible-b6290e1d156af608bd79118d209a64a051c55001-v390e508d27db7a51eece36bb6d9698b63a5b638a
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+28
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+d5ebf86b
+	
+instance_ansible__ansible-e0c91af45fa9af575d10fd3e724ebc59d2b2d6ac-v30a923fb5c164d6cd18280c02422f75e611e8fb2
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+11
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7841d562
+	
+instance_internetarchive__openlibrary-6e889f4a733c9f8ce9a9bd2ec6a934413adcedb9-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7421f5ed
+	
+instance_ansible__ansible-b2a289dcbb702003377221e25f62c8a3608f0e89-v173091e2e36d38c978002990795f66cfc0af30ad
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+1
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c052ef63
+	
+instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+18
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+0f85af59
+	
+instance_qutebrowser__qutebrowser-99029144b5109bb1b2a53964a7c129e009980cd9-va0fd88aac89cde702ec1ba84877234da33adce8a
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+58
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7f9fcfc8
+	
+instance_ansible__ansible-f8ef34672b961a95ec7282643679492862c688ec-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+18
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+65a70706
+	
+instance_internetarchive__openlibrary-0a90f9f0256e4f933523e9842799e39f95ae29ce-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+17
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+643b4b1c
+	
+instance_ansible__ansible-0ea40e09d1b35bcb69ff4d9cecf3d0defa4b36e8-v30a923fb5c164d6cd18280c02422f75e611e8fb2
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+10
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+92b6abca
+	
+instance_NodeBB__NodeBB-445b70deda20201b7d9a68f7224da751b3db728c-v4fbcfae8b15e4ce5d132c408bca69ebb9cf146ed
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+30
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+836f500e
+	
+instance_ansible__ansible-1b70260d5aa2f6c9782fd2b848e8d16566e50d85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+34
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+5b450c86
+	
+instance_qutebrowser__qutebrowser-8cd06741bb56cdca49f5cdc0542da97681154315-v5149fcda2a9a6fe1d35dfed1bade1444a11ef271
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+46
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c7f4953b
+	
+instance_ansible__ansible-709484969c8a4ffd74b839a673431a8c5caa6457-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+17
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+955dd7bf
+	
+instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+42
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+0c067dfe
+	
+instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+4229db66
+	
+instance_protonmail__webclients-4feccbc9990980aee26ea29035f8f931d6089895
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+34
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+cfbe4993
+	
+instance_qutebrowser__qutebrowser-2e961080a85d660148937ee8f0f6b3445a8f2c01-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+38
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+6476c5d6
+	
+instance_NodeBB__NodeBB-84e065752f6d7fbe5c08cbf50cb173ffb866b8fa-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b440a536
+	
+instance_element-hq__element-web-1216285ed2e82e62f8780b6702aa0f9abdda0b34-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+23
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7cf44a1a
+	
+instance_internetarchive__openlibrary-b67138b316b1e9c11df8a4a8391fe5cc8e75ff9f-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+134
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+69c1f1e5
+	
+instance_ansible__ansible-5c225dc0f5bfa677addeac100a8018df3f3a9db1-v173091e2e36d38c978002990795f66cfc0af30ad
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+10
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e513d7c7
+	
+instance_ansible__ansible-a7d2a4e03209cff1e97e59fd54bb2b05fdbdbec6-v0f01c69f1e2528b935359cfe578530722bca2c59
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+45
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+f708b99d
+	
+instance_qutebrowser__qutebrowser-fd6790fe8c02b144ab2464f1fc8ab3d02ce3c476-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+80
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+eedb221a
+	
+instance_internetarchive__openlibrary-25858f9f0c165df25742acf8309ce909773f0cdd-v13642507b4fc1f8d234172bf8129942da2c2ca26
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+9fa11bbd
+	
+instance_ansible__ansible-cd473dfb2fdbc97acf3293c134b21cbbcfa89ec3-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+74
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+a84bdef4
+	
+instance_qutebrowser__qutebrowser-85b867fe8d4378c8e371f055c70452f546055854-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+14
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+082b0775
+	
+instance_qutebrowser__qutebrowser-deeb15d6f009b3ca0c3bd503a7cef07462bd16b4-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+42
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+30b32b67
+	
+instance_ansible__ansible-8127abbc298cabf04aaa89a478fc5e5e3432a6fc-v30a923fb5c164d6cd18280c02422f75e611e8fb2
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+23
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+22834add
+	
+instance_gravitational__teleport-7744f72c6eb631791434b648ba41083b5f6d2278-vce94f93ad1030e3136852817f2423c1b3ac37bc4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+20
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+84b32476
+	
+instance_qutebrowser__qutebrowser-01d1d1494411380d97cac14614a829d3a69cecaf-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+471b23c9
+	
+instance_internetarchive__openlibrary-f3b26c2c0721f8713353fe4b341230332e30008d-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+9
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+236bafcd
+	
+instance_ansible__ansible-9759e0ca494de1fd5fc2df2c5d11c57adbe6007c-v1055803c3a812189a1133297f7f5468579283f86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+96
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+52889d86
+	
+instance_NodeBB__NodeBB-0e07f3c9bace416cbab078a30eae972868c0a8a3-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+18
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+ff279484
+	
+instance_NodeBB__NodeBB-bad15643013ca15affe408b75eba9e47cc604bb2-vd59a5728dfc977f44533186ace531248c2917516
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+32
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e5828bc2
+	
+instance_NodeBB__NodeBB-18c45b44613aecd53e9f60457b9812049ab2998d-v0495b863a912fbff5749c67e860612b91825407c
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+32
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e2fdf95f
+	
+instance_internetarchive__openlibrary-308a35d6999427c02b1dbf5211c033ad3b352556-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+32
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+520f2a14
+	
+instance_qutebrowser__qutebrowser-e70f5b03187bdd40e8bf70f5f3ead840f52d1f42-v02ad04386d5238fe2d1a1be450df257370de4b6a
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+26
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+866f8f08
+	
+instance_qutebrowser__qutebrowser-9b71c1ea67a9e7eb70dd83214d881c2031db6541-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+25
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b9dc0e50
+	
+instance_qutebrowser__qutebrowser-479aa075ac79dc975e2e949e188a328e95bf78ff-vc2f56a753b62a190ddb23cd330c257b9cf560d12
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+137
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+39a774f4
+	
+instance_gravitational__teleport-0ecf31de0e98b272a6a2610abe1bbedd379a38a3-vce94f93ad1030e3136852817f2423c1b3ac37bc4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+8e8389f1
+	
+instance_navidrome__navidrome-55bff343cdaad1f04496f724eda4b55d422d7f17
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+05fda1d6
+	
+instance_internetarchive__openlibrary-1be7de788a444f6255e89c10ef6aa608550604a8-v29f82c9cf21d57b242f8d8b0e541525d259e2d63
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+48
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+71a13a6f
+	
+instance_ansible__ansible-0fd88717c953b92ed8a50495d55e630eb5d59166-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+35
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+f2b9da74
+	
+instance_navidrome__navidrome-c90468b895f6171e33e937ff20dc915c995274f0
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+53
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e8584784
+	
+instance_internetarchive__openlibrary-8a5a63af6e0be406aa6c8c9b6d5f28b2f1b6af5a-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+17
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+57e52b0d
+	
+instance_navidrome__navidrome-66b74c81f115c78cb69910b0472eeb376750efc4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+75
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+a4047e41
+	
+instance_protonmail__webclients-863d524b5717b9d33ce08a0f0535e3fd8e8d1ed8
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+43
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+f2620366
+	
+instance_navidrome__navidrome-d0dceae0943b8df16e579c2d9437e11760a0626a
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+11
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+4f0a8e48
+	
+instance_navidrome__navidrome-7073d18b54da7e53274d11c9e2baef1242e8769e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+70
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+3cefb382
+	
+instance_internetarchive__openlibrary-e8084193a895d8ee81200f49093389a3887479ce-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+24
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+4b1101e3
+	
+instance_internetarchive__openlibrary-e1e502986a3b003899a8347ac8a7ff7b08cbfc39-v08d8e8889ec945ab821fb156c04c7d2e2810debb
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+13
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+98b507d1
+	
+instance_navidrome__navidrome-29b7b740ce469201af0a0510f3024adc93ef4c8e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+18
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+0e69b4d9
+	
+instance_navidrome__navidrome-28389fb05e1523564dfc61fa43ed8eb8a10f938c
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+22
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+16517588
+	
+instance_qutebrowser__qutebrowser-233cb1cc48635130e5602549856a6fa4ab4c087f-v35616345bb8052ea303186706cec663146f0f184
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+6d85f61b
+	
+instance_element-hq__element-web-71fe08ea0f159ccb707904d87f0a4aef205a167c-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+48
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7a8b1d07
+	
+instance_element-hq__element-web-66d0b318bc6fee0d17b54c1781d6ab5d5d323135-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+41
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+73a9263f
+	
+instance_gravitational__teleport-6a14edcf1ff010172fdbac622d0a474ed6af46de
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+251
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b927060e
+	
+instance_navidrome__navidrome-eebfbc5381a1e506ff17b5f1371d1ad83d5fd642
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+14
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+2a7304e8
+	
+instance_NodeBB__NodeBB-0c81642997ea1d827dbd02c311db9d4976112cd4-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+119
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+82ca1c0c
+	
+instance_NodeBB__NodeBB-4327a09d76f10a79109da9d91c22120428d3bdb9-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+12
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+103fd942
+	
+instance_qutebrowser__qutebrowser-54bcdc1eefa86cc20790973d6997b60c3bba884c-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+10
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+d2043ca4
+	
+instance_qutebrowser__qutebrowser-36ade4bba504eb96f05d32ceab9972df7eb17bcc-v2ef375ac784985212b1805e1d0431dc8f1b3c171
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+104
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+753c9949
+	
+instance_protonmail__webclients-2f2f6c311c6128fe86976950d3c0c2db07b03921
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+41
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+5e90c482
+	
+instance_navidrome__navidrome-e12a14a87d392ac70ee4cc8079e3c3e0103dbcb2
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+88
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+11e16bf5
+	
+instance_internetarchive__openlibrary-b4f7c185ae5f1824ac7f3a18e8adf6a4b468459c-v08d8e8889ec945ab821fb156c04c7d2e2810debb
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+27
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+963cdba7
+	
+instance_NodeBB__NodeBB-82562bec444940608052f3e4149e0c61ec80bf3f-vd59a5728dfc977f44533186ace531248c2917516
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+20
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+84e2a953
+	
+instance_internetarchive__openlibrary-c8996ecc40803b9155935fd7ff3b8e7be6c1437c-ve8fc82d8aae8463b752a211156c5b7b59f349237
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+46
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+1e8530b5
+	
+instance_tutao__tutanota-de49d486feef842101506adf040a0f00ded59519-v10a26bfb45a064b93f4fc044a0254925037b88f1
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+9
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e8837714
+	
+instance_NodeBB__NodeBB-2657804c1fb6b84dc76ad3b18ecf061aaab5f29f-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+16
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+dbd31fd2
+	
+instance_internetarchive__openlibrary-a7b7dc5735a1b3a9824376b1b469b556dd413981-va4315b5dc369c1ef66ae22f9ae4267aa3114e1b3
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+20
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+fcda76a0
+	
+instance_internetarchive__openlibrary-7cbfb812ef0e1f9716e2d6e85d538a96fcb79d13-vfa6ff903cb27f336e17654595dd900fa943dcd91
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+12
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+14c23b1d
+	
+instance_internetarchive__openlibrary-60725705782832a2cb22e17c49697948a42a9d03-v298a7a812ceed28c4c18355a091f1b268fe56d86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+29
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+78a14546
+	
+instance_internetarchive__openlibrary-322d7a46cdc965bfabbf9500e98fde098c9d95b2-v13642507b4fc1f8d234172bf8129942da2c2ca26
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+18
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+9e3f3f1f
+	
+instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+15
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+5c1c3af2
+	
+instance_element-hq__element-web-4c6b0d35add7ae8d58f71ea1711587e31081444b-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+true
+	
+41
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+efcbe599
+	
+instance_flipt-io__flipt-c154dd1a3590954dfd3b901555fc6267f646a289
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+25
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+a9561039
+	
+instance_protonmail__webclients-a6e6f617026794e7b505d649d2a7a9cdf17658c8
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+2
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+47ee3f61
+	
+instance_ansible__ansible-d9f1866249756efc264b00ff7497e92c11a9885f-v0f01c69f1e2528b935359cfe578530722bca2c59
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+14
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+30986efd
+	
+instance_qutebrowser__qutebrowser-e15d26630934d0b6415ed2295ac42fd570a57620-va0fd88aac89cde702ec1ba84877234da33adce8a
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+21
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c75bd595
+	
+instance_ansible__ansible-1ee70fc272aff6bf3415357c6e13c5de5b928d9b-v1055803c3a812189a1133297f7f5468579283f86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+12
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+f7622a59
+	
+instance_NodeBB__NodeBB-be43cd25974681c9743d424238b7536c357dc8d3-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+156
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+a81103c4
+	
+instance_internetarchive__openlibrary-09865f5fb549694d969f0a8e49b9d204ef1853ca-ve8c8d62a2b60610a3c4631f5f23ed866bada9818
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+30
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+d84d94bb
+	
+instance_flipt-io__flipt-cd18e54a0371fa222304742c6312e9ac37ea86c1
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+31
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+0f2e0ce8
+	
+instance_navidrome__navidrome-55730514ea59d5f1d0b8e3f8745569c29bdbf7b4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+43
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+b2d61c24
+	
+instance_navidrome__navidrome-874b17b8f614056df0ef021b5d4f977341084185
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+30
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+0d949753
+	
+instance_flipt-io__flipt-abaa5953795afb9c621605bb18cb32ac48b4508c
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+52
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e03edcd1
+	
+instance_NodeBB__NodeBB-1ea9481af6125ffd6da0592ed439aa62af0bca11-vd59a5728dfc977f44533186ace531248c2917516
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+76
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+87471904
+	
+instance_gravitational__teleport-65438e6e44b6ce51458d09b7bb028a2797cfb0ea-vce94f93ad1030e3136852817f2423c1b3ac37bc4
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+32
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+623ae770
+	
+instance_future-architect__vuls-fe8d252c51114e922e6836055ef86a15f79ad042
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+34
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+c9f3d2a4
+	
+instance_ansible__ansible-935528e22e5283ee3f63a8772830d3d01f55ed8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+27
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+9c582c27
+	
+instance_flipt-io__flipt-29d3f9db40c83434d0e3cc082af8baec64c391a9
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+116
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+09abf44f
+	
+instance_tutao__tutanota-51818218c6ae33de00cbea3a4d30daac8c34142e-vc4e41fd0029957297843cb9dec4a25c7c756f029
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+38
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+7934da57
+	
+instance_element-hq__element-web-33299af5c9b7a7ec5a9c31d578d4ec5b18088fb7-vnan
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+14
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+e72931de
+	
+instance_flipt-io__flipt-36e62baffae2132f78f9d34dc300a9baa2d7ae0e
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+45
+	
+Oct 22, 2025, 9:44 PM UTC
+
+
+8d0638c8
+	
+instance_ansible__ansible-e40889e7112ae00a21a2c74312b330e67a766cc0-v1055803c3a812189a1133297f7f5468579283f86
+	
+Gemini 2.5 Pro Preview -- debug-oct22
+	
+false
+	
+61
+	
+Oct 22, 2025, 9:44 PM UTC
+

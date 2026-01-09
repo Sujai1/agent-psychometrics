@@ -327,6 +327,163 @@ mkdir -p ~/.lunette
 echo '{"api_key": "your-key-here"}' > ~/.lunette/config.json
 ```
 
+#### Batch Upload System
+
+Upload existing SWE-bench agent trajectories to Lunette for analysis:
+
+```bash
+# Upload all agents
+python llm_judge/lunette_batch_upload.py
+
+# Upload specific agents
+python llm_judge/lunette_batch_upload.py --agents 20240620_sweagent_claude3.5sonnet
+
+# Dry run to see what would be uploaded
+python llm_judge/lunette_batch_upload.py --dry_run
+```
+
+**Key features:**
+- Automatically batches large uploads (>100 trajectories split into 100-trajectory runs)
+- Creates tracking files at `trajectory_data/unified_trajs/<agent>/_lunette_uploads.json`
+- Supports force re-upload with `--force` flag
+
+**Tracking file structure:**
+```json
+{
+  "agent": "20240620_sweagent_claude3.5sonnet",
+  "run_ids": ["4b42140c-...", "c5dd5b11-...", ...],
+  "uploaded_at": "2026-01-08T12:34:56.123456",
+  "trajectories": [
+    {
+      "task_id": "django__django-11728",
+      "trajectory_id": "0f77e97b-0dd2-406d-8b4f-54c123c6e139",
+      "resolved": false,
+      "message_count": 91
+    }
+  ]
+}
+```
+
+#### Mapping Augmentation
+
+Pre-compute task-to-run mappings to avoid repeated API queries (see [LUNETTE_AUGMENT_MAPPINGS.md](llm_judge/LUNETTE_AUGMENT_MAPPINGS.md)):
+
+```bash
+# Augment all agents (recommended after upload)
+python llm_judge/lunette_augment_mappings.py
+
+# Augment specific agents
+python llm_judge/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
+
+# Force re-augmentation
+python llm_judge/lunette_augment_mappings.py --force
+```
+
+**What it does:**
+- Queries Lunette API once per agent to determine task distribution across runs
+- Stores both forward (`task_id -> run_id`) and reverse (`run_id -> [task_ids]`) mappings
+- Augments each trajectory object with its `run_id` field
+
+**Augmented tracking file structure:**
+```json
+{
+  "agent": "20240620_sweagent_claude3.5sonnet",
+  "run_ids": ["4b42140c-...", "c5dd5b11-...", ...],
+  "task_to_run_map": {
+    "django__django-11728": "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785",
+    "astropy__astropy-12907": "c5dd5b11-8b03-4082-b20b-ec0c1f012c74"
+  },
+  "run_to_tasks_map": {
+    "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785": ["django__django-11728", ...],
+    "c5dd5b11-8b03-4082-b20b-ec0c1f012c74": ["astropy__astropy-12907", ...]
+  },
+  "task_to_run_map_updated_at": "2026-01-08T14:30:52.123456",
+  "trajectories": [
+    {
+      "task_id": "django__django-11728",
+      "trajectory_id": "0f77e97b-0dd2-406d-8b4f-54c123c6e139",
+      "resolved": false,
+      "message_count": 91,
+      "run_id": "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785"
+    }
+  ]
+}
+```
+
+#### Batch Grading System
+
+Grade uploaded trajectories to evaluate how features predict IRT difficulty and discriminate between agents (see [LUNETTE_BATCH_GRADING.md](llm_judge/LUNETTE_BATCH_GRADING.md)):
+
+```bash
+# Dry run to see execution plan
+python llm_judge/lunette_batch_grading.py --dry_run --n_tasks 50 --n_agents 3
+
+# Grade 50 tasks across 3 agents (~$75)
+python llm_judge/lunette_batch_grading.py --n_tasks 50 --n_agents 3
+
+# Grade specific agents
+python llm_judge/lunette_batch_grading.py \
+  --agents 20240620_sweagent_claude3.5sonnet 20240728_sweagent_gpt4o \
+  --n_tasks 50
+```
+
+**Features extracted (12 total):**
+- **Task-intrinsic (7)**: fix_in_description, problem_clarity, error_message_provided, reproduction_steps, fix_locality, domain_knowledge_required, fix_complexity
+- **Trajectory-based (5)**: agent_declared_success_wrongly, agent_looping, agent_expressed_uncertainty, agent_wrong_file_focus, agent_gave_up_early
+
+**Two types of analysis:**
+1. **Correlation analysis**: Which features predict task difficulty? (Pearson r with IRT `b`)
+2. **Discrimination analysis**: Which features differentiate agents? (between_agent_var / within_agent_var)
+
+**Output files** (saved to `chris_output/lunette_grading/`):
+- `grading_results_TIMESTAMP.csv` - Raw feature scores per trajectory
+- `correlations_TIMESTAMP.csv` - Correlation with IRT difficulty
+- `discrimination_TIMESTAMP.csv` - Feature discrimination ratios
+
+#### Accessing Uploaded Trajectories
+
+**Python API:**
+```python
+import json
+from pathlib import Path
+
+# Load augmented tracking file
+agent_dir = Path("trajectory_data/unified_trajs/20240620_sweagent_claude3.5sonnet")
+with open(agent_dir / "_lunette_uploads.json") as f:
+    data = json.load(f)
+
+# Forward mapping: task_id -> run_id
+task_to_run = data["task_to_run_map"]
+run_id = task_to_run["django__django-11728"]
+
+# Reverse mapping: run_id -> list of task_ids
+run_to_tasks = data["run_to_tasks_map"]
+tasks_in_run = run_to_tasks["4b42140c-d28b-4bcd-b6ad-5f09e7c8e785"]
+
+# Iterate through trajectories (each has run_id already)
+for traj in data["trajectories"]:
+    print(f"{traj['task_id']} -> {traj['run_id']}")
+```
+
+**Data loader utility:**
+```python
+from llm_judge.evolutionary.lunette_data_loader import LunetteDataLoader
+
+loader = LunetteDataLoader(
+    items_path=Path("chris_output/clean_data/swebench_verified_20250930_full/1d/items.csv"),
+    trajectories_dir=Path("trajectory_data/unified_trajs"),
+)
+
+# Get all agents with uploaded trajectories
+agents = loader.get_agents()
+
+# Filter by agent
+trajs = loader.filter_by_agent("20240620_sweagent_claude3.5sonnet")
+
+# Stratified sample by difficulty
+sample = loader.stratified_sample(n_tasks=50, n_agents=3, seed=42)
+```
+
 #### Running SWE-bench Evals
 
 ```bash
@@ -411,6 +568,13 @@ python -m analysis.download_logs evaluation/verified/20240620_sweagent_claude3.5
 | File | Purpose |
 |------|---------|
 | `llm_judge/llm_judge.py` | Direct LLM feature extraction |
-| `llm_judge/lunette_analysis.py` | Lunette-based grading (run with `--grade_tasks 50`) |
-| `chris_output/lunette/task_features_50_extracted.csv` | Raw feature values for 39 tasks |
-| `chris_output/lunette/correlation_summary.csv` | Correlation results with IRT difficulty |
+| `llm_judge/lunette_analysis.py` | Original Lunette-based grading (single-upload) |
+| `llm_judge/lunette_batch_upload.py` | Batch upload trajectories to Lunette |
+| `llm_judge/lunette_augment_mappings.py` | Pre-compute task-to-run mappings |
+| `llm_judge/lunette_batch_grading.py` | Batch grading of uploaded trajectories |
+| `llm_judge/evolutionary/lunette_data_loader.py` | Data loader for uploaded trajectories |
+| `llm_judge/LUNETTE_BATCH_GRADING.md` | Batch grading documentation |
+| `llm_judge/LUNETTE_AUGMENT_MAPPINGS.md` | Mapping augmentation documentation |
+| `chris_output/lunette/task_features_50_extracted.csv` | Raw feature values (original grading, n=39) |
+| `chris_output/lunette/correlation_summary.csv` | Correlation results (original grading) |
+| `chris_output/lunette_grading/` | Batch grading results directory |

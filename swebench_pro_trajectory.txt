@@ -1,0 +1,1939 @@
+Current Collection:
+Agent Runs
+Rubrics
+Charts
+Label Sets
+Chats
+Ingestion Jobs
+Collection: SWE-Bench Pro Trajectories (v3)
+032fb63d
+Agent Run
+eaa8e4b1
+Docs
+Slack
+Read-only
+Toggle theme
+Agent Run
+eaa8e4b1
+Metadata
+turns: 30
+resolved: false
+model_name: Kimi - paper
+instance_id: instance_flipt-io__flipt-cd18e54a0371fa222304742c6312e9ac37ea86c1
+...
+Transcript
+c41616a2
+Metadata
+No transcript metadata
+Comments
+Minimap (55 messages)
+System
+User
+Assistant
+Tool
+Error
+Comments
+Block 0 | User
+Observation: 
+/app/examples/basic/main.go
+/app/examples/openfeature/main.go
+/app/config/migrations/migrations.go
+/app/_tools/tools.go
+/app/errors/errors.go
+/app/cmd/flipt/export.go
+/app/cmd/flipt/import.go
+/app/cmd/flipt/validate.go
+/app/cmd/flipt/server.go
+/app/cmd/flipt/main.go
+/app/cmd/flipt/banner.go
+/app/magefile.go
+/app/ui/embed.go
+/app/ui/dev.go
+/app/rpc/flipt/flipt_grpc.pb.go
+/app/rpc/flipt/validation.go
+/app/rpc/flipt/auth/auth_grpc.pb.go
+/app/rpc/flipt/auth/auth.pb.go
+/app/rpc/flipt/auth/auth.pb.gw.go
+/app/rpc/flipt/flipt.pb.gw.go
+
+
+
+Block 1 | Assistant
+I'll help you implement the necessary changes to meet the requirements in the PR description. Let's start by exploring the repository structure to understand the codebase better.
+Block 2 | User
+Observation: 
+/app/config/migrations/migrations.go
+/app/internal/config/storage.go
+/app/internal/config/server.go
+/app/internal/config/database.go
+/app/internal/config/config.go
+/app/internal/config/audit.go
+/app/internal/config/deprecations.go
+/app/internal/config/tracing.go
+/app/internal/config/authentication.go
+/app/internal/config/meta.go
+/app/internal/config/log.go
+/app/internal/config/errors.go
+/app/internal/config/cors.go
+/app/internal/config/ui.go
+/app/internal/config/cache.go
+/app/internal/config/config_test.go
+/app/internal/config/experimental.go
+
+
+
+Block 3 | Assistant
+Let's look specifically for the internal/config directory mentioned in the PR description:
+Block 4 | User
+Observation: 
+Here's the result of running `cat -n` on /app/internal/config/config.go:
+     1	package config
+     2	
+     3	import (
+     4	        "encoding/json"
+     5	        "fmt"
+     6	        "net/http"
+     7	        "os"
+     8	        "reflect"
+     9	        "strings"
+    10	
+    11	        "github.com/mitchellh/mapstructure"
+    12	        "github.com/spf13/viper"
+    13	        "golang.org/x/exp/constraints"
+    14	)
+    15	
+    16	var decodeHooks = []mapstructure.DecodeHookFunc{
+    17	        mapstructure.StringToTimeDurationHookFunc(),
+    18	        stringToSliceHookFunc(),
+    19	        stringToEnumHookFunc(stringToLogEncoding),
+    20	        stringToEnumHookFunc(stringToCacheBackend),
+    21	        stringToEnumHookFunc(stringToTracingExporter),
+    22	        stringToEnumHookFunc(stringToScheme),
+    23	        stringToEnumHookFunc(stringToDatabaseProtocol),
+    24	        stringToEnumHookFunc(stringToAuthMethod),
+    25	}
+    26	
+    27	// Config contains all of Flipts configuration needs.
+    28	//
+    29	// The root of this structure contains a collection of sub-configuration categories.
+    30	//
+    31	// Each sub-configuration (e.g. LogConfig) optionally implements either or both of
+    32	// the defaulter or validator interfaces.
+    33	// Given the sub-config implements a `setDefaults(*viper.Viper) []string` method
+    34	// then this will be called with the viper context before unmarshalling.
+    35	// This allows the sub-configuration to set any appropriate defaults.
+    36	// Given the sub-config implements a `validate() error` method
+    37	// then this will be called after unmarshalling, such that the function can emit
+    38	// any errors derived from the resulting state of the configuration.
+    39	type Config struct {
+    40	        Version        string               `json:"version,omitempty"`
+    41	        Experimental   ExperimentalConfig   `json:"experimental,omitempty" mapstructure:"experimental"`
+    42	        Log            LogConfig            `json:"log,omitempty" mapstructure:"log"`
+    43	        UI             UIConfig             `json:"ui,omitempty" mapstructure:"ui"`
+    44	        Cors           CorsConfig           `json:"cors,omitempty" mapstructure:"cors"`
+    45	        Cache          CacheConfig          `json:"cache,omitempty" mapstructure:"cache"`
+    46	        Server         ServerConfig         `json:"server,omitempty" mapstructure:"server"`
+    47	        Storage        StorageConfig        `json:"storage,omitempty" mapstructure:"storage" experiment:"filesystem_storage"`
+    48	        Tracing        TracingConfig        `json:"tracing,omitempty" mapstructure:"tracing"`
+    49	        Database       DatabaseConfig       `json:"db,omitempty" mapstructure:"db"`
+    50	        Meta           MetaConfig           `json:"meta,omitempty" mapstructure:"meta"`
+    51	        Authentication AuthenticationConfig `json:"authentication,omitempty" mapstructure:"authentication"`
+    52	        Audit          AuditConfig          `json:"audit,omitempty" mapstructure:"audit"`
+    53	}
+    54	
+    55	type Result struct {
+    56	        Config   *Config
+    57	        Warnings []string
+    58	}
+    59	
+    60	func Load(path string) (*Result, error) {
+    61	        v := viper.New()
+    62	        v.SetEnvPrefix("FLIPT")
+    63	        v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+    64	        v.AutomaticEnv()
+    65	
+    66	        v.SetConfigFile(path)
+    67	
+    68	        if err := v.ReadInConfig(); err != nil {
+    69	                return nil, fmt.Errorf("loading configuration: %w", err)
+    70	        }
+    71	
+    72	        var (
+    73	                cfg         = &Config{}
+    74	                result      = &Result{Config: cfg}
+    75	                deprecators []deprecator
+    76	                defaulters  []defaulter
+    77	                validators  []validator
+    78	        )
+    79	
+    80	        f := func(field any) {
+    81	                // for-each deprecator implementing field we collect
+    82	                // them up and return them to be run before unmarshalling and before setting defaults.
+    83	                if deprecator, ok := field.(deprecator); ok {
+    84	                        deprecators = append(deprecators, deprecator)
+    85	                }
+    86	
+    87	                // for-each defaulter implementing fields we invoke
+    88	                // setting any defaults during this prepare stage
+    89	                // on the supplied viper.
+    90	                if defaulter, ok := field.(defaulter); ok {
+    91	                        defaulters = append(defaulters, defaulter)
+    92	                }
+    93	
+    94	                // for-each validator implementing field we collect
+    95	                // them up and return them to be validated after
+    96	                // unmarshalling.
+    97	                if validator, ok := field.(validator); ok {
+    98	                        validators = append(validators, validator)
+    99	                }
+   100	        }
+   101	
+   102	        // invoke the field visitor on the root config firsts
+   103	        root := reflect.ValueOf(cfg).Interface()
+   104	        f(root)
+   105	
+   106	        // these are reflected config top-level types for fields where
+   107	        // they have been marked as experimental and their associated
+   108	        // flag has enabled set to false.
+   109	        var skippedTypes []reflect.Type
+   110	
+   111	        val := reflect.ValueOf(cfg).Elem()
+   112	        for i := 0; i < val.NumField(); i++ {
+   113	                // search for all expected env vars since Viper cannot
+   114	                // infer when doing Unmarshal + AutomaticEnv.
+   115	                // see: https://github.com/spf13/viper/issues/761
+   116	                structField := val.Type().Field(i)
+   117	                if exp := structField.Tag.Get("experiment"); exp != "" {
+   118	                        // TODO(georgemac): register target for skipping
+   119	                        if !v.GetBool(fmt.Sprintf("experimental.%s.enabled", exp)) {
+   120	                                skippedTypes = append(skippedTypes, structField.Type)
+   121	                        }
+   122	                }
+   123	
+   124	                key := fieldKey(structField)
+   125	                bindEnvVars(v, getFliptEnvs(), []string{key}, structField.Type)
+   126	
+   127	                field := val.Field(i).Addr().Interface()
+   128	                f(field)
+   129	        }
+   130	
+   131	        // run any deprecations checks
+   132	        for _, deprecator := range deprecators {
+   133	                warnings := deprecator.deprecations(v)
+   134	                for _, warning := range warnings {
+   135	                        result.Warnings = append(result.Warnings, warning.String())
+   136	                }
+   137	        }
+   138	
+   139	        // run any defaulters
+   140	        for _, defaulter := range defaulters {
+   141	                defaulter.setDefaults(v)
+   142	        }
+   143	
+   144	        if err := v.Unmarshal(cfg, viper.DecodeHook(
+   145	                mapstructure.ComposeDecodeHookFunc(
+   146	                        append(decodeHooks, experimentalFieldSkipHookFunc(skippedTypes...))...,
+   147	                ),
+   148	        )); err != nil {
+   149	                return nil, err
+   150	        }
+   151	
+   152	        // run any validation steps
+   153	        for _, validator := range validators {
+   154	                if err := validator.validate(); err != nil {
+   155	                        return nil, err
+   156	                }
+   157	        }
+   158	
+   159	        return result, nil
+   160	}
+   161	
+   162	type defaulter interface {
+   163	        setDefaults(v *viper.Viper)
+   164	}
+   165	
+   166	type validator interface {
+   167	        validate() error
+   168	}
+   169	
+   170	type deprecator interface {
+   171	        deprecations(v *viper.Viper) []deprecation
+   172	}
+   173	
+   174	// fieldKey returns the name to be used when deriving a fields env var key.
+   175	// If marked as squash the key will be the empty string.
+   176	// Otherwise, it is derived from the lowercase name of the field.
+   177	func fieldKey(field reflect.StructField) string {
+   178	        if tag := field.Tag.Get("mapstructure"); tag != "" {
+   179	                tag, attr, ok := strings.Cut(tag, ",")
+   180	                if !ok || attr == "squash" {
+   181	                        return tag
+   182	                }
+   183	        }
+   184	
+   185	        return strings.ToLower(field.Name)
+   186	}
+   187	
+   188	type envBinder interface {
+   189	        MustBindEnv(...string)
+   190	}
+   191	
+   192	// bindEnvVars descends into the provided struct field binding any expected
+   193	// environment variable keys it finds reflecting struct and field tags.
+   194	func bindEnvVars(v envBinder, env, prefixes []string, typ reflect.Type) {
+   195	        // descend through pointers
+   196	        if typ.Kind() == reflect.Pointer {
+   197	                typ = typ.Elem()
+   198	        }
+   199	
+   200	        switch typ.Kind() {
+   201	        case reflect.Map:
+   202	                // recurse into bindEnvVars while signifying that the last
+   203	                // key was unbound using the wildcard "*".
+   204	                bindEnvVars(v, env, append(prefixes, wildcard), typ.Elem())
+   205	
+   206	                return
+   207	        case reflect.Struct:
+   208	                for i := 0; i < typ.NumField(); i++ {
+   209	                        var (
+   210	                                structField = typ.Field(i)
+   211	                                key         = fieldKey(structField)
+   212	                        )
+   213	
+   214	                        bind(env, prefixes, key, func(prefixes []string) {
+   215	                                bindEnvVars(v, env, prefixes, structField.Type)
+   216	                        })
+   217	                }
+   218	
+   219	                return
+   220	        }
+   221	
+   222	        bind(env, prefixes, "", func(prefixes []string) {
+   223	                v.MustBindEnv(strings.Join(prefixes, "."))
+   224	        })
+   225	}
+   226	
+   227	const wildcard = "*"
+   228	
+   229	func appendIfNotEmpty(s []string, v ...string) []string {
+   230	        for _, vs := range v {
+   231	                if vs != "" {
+   232	                        s = append(s, vs)
+   233	                }
+   234	        }
+   235	
+   236	        return s
+   237	}
+   238	
+   239	// bind invokes the supplied function "fn" with each possible set of
+   240	// prefixes for the next prefix ("next").
+   241	// If the last prefix is "*" then we must search the current environment
+   242	// for matching env vars to obtain the potential keys which populate
+   243	// the unbound map keys.
+   244	func bind(env, prefixes []string, next string, fn func([]string)) {
+   245	        // given the previous entry is non-existent or not the wildcard
+   246	        if len(prefixes) < 1 || prefixes[len(prefixes)-1] != wildcard {
+   247	                fn(appendIfNotEmpty(prefixes, next))
+   248	                return
+   249	        }
+   250	
+   251	        // drop the wildcard and derive all the possible keys from
+   252	        // existing environment variables.
+   253	        p := make([]string, len(prefixes)-1)
+   254	        copy(p, prefixes[:len(prefixes)-1])
+   255	
+   256	        var (
+   257	                // makezero linter doesn't take note of subsequent copy
+   258	                // nolint https://github.com/ashanbrown/makezero/issues/12
+   259	                prefix = strings.ToUpper(strings.Join(append(p, ""), "_"))
+   260	                keys   = strippedKeys(env, prefix, strings.ToUpper(next))
+   261	        )
+   262	
+   263	        for _, key := range keys {
+   264	                fn(appendIfNotEmpty(p, strings.ToLower(key), next))
+   265	        }
+   266	}
+   267	
+   268	// strippedKeys returns a set of keys derived from a list of env var keys.
+   269	// It starts by filtering and stripping each key with a matching prefix.
+   270	// Given a child delimiter string is supplied it also trims the delimeter string
+   271	// and any remaining characters after this suffix.
+   272	//
+   273	// e.g strippedKeys(["A_B_C_D", "A_B_F_D", "A_B_E_D_G"], "A_B", "D")
+   274	// returns ["c", "f", "e"]
+   275	//
+   276	// It's purpose is to extract the parts of env vars which are likely
+   277	// keys in an arbitrary map type.
+   278	func strippedKeys(envs []string, prefix, delim string) (keys []string) {
+   279	        for _, env := range envs {
+   280	                if strings.HasPrefix(env, prefix) {
+   281	                        env = env[len(prefix):]
+   282	                        if env == "" {
+   283	                                continue
+   284	                        }
+   285	
+   286	                        if delim == "" {
+   287	                                keys = append(keys, env)
+   288	                                continue
+   289	                        }
+   290	
+   291	                        // cut the string on the child key and take the left hand component
+   292	                        if left, _, ok := strings.Cut(env, "_"+delim); ok {
+   293	                                keys = append(keys, left)
+   294	                        }
+   295	                }
+   296	        }
+   297	        return
+   298	}
+   299	
+   300	// getFliptEnvs returns all environment variables which have FLIPT_
+   301	// as a prefix. It also strips this prefix before appending them to the
+   302	// resulting set.
+   303	func getFliptEnvs() (envs []string) {
+   304	        const prefix = "FLIPT_"
+   305	        for _, e := range os.Environ() {
+   306	                key, _, ok := strings.Cut(e, "=")
+   307	                if ok && strings.HasPrefix(key, prefix) {
+   308	                        // strip FLIPT_ off env vars for convenience
+   309	                        envs = append(envs, key[len(prefix):])
+   310	                }
+   311	        }
+   312	        return envs
+   313	}
+   314	
+   315	func (c *Config) validate() (err error) {
+   316	        if c.Version != "" {
+   317	                if strings.TrimSpace(c.Version) != "1.0" {
+   318	                        return fmt.Errorf("invalid version: %s", c.Version)
+   319	                }
+   320	        }
+   321	        return nil
+   322	}
+   323	
+   324	func (c *Config) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+   325	        var (
+   326	                out []byte
+   327	                err error
+   328	        )
+   329	
+   330	        if r.Header.Get("Accept") == "application/json+pretty" {
+   331	                out, err = json.MarshalIndent(c, "", "  ")
+   332	        } else {
+   333	                out, err = json.Marshal(c)
+   334	        }
+   335	
+   336	        if err != nil {
+   337	                w.WriteHeader(http.StatusInternalServerError)
+   338	                return
+   339	        }
+   340	
+   341	        if _, err = w.Write(out); err != nil {
+   342	                w.WriteHeader(http.StatusInternalServerError)
+   343	                return
+   344	        }
+   345	}
+   346	
+   347	// stringToEnumHookFunc returns a DecodeHookFunc that converts strings to a target enum
+   348	func stringToEnumHookFunc[T constraints.Integer](mappings map[string]T) mapstructure.DecodeHookFunc {
+   349	        return func(
+   350	                f reflect.Type,
+   351	                t reflect.Type,
+   352	                data interface{}) (interface{}, error) {
+   353	                if f.Kind() != reflect.String {
+   354	                        return data, nil
+   355	                }
+   356	                if t != reflect.TypeOf(T(0)) {
+   357	                        return data, nil
+   358	                }
+   359	
+   360	                enum := mappings[data.(string)]
+   361	
+   362	                return enum, nil
+   363	        }
+   364	}
+   365	
+   366	func experimentalFieldSkipHookFunc(types ...reflect.Type) mapstructure.DecodeHookFunc {
+   367	        return func(
+   368	                f reflect.Type,
+   369	                t reflect.Type,
+   370	                data interface{}) (interface{}, error) {
+   371	                if len(types) == 0 {
+   372	                        return data, nil
+   373	                }
+   374	
+   375	                if t.Kind() != reflect.Struct {
+   376	                        return data, nil
+   377	                }
+   378	
+   379	                // skip any types that match a type in the provided set
+   380	                for _, typ := range types {
+   381	                        if t == typ {
+   382	                                return reflect.New(typ).Interface(), nil
+   383	                        }
+   384	                }
+   385	
+   386	                return data, nil
+   387	        }
+   388	}
+   389	
+   390	// stringToSliceHookFunc returns a DecodeHookFunc that converts
+   391	// string to []string by splitting using strings.Fields().
+   392	func stringToSliceHookFunc() mapstructure.DecodeHookFunc {
+   393	        return func(
+   394	                f reflect.Kind,
+   395	                t reflect.Kind,
+   396	                data interface{}) (interface{}, error) {
+   397	                if f != reflect.String || t != reflect.Slice {
+   398	                        return data, nil
+   399	                }
+   400	
+   401	                raw := data.(string)
+   402	                if raw == "" {
+   403	                        return []string{}, nil
+   404	                }
+   405	
+   406	                return strings.Fields(raw), nil
+   407	        }
+   408	}
+   409	
+
+
+
+
+Block 5 | Assistant
+Now let's examine the config.go file to understand the current structure:
+Block 6 | User
+Observation: 
+Here's the result of running `cat -n` on /app/internal/config/config_test.go:
+     1	package config
+     2	
+     3	import (
+     4	        "errors"
+     5	        "fmt"
+     6	        "io/fs"
+     7	        "io/ioutil"
+     8	        "net/http"
+     9	        "net/http/httptest"
+    10	        "os"
+    11	        "reflect"
+    12	        "strings"
+    13	        "testing"
+    14	        "time"
+    15	
+    16	        "github.com/santhosh-tekuri/jsonschema/v5"
+    17	        "github.com/stretchr/testify/assert"
+    18	        "github.com/stretchr/testify/require"
+    19	        "github.com/uber/jaeger-client-go"
+    20	        "gopkg.in/yaml.v2"
+    21	)
+    22	
+    23	func TestJSONSchema(t *testing.T) {
+    24	        _, err := jsonschema.Compile("../../config/flipt.schema.json")
+    25	        require.NoError(t, err)
+    26	}
+    27	
+    28	func TestScheme(t *testing.T) {
+    29	        tests := []struct {
+    30	                name   string
+    31	                scheme Scheme
+    32	                want   string
+    33	        }{
+    34	                {
+    35	                        name:   "https",
+    36	                        scheme: HTTPS,
+    37	                        want:   "https",
+    38	                },
+    39	                {
+    40	                        name:   "http",
+    41	                        scheme: HTTP,
+    42	                        want:   "http",
+    43	                },
+    44	        }
+    45	
+    46	        for _, tt := range tests {
+    47	                var (
+    48	                        scheme = tt.scheme
+    49	                        want   = tt.want
+    50	                )
+    51	
+    52	                t.Run(tt.name, func(t *testing.T) {
+    53	                        assert.Equal(t, want, scheme.String())
+    54	                        json, err := scheme.MarshalJSON()
+    55	                        assert.NoError(t, err)
+    56	                        assert.JSONEq(t, fmt.Sprintf("%q", want), string(json))
+    57	                })
+    58	        }
+    59	}
+    60	
+    61	func TestCacheBackend(t *testing.T) {
+    62	        tests := []struct {
+    63	                name    string
+    64	                backend CacheBackend
+    65	                want    string
+    66	        }{
+    67	                {
+    68	                        name:    "memory",
+    69	                        backend: CacheMemory,
+    70	                        want:    "memory",
+    71	                },
+    72	                {
+    73	                        name:    "redis",
+    74	                        backend: CacheRedis,
+    75	                        want:    "redis",
+    76	                },
+    77	        }
+    78	
+    79	        for _, tt := range tests {
+    80	                var (
+    81	                        backend = tt.backend
+    82	                        want    = tt.want
+    83	                )
+    84	
+    85	                t.Run(tt.name, func(t *testing.T) {
+    86	                        assert.Equal(t, want, backend.String())
+    87	                        json, err := backend.MarshalJSON()
+    88	                        assert.NoError(t, err)
+    89	                        assert.JSONEq(t, fmt.Sprintf("%q", want), string(json))
+    90	                })
+    91	        }
+    92	}
+    93	
+    94	func TestTracingExporter(t *testing.T) {
+    95	        tests := []struct {
+    96	                name     string
+    97	                exporter TracingExporter
+    98	                want     string
+    99	        }{
+   100	                {
+   101	                        name:     "jaeger",
+   102	                        exporter: TracingJaeger,
+   103	                        want:     "jaeger",
+   104	                },
+   105	                {
+   106	                        name:     "zipkin",
+   107	                        exporter: TracingZipkin,
+   108	                        want:     "zipkin",
+   109	                },
+   110	                {
+   111	                        name:     "otlp",
+   112	                        exporter: TracingOTLP,
+   113	                        want:     "otlp",
+   114	                },
+   115	        }
+   116	
+   117	        for _, tt := range tests {
+   118	                var (
+   119	                        exporter = tt.exporter
+   120	                        want     = tt.want
+   121	                )
+   122	
+   123	                t.Run(tt.name, func(t *testing.T) {
+   124	                        assert.Equal(t, want, exporter.String())
+   125	                        json, err := exporter.MarshalJSON()
+   126	                        assert.NoError(t, err)
+   127	                        assert.JSONEq(t, fmt.Sprintf("%q", want), string(json))
+   128	                })
+   129	        }
+   130	}
+   131	
+   132	func TestDatabaseProtocol(t *testing.T) {
+   133	        tests := []struct {
+   134	                name     string
+   135	                protocol DatabaseProtocol
+   136	                want     string
+   137	        }{
+   138	                {
+   139	                        name:     "postgres",
+   140	                        protocol: DatabasePostgres,
+   141	                        want:     "postgres",
+   142	                },
+   143	                {
+   144	                        name:     "mysql",
+   145	                        protocol: DatabaseMySQL,
+   146	                        want:     "mysql",
+   147	                },
+   148	                {
+   149	                        name:     "sqlite",
+   150	                        protocol: DatabaseSQLite,
+   151	                        want:     "file",
+   152	                },
+   153	        }
+   154	
+   155	        for _, tt := range tests {
+   156	                var (
+   157	                        protocol = tt.protocol
+   158	                        want     = tt.want
+   159	                )
+   160	
+   161	                t.Run(tt.name, func(t *testing.T) {
+   162	                        assert.Equal(t, want, protocol.String())
+   163	                        json, err := protocol.MarshalJSON()
+   164	                        assert.NoError(t, err)
+   165	                        assert.JSONEq(t, fmt.Sprintf("%q", want), string(json))
+   166	                })
+   167	        }
+   168	}
+   169	
+   170	func TestLogEncoding(t *testing.T) {
+   171	        tests := []struct {
+   172	                name     string
+   173	                encoding LogEncoding
+   174	                want     string
+   175	        }{
+   176	                {
+   177	                        name:     "console",
+   178	                        encoding: LogEncodingConsole,
+   179	                        want:     "console",
+   180	                },
+   181	                {
+   182	                        name:     "json",
+   183	                        encoding: LogEncodingJSON,
+   184	                        want:     "json",
+   185	                },
+   186	        }
+   187	
+   188	        for _, tt := range tests {
+   189	                var (
+   190	                        encoding = tt.encoding
+   191	                        want     = tt.want
+   192	                )
+   193	
+   194	                t.Run(tt.name, func(t *testing.T) {
+   195	                        assert.Equal(t, want, encoding.String())
+   196	                        json, err := encoding.MarshalJSON()
+   197	                        assert.NoError(t, err)
+   198	                        assert.JSONEq(t, fmt.Sprintf("%q", want), string(json))
+   199	                })
+   200	        }
+   201	}
+   202	
+   203	func defaultConfig() *Config {
+   204	        return &Config{
+   205	                Log: LogConfig{
+   206	                        Level:     "INFO",
+   207	                        Encoding:  LogEncodingConsole,
+   208	                        GRPCLevel: "ERROR",
+   209	                        Keys: LogKeys{
+   210	                                Time:    "T",
+   211	                                Level:   "L",
+   212	                                Message: "M",
+   213	                        },
+   214	                },
+   215	
+   216	                UI: UIConfig{
+   217	                        Enabled: true,
+   218	                },
+   219	
+   220	                Cors: CorsConfig{
+   221	                        Enabled:        false,
+   222	                        AllowedOrigins: []string{"*"},
+   223	                },
+   224	
+   225	                Cache: CacheConfig{
+   226	                        Enabled: false,
+   227	                        Backend: CacheMemory,
+   228	                        TTL:     1 * time.Minute,
+   229	                        Memory: MemoryCacheConfig{
+   230	                                EvictionInterval: 5 * time.Minute,
+   231	                        },
+   232	                        Redis: RedisCacheConfig{
+   233	                                Host:     "localhost",
+   234	                                Port:     6379,
+   235	                                Password: "",
+   236	                                DB:       0,
+   237	                        },
+   238	                },
+   239	
+   240	                Server: ServerConfig{
+   241	                        Host:      "0.0.0.0",
+   242	                        Protocol:  HTTP,
+   243	                        HTTPPort:  8080,
+   244	                        HTTPSPort: 443,
+   245	                        GRPCPort:  9000,
+   246	                },
+   247	
+   248	                Tracing: TracingConfig{
+   249	                        Enabled:  false,
+   250	                        Exporter: TracingJaeger,
+   251	                        Jaeger: JaegerTracingConfig{
+   252	                                Host: jaeger.DefaultUDPSpanServerHost,
+   253	                                Port: jaeger.DefaultUDPSpanServerPort,
+   254	                        },
+   255	                        Zipkin: ZipkinTracingConfig{
+   256	                                Endpoint: "http://localhost:9411/api/v2/spans",
+   257	                        },
+   258	                        OTLP: OTLPTracingConfig{
+   259	                                Endpoint: "localhost:4317",
+   260	                        },
+   261	                },
+   262	
+   263	                Database: DatabaseConfig{
+   264	                        URL:                       "file:/var/opt/flipt/flipt.db",
+   265	                        MaxIdleConn:               2,
+   266	                        PreparedStatementsEnabled: true,
+   267	                },
+   268	
+   269	                Meta: MetaConfig{
+   270	                        CheckForUpdates:  true,
+   271	                        TelemetryEnabled: true,
+   272	                        StateDirectory:   "",
+   273	                },
+   274	
+   275	                Authentication: AuthenticationConfig{
+   276	                        Session: AuthenticationSession{
+   277	                                TokenLifetime: 24 * time.Hour,
+   278	                                StateLifetime: 10 * time.Minute,
+   279	                        },
+   280	                },
+   281	
+   282	                Audit: AuditConfig{
+   283	                        Sinks: SinksConfig{
+   284	                                LogFile: LogFileSinkConfig{
+   285	                                        Enabled: false,
+   286	                                        File:    "",
+   287	                                },
+   288	                        },
+   289	                        Buffer: BufferConfig{
+   290	                                Capacity:    2,
+   291	                                FlushPeriod: 2 * time.Minute,
+   292	                        },
+   293	                },
+   294	        }
+   295	}
+   296	
+   297	func TestLoad(t *testing.T) {
+   298	        tests := []struct {
+   299	                name     string
+   300	                path     string
+   301	                wantErr  error
+   302	                expected func() *Config
+   303	                warnings []string
+   304	        }{
+   305	                {
+   306	                        name:     "defaults",
+   307	                        path:     "./testdata/default.yml",
+   308	                        expected: defaultConfig,
+   309	                },
+   310	                {
+   311	                        name: "deprecated tracing jaeger enabled",
+   312	                        path: "./testdata/deprecated/tracing_jaeger_enabled.yml",
+   313	                        expected: func() *Config {
+   314	                                cfg := defaultConfig()
+   315	                                cfg.Tracing.Enabled = true
+   316	                                cfg.Tracing.Exporter = TracingJaeger
+   317	                                return cfg
+   318	                        },
+   319	                        warnings: []string{
+   320	                                "\"tracing.jaeger.enabled\" is deprecated and will be removed in a future version. Please use 'tracing.enabled' and 'tracing.exporter' instead.",
+   321	                        },
+   322	                },
+   323	                {
+   324	                        name: "deprecated cache memory enabled",
+   325	                        path: "./testdata/deprecated/cache_memory_enabled.yml",
+   326	                        expected: func() *Config {
+   327	                                cfg := defaultConfig()
+   328	                                cfg.Cache.Enabled = true
+   329	                                cfg.Cache.Backend = CacheMemory
+   330	                                cfg.Cache.TTL = -time.Second
+   331	                                return cfg
+   332	                        },
+   333	                        warnings: []string{
+   334	                                "\"cache.memory.enabled\" is deprecated and will be removed in a future version. Please use 'cache.enabled' and 'cache.backend' instead.",
+   335	                                "\"cache.memory.expiration\" is deprecated and will be removed in a future version. Please use 'cache.ttl' instead.",
+   336	                        },
+   337	                },
+   338	                {
+   339	                        name:     "deprecated cache memory items defaults",
+   340	                        path:     "./testdata/deprecated/cache_memory_items.yml",
+   341	                        expected: defaultConfig,
+   342	                        warnings: []string{
+   343	                                "\"cache.memory.enabled\" is deprecated and will be removed in a future version. Please use 'cache.enabled' and 'cache.backend' instead.",
+   344	                        },
+   345	                },
+   346	                {
+   347	                        name:     "deprecated database migrations path",
+   348	                        path:     "./testdata/deprecated/database_migrations_path.yml",
+   349	                        expected: defaultConfig,
+   350	                        warnings: []string{"\"db.migrations.path\" is deprecated and will be removed in a future version. Migrations are now embedded within Flipt and are no longer required on disk."},
+   351	                },
+   352	                {
+   353	                        name:     "deprecated database migrations path legacy",
+   354	                        path:     "./testdata/deprecated/database_migrations_path_legacy.yml",
+   355	                        expected: defaultConfig,
+   356	                        warnings: []string{"\"db.migrations.path\" is deprecated and will be removed in a future version. Migrations are now embedded within Flipt and are no longer required on disk."},
+   357	                },
+   358	                {
+   359	                        name: "deprecated ui disabled",
+   360	                        path: "./testdata/deprecated/ui_disabled.yml",
+   361	                        expected: func() *Config {
+   362	                                cfg := defaultConfig()
+   363	                                cfg.UI.Enabled = false
+   364	                                return cfg
+   365	                        },
+   366	                        warnings: []string{"\"ui.enabled\" is deprecated and will be removed in a future version."},
+   367	                },
+   368	                {
+   369	                        name: "cache no backend set",
+   370	                        path: "./testdata/cache/default.yml",
+   371	                        expected: func() *Config {
+   372	                                cfg := defaultConfig()
+   373	                                cfg.Cache.Enabled = true
+   374	                                cfg.Cache.Backend = CacheMemory
+   375	                                cfg.Cache.TTL = 30 * time.Minute
+   376	                                return cfg
+   377	                        },
+   378	                },
+   379	                {
+   380	                        name: "cache memory",
+   381	                        path: "./testdata/cache/memory.yml",
+   382	                        expected: func() *Config {
+   383	                                cfg := defaultConfig()
+   384	                                cfg.Cache.Enabled = true
+   385	                                cfg.Cache.Backend = CacheMemory
+   386	                                cfg.Cache.TTL = 5 * time.Minute
+   387	                                cfg.Cache.Memory.EvictionInterval = 10 * time.Minute
+   388	                                return cfg
+   389	                        },
+   390	                },
+   391	                {
+   392	                        name: "cache redis",
+   393	                        path: "./testdata/cache/redis.yml",
+   394	                        expected: func() *Config {
+   395	                                cfg := defaultConfig()
+   396	                                cfg.Cache.Enabled = true
+   397	                                cfg.Cache.Backend = CacheRedis
+   398	                                cfg.Cache.TTL = time.Minute
+   399	                                cfg.Cache.Redis.Host = "localhost"
+   400	                                cfg.Cache.Redis.Port = 6378
+   401	                                cfg.Cache.Redis.DB = 1
+   402	                                cfg.Cache.Redis.Password = "s3cr3t!"
+   403	                                return cfg
+   404	                        },
+   405	                },
+   406	                {
+   407	                        name: "tracing zipkin",
+   408	                        path: "./testdata/tracing/zipkin.yml",
+   409	                        expected: func() *Config {
+   410	                                cfg := defaultConfig()
+   411	                                cfg.Tracing.Enabled = true
+   412	                                cfg.Tracing.Exporter = TracingZipkin
+   413	                                cfg.Tracing.Zipkin.Endpoint = "http://localhost:9999/api/v2/spans"
+   414	                                return cfg
+   415	                        },
+   416	                },
+   417	                {
+   418	                        name: "database key/value",
+   419	                        path: "./testdata/database.yml",
+   420	                        expected: func() *Config {
+   421	                                cfg := defaultConfig()
+   422	                                cfg.Database = DatabaseConfig{
+   423	                                        Protocol:                  DatabaseMySQL,
+   424	                                        Host:                      "localhost",
+   425	                                        Port:                      3306,
+   426	                                        User:                      "flipt",
+   427	                                        Password:                  "s3cr3t!",
+   428	                                        Name:                      "flipt",
+   429	                                        MaxIdleConn:               2,
+   430	                                        PreparedStatementsEnabled: true,
+   431	                                }
+   432	                                return cfg
+   433	                        },
+   434	                },
+   435	                {
+   436	                        name:    "server https missing cert file",
+   437	                        path:    "./testdata/server/https_missing_cert_file.yml",
+   438	                        wantErr: errValidationRequired,
+   439	                },
+   440	                {
+   441	                        name:    "server https missing cert key",
+   442	                        path:    "./testdata/server/https_missing_cert_key.yml",
+   443	                        wantErr: errValidationRequired,
+   444	                },
+   445	                {
+   446	                        name:    "server https defined but not found cert file",
+   447	                        path:    "./testdata/server/https_not_found_cert_file.yml",
+   448	                        wantErr: fs.ErrNotExist,
+   449	                },
+   450	                {
+   451	                        name:    "server https defined but not found cert key",
+   452	                        path:    "./testdata/server/https_not_found_cert_key.yml",
+   453	                        wantErr: fs.ErrNotExist,
+   454	                },
+   455	                {
+   456	                        name:    "database protocol required",
+   457	                        path:    "./testdata/database/missing_protocol.yml",
+   458	                        wantErr: errValidationRequired,
+   459	                },
+   460	                {
+   461	                        name:    "database host required",
+   462	                        path:    "./testdata/database/missing_host.yml",
+   463	                        wantErr: errValidationRequired,
+   464	                },
+   465	                {
+   466	                        name:    "database name required",
+   467	                        path:    "./testdata/database/missing_name.yml",
+   468	                        wantErr: errValidationRequired,
+   469	                },
+   470	                {
+   471	                        name:    "authentication token negative interval",
+   472	                        path:    "./testdata/authentication/token_negative_interval.yml",
+   473	                        wantErr: errPositiveNonZeroDuration,
+   474	                },
+   475	                {
+   476	                        name:    "authentication token zero grace_period",
+   477	                        path:    "./testdata/authentication/token_zero_grace_period.yml",
+   478	                        wantErr: errPositiveNonZeroDuration,
+   479	                },
+   480	                {
+   481	                        name: "authentication token with provided bootstrap token",
+   482	                        path: "./testdata/authentication/token_bootstrap_token.yml",
+   483	                        expected: func() *Config {
+   484	                                cfg := defaultConfig()
+   485	                                cfg.Authentication.Methods.Token.Method.Bootstrap = AuthenticationMethodTokenBootstrapConfig{
+   486	                                        Token:      "s3cr3t!",
+   487	                                        Expiration: 24 * time.Hour,
+   488	                                }
+   489	                                return cfg
+   490	                        },
+   491	                },
+   492	                {
+   493	                        name: "authentication session strip domain scheme/port",
+   494	                        path: "./testdata/authentication/session_domain_scheme_port.yml",
+   495	                        expected: func() *Config {
+   496	                                cfg := defaultConfig()
+   497	                                cfg.Authentication.Required = true
+   498	                                cfg.Authentication.Session.Domain = "localhost"
+   499	                                cfg.Authentication.Methods = AuthenticationMethods{
+   500	                                        Token: AuthenticationMethod[AuthenticationMethodTokenConfig]{
+   501	                                                Enabled: true,
+   502	                                                Cleanup: &AuthenticationCleanupSchedule{
+   503	                                                        Interval:    time.Hour,
+   504	                                                        GracePeriod: 30 * time.Minute,
+   505	                                                },
+   506	                                        },
+   507	                                        OIDC: AuthenticationMethod[AuthenticationMethodOIDCConfig]{
+   508	                                                Enabled: true,
+   509	                                                Cleanup: &AuthenticationCleanupSchedule{
+   510	                                                        Interval:    time.Hour,
+   511	                                                        GracePeriod: 30 * time.Minute,
+   512	                                                },
+   513	                                        },
+   514	                                }
+   515	                                return cfg
+   516	                        },
+   517	                },
+   518	                {
+   519	                        name: "authentication kubernetes defaults when enabled",
+   520	                        path: "./testdata/authentication/kubernetes.yml",
+   521	                        expected: func() *Config {
+   522	                                cfg := defaultConfig()
+   523	                                cfg.Authentication.Methods = AuthenticationMethods{
+   524	                                        Kubernetes: AuthenticationMethod[AuthenticationMethodKubernetesConfig]{
+   525	                                                Enabled: true,
+   526	                                                Method: AuthenticationMethodKubernetesConfig{
+   527	                                                        DiscoveryURL:            "https://kubernetes.default.svc.cluster.local",
+   528	                                                        CAPath:                  "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+   529	                                                        ServiceAccountTokenPath: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+   530	                                                },
+   531	                                                Cleanup: &AuthenticationCleanupSchedule{
+   532	                                                        Interval:    time.Hour,
+   533	                                                        GracePeriod: 30 * time.Minute,
+   534	                                                },
+   535	                                        },
+   536	                                }
+   537	                                return cfg
+   538	                        },
+   539	                },
+   540	                {
+   541	                        name: "advanced",
+   542	                        path: "./testdata/advanced.yml",
+   543	                        expected: func() *Config {
+   544	                                cfg := defaultConfig()
+   545	
+   546	                                cfg.Experimental.FilesystemStorage.Enabled = true
+   547	
+   548	                                cfg.Log = LogConfig{
+   549	                                        Level:     "WARN",
+   550	                                        File:      "testLogFile.txt",
+   551	                                        Encoding:  LogEncodingJSON,
+   552	                                        GRPCLevel: "ERROR",
+   553	                                        Keys: LogKeys{
+   554	                                                Time:    "time",
+   555	                                                Level:   "level",
+   556	                                                Message: "msg",
+   557	                                        },
+   558	                                }
+   559	                                cfg.Cors = CorsConfig{
+   560	                                        Enabled:        true,
+   561	                                        AllowedOrigins: []string{"foo.com", "bar.com", "baz.com"},
+   562	                                }
+   563	                                cfg.Cache.Enabled = true
+   564	                                cfg.Cache.Backend = CacheMemory
+   565	                                cfg.Cache.TTL = 1 * time.Minute
+   566	                                cfg.Cache.Memory = MemoryCacheConfig{
+   567	                                        EvictionInterval: 5 * time.Minute,
+   568	                                }
+   569	                                cfg.Server = ServerConfig{
+   570	                                        Host:      "127.0.0.1",
+   571	                                        Protocol:  HTTPS,
+   572	                                        HTTPPort:  8081,
+   573	                                        HTTPSPort: 8080,
+   574	                                        GRPCPort:  9001,
+   575	                                        CertFile:  "./testdata/ssl_cert.pem",
+   576	                                        CertKey:   "./testdata/ssl_key.pem",
+   577	                                }
+   578	                                cfg.Tracing = TracingConfig{
+   579	                                        Enabled:  true,
+   580	                                        Exporter: TracingJaeger,
+   581	                                        Jaeger: JaegerTracingConfig{
+   582	                                                Host: "localhost",
+   583	                                                Port: 6831,
+   584	                                        },
+   585	                                        Zipkin: ZipkinTracingConfig{
+   586	                                                Endpoint: "http://localhost:9411/api/v2/spans",
+   587	                                        },
+   588	                                        OTLP: OTLPTracingConfig{
+   589	                                                Endpoint: "localhost:4317",
+   590	                                        },
+   591	                                }
+   592	                                cfg.Storage = StorageConfig{
+   593	                                        Type: StorageType("database"),
+   594	                                }
+   595	                                cfg.Database = DatabaseConfig{
+   596	                                        URL:                       "postgres://postgres@localhost:5432/flipt?sslmode=disable",
+   597	                                        MaxIdleConn:               10,
+   598	                                        MaxOpenConn:               50,
+   599	                                        ConnMaxLifetime:           30 * time.Minute,
+   600	                                        PreparedStatementsEnabled: true,
+   601	                                }
+   602	                                cfg.Meta = MetaConfig{
+   603	                                        CheckForUpdates:  false,
+   604	                                        TelemetryEnabled: false,
+   605	                                }
+   606	                                cfg.Authentication = AuthenticationConfig{
+   607	                                        Required: true,
+   608	                                        Session: AuthenticationSession{
+   609	                                                Domain:        "auth.flipt.io",
+   610	                                                Secure:        true,
+   611	                                                TokenLifetime: 24 * time.Hour,
+   612	                                                StateLifetime: 10 * time.Minute,
+   613	                                                CSRF: AuthenticationSessionCSRF{
+   614	                                                        Key: "abcdefghijklmnopqrstuvwxyz1234567890", //gitleaks:allow
+   615	                                                },
+   616	                                        },
+   617	                                        Methods: AuthenticationMethods{
+   618	                                                Token: AuthenticationMethod[AuthenticationMethodTokenConfig]{
+   619	                                                        Enabled: true,
+   620	                                                        Cleanup: &AuthenticationCleanupSchedule{
+   621	                                                                Interval:    2 * time.Hour,
+   622	                                                                GracePeriod: 48 * time.Hour,
+   623	                                                        },
+   624	                                                },
+   625	                                                OIDC: AuthenticationMethod[AuthenticationMethodOIDCConfig]{
+   626	                                                        Method: AuthenticationMethodOIDCConfig{
+   627	                                                                Providers: map[string]AuthenticationMethodOIDCProvider{
+   628	                                                                        "google": {
+   629	                                                                                IssuerURL:       "http://accounts.google.com",
+   630	                                                                                ClientID:        "abcdefg",
+   631	                                                                                ClientSecret:    "bcdefgh",
+   632	                                                                                RedirectAddress: "http://auth.flipt.io",
+   633	                                                                        },
+   634	                                                                },
+   635	                                                        },
+   636	                                                        Enabled: true,
+   637	                                                        Cleanup: &AuthenticationCleanupSchedule{
+   638	                                                                Interval:    2<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with `grep -n` in order to find the line numbers of what you are looking for.</NOTE>
+
+
+
+
+Block 7 | Assistant
+Let's also check the test file to understand what the tests expect:
+Block 8 | User
+Observation: 
+16:	"github.com/santhosh-tekuri/jsonschema/v5"
+24:	_, err := jsonschema.Compile("../../config/flipt.schema.json")
+
+
+
+Block 9 | Assistant
+Let's see the end of the test file to find the CUE validation test or any related test:
+Block 10 | User
+Observation: 
+/app/config/flipt.schema.json
+/app/config/flipt.schema.cue
+
+
+
+Block 11 | Assistant
+Let's check for any schema tests:
+Block 12 | User
+Observation: 
+
+
+
+Block 13 | Assistant
+Let's check if there's a specific file for schema testing:
+Block 14 | User
+Observation: 
+
+
+
+Block 15 | Assistant
+Let's look for any CUE-related testing:
+Block 16 | User
+Observation: 
+
+
+
+Block 17 | Assistant
+Let's search for schema validation tests more broadly:
+Block 18 | User
+Observation: 
+/app/internal/config/authentication.go:7:	"testing"
+/app/internal/config/authentication.go:217:	// used for testing purposes to ensure all methods
+/app/internal/config/authentication.go:223:// Enable can only be called in a testing scenario.
+/app/internal/config/authentication.go:225:func (s StaticAuthenticationMethodInfo) Enable(t *testing.T) {
+/app/internal/config/authentication.go:229:// SetCleanup can only be called in a testing scenario.
+/app/internal/config/authentication.go:231:func (s StaticAuthenticationMethodInfo) SetCleanup(t *testing.T, c AuthenticationCleanupSchedule) {
+/app/internal/config/config_test.go:13:	"testing"
+/app/internal/config/config_test.go:23:func TestJSONSchema(t *testing.T) {
+/app/internal/config/config_test.go:28:func TestScheme(t *testing.T) {
+/app/internal/config/config_test.go:52:		t.Run(tt.name, func(t *testing.T) {
+/app/internal/config/config_test.go:61:func TestCacheBackend(t *testing.T) {
+/app/internal/config/config_test.go:85:		t.Run(tt.name, func(t *testing.T) {
+/app/internal/config/config_test.go:94:func TestTracingExporter(t *testing.T) {
+/app/internal/config/config_test.go:123:		t.Run(tt.name, func(t *testing.T) {
+/app/internal/config/config_test.go:132:func TestDatabaseProtocol(t *testing.T) {
+/app/internal/config/config_test.go:161:		t.Run(tt.name, func(t *testing.T) {
+/app/internal/config/config_test.go:170:func TestLogEncoding(t *testing.T) {
+/app/internal/config/config_test.go:194:		t.Run(tt.name, func(t *testing.T) {
+/app/internal/config/config_test.go:297:func TestLoad(t *testing.T) {
+/app/internal/config/config_test.go:739:		t.Run(tt.name+" (YAML)", func(t *testing.T) {
+/app/internal/config/config_test.go:761:		t.Run(tt.name+" (ENV)", func(t *testing.T) {
+/app/internal/config/config_test.go:802:func TestServeHTTP(t *testing.T) {
+/app/internal/config/config_test.go:823:func readYAMLIntoEnv(t *testing.T, path string) [][2]string {
+/app/internal/config/config_test.go:858:func Test_mustBindEnv(t *testing.T) {
+/app/internal/config/config_test.go:956:		t.Run(test.name, func(t *testing.T) {
+
+
+
+Block 19 | Assistant
+Let's look for any testing files that might be importing from the internal/config package:
+Block 20 | User
+Observation: 
+
+
+
+Block 21 | Assistant
+Let's look at the PR description again and check if we need to examine any tests in other directories. According to the description, there should be some tests that use `config.DecodeHooks` and `DefaultConfig` which are failing to compile. Let's search for test files that might be using these symbols:
+Block 22 | User
+Observation: 
+No matches found
+
+
+
+Block 23 | Assistant
+Let me run a more general search for these terms within test files:
+Block 24 | User
+Observation: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   rpc/
+.nancy-ignore            cmd/                     sdk/
+.prettierignore          codecov.yml              stackhawk.yml
+.vscode/                 config/                  ui/
+CHANGELOG.md             cosign.pub               
+
+
+
+
+
+
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   rpc/
+.nancy-ignore            cmd/                     sdk/
+.prettierignore          codecov.yml              stackhawk.yml
+.vscode/                 config/                  ui/
+CHANGELOG.md             cosign.pub               
+
+
+
+
+
+
+
+
+
+
+File created successfully at: /app/reproduce_error.go
+
+
+
+Block 25 | Assistant
+Based on the PR description, it seems that the issue is that tests are trying to use `config.DecodeHooks` and `DefaultConfig` but these symbols are not exported in the `internal/config` package. Let's create a simple reproduction script to verify the error.
+
+Let's create a script to reproduce the problem:
+Block 26 | User
+Observation: 
+
+
+
+
+
+
+
+
+
+
+The file /app/reproduce_error.go has been edited. Here's the result of running `cat -n` on a snippet of /app/reproduce_error.go:
+     1	package main
+     2	
+     3	import (
+     4	"fmt"
+     5	"encoding/json"
+     6	"github.com/mitchellh/mapstructure"
+     7	"github.com/flipt-io/flipt/internal/config"
+     8	)
+     9	
+    10	func main() {
+    11	// Try to access the unexported DefaultConfig symbol (this should fail)
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+
+
+Block 27 | Assistant
+Let's fix the import path since it's likely incorrect:
+Block 28 | User
+Observation: 
+reproduce_error.go:7:1: no required module provides package github.com/flipt-io/flipt/internal/config; to add it:
+	go get github.com/flipt-io/flipt/internal/config
+
+
+
+Block 29 | Assistant
+Now let's try to reproduce the error by running this script:
+Block 30 | User
+Observation: 
+usage: str_replace_editor [-h] [--file_text FILE_TEXT]
+                          [--view_range VIEW_RANGE VIEW_RANGE]
+                          [--old_str OLD_STR] [--new_str NEW_STR]
+                          [--insert_line INSERT_LINE]
+                          command path
+str_replace_editor: error: argument --view_range: expected 2 arguments
+
+
+
+Block 31 | Assistant
+Since we're in the repository, we need to adjust the import path to use the local module. Let's check the module name from go.mod:
+Block 32 | User
+Observation: 
+usage: str_replace_editor [-h] [--file_text FILE_TEXT]
+                          [--view_range VIEW_RANGE VIEW_RANGE]
+                          [--old_str OLD_STR] [--new_str NEW_STR]
+                          [--insert_line INSERT_LINE]
+                          command path
+str_replace_editor: error: argument --view_range: expected 2 arguments
+
+
+
+Block 33 | User
+Observation: 
+Here's the result of running `cat -n` on /app/go.mod:
+     1	module go.flipt.io/flipt
+     2	
+     3	go 1.20
+     4	
+     5	require (
+     6	        cuelang.org/go v0.5.0
+     7	        github.com/Masterminds/squirrel v1.5.4
+     8	        github.com/XSAM/otelsql v0.23.0
+     9	        github.com/blang/semver/v4 v4.0.0
+    10	        github.com/coreos/go-oidc/v3 v3.6.0
+    11	        github.com/docker/go-connections v0.4.0
+    12	        github.com/fatih/color v1.15.0
+    13	        github.com/go-chi/chi/v5 v5.0.8
+    14	        github.com/go-chi/cors v1.2.1
+    15	        github.com/go-git/go-billy/v5 v5.4.1
+    16	        github.com/go-git/go-git/v5 v5.7.0
+    17	        github.com/go-redis/cache/v9 v9.0.0
+    18	        github.com/go-sql-driver/mysql v1.7.1
+    19	        github.com/gobwas/glob v0.2.3
+    20	        github.com/gofrs/uuid v4.4.0+incompatible
+    21	        github.com/golang-migrate/migrate/v4 v4.16.1
+    22	        github.com/google/go-cmp v0.5.9
+    23	        github.com/google/go-github/v32 v32.1.0
+    24	        github.com/gorilla/csrf v1.7.1
+    25	        github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+    26	        github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+    27	        github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
+    28	        github.com/hashicorp/cap v0.3.1
+    29	        github.com/hashicorp/go-multierror v1.1.1
+    30	        github.com/lib/pq v1.10.9
+    31	        github.com/magefile/mage v1.15.0
+    32	        github.com/mattn/go-sqlite3 v1.14.16
+    33	        github.com/mitchellh/mapstructure v1.5.0
+    34	        github.com/patrickmn/go-cache v2.1.0+incompatible
+    35	        github.com/prometheus/client_golang v1.15.1
+    36	        github.com/redis/go-redis/v9 v9.0.3
+    37	        github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
+    38	        github.com/spf13/cobra v1.7.0
+    39	        github.com/spf13/viper v1.16.0
+    40	        github.com/stretchr/testify v1.8.4
+    41	        github.com/testcontainers/testcontainers-go v0.20.1
+    42	        github.com/uber/jaeger-client-go v2.30.0+incompatible
+    43	        github.com/xo/dburl v0.14.2
+    44	        go.flipt.io/flipt/errors v1.19.3
+    45	        go.flipt.io/flipt/rpc/flipt v1.22.0
+    46	        go.flipt.io/flipt/sdk/go v0.3.0
+    47	        go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.42.0
+    48	        go.opentelemetry.io/otel v1.16.0
+    49	        go.opentelemetry.io/otel/exporters/jaeger v1.16.0
+    50	        go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.16.0
+    51	        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.16.0
+    52	        go.opentelemetry.io/otel/exporters/prometheus v0.38.1
+    53	        go.opentelemetry.io/otel/exporters/zipkin v1.14.0
+    54	        go.opentelemetry.io/otel/metric v1.16.0
+    55	        go.opentelemetry.io/otel/sdk v1.16.0
+    56	        go.opentelemetry.io/otel/sdk/metric v0.39.0
+    57	        go.opentelemetry.io/otel/trace v1.16.0
+    58	        go.uber.org/zap v1.24.0
+    59	        golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
+    60	        golang.org/x/net v0.10.0
+    61	        golang.org/x/sync v0.2.0
+    62	        google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
+    63	        google.golang.org/grpc v1.55.0
+    64	        google.golang.org/protobuf v1.30.0
+    65	        gopkg.in/segmentio/analytics-go.v3 v3.1.0
+    66	        gopkg.in/yaml.v2 v2.4.0
+    67	        gopkg.in/yaml.v3 v3.0.1
+    68	)
+    69	
+    70	require (
+    71	        github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
+    72	        github.com/Microsoft/go-winio v0.6.1 // indirect
+    73	        github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
+    74	        github.com/acomagu/bufpipe v1.0.4 // indirect
+    75	        github.com/benbjohnson/clock v1.3.0 // indirect
+    76	        github.com/beorn7/perks v1.0.1 // indirect
+    77	        github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
+    78	        github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+    79	        github.com/cespare/xxhash/v2 v2.2.0 // indirect
+    80	        github.com/cloudflare/circl v1.3.3 // indirect
+    81	        github.com/cockroachdb/apd/v2 v2.0.2 // indirect
+    82	        github.com/cockroachdb/cockroach-go/v2 v2.1.1 // indirect
+    83	        github.com/codahale/hdrhistogram v0.0.0-00010101000000-000000000000 // indirect
+    84	        github.com/containerd/containerd v1.6.19 // indirect
+    85	        github.com/cpuguy83/dockercfg v0.3.1 // indirect
+    86	        github.com/davecgh/go-spew v1.1.1 // indirect
+    87	        github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+    88	        github.com/docker/distribution v2.8.2+incompatible // indirect
+    89	        github.com/docker/docker v23.0.5+incompatible // indirect
+    90	        github.com/docker/go-units v0.5.0 // indirect
+    91	        github.com/emirpasic/gods v1.18.1 // indirect
+    92	        github.com/fsnotify/fsnotify v1.6.0 // indirect
+    93	        github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
+    94	        github.com/go-jose/go-jose/v3 v3.0.0 // indirect
+    95	        github.com/go-logr/logr v1.2.4 // indirect
+    96	        github.com/go-logr/stdr v1.2.2 // indirect
+    97	        github.com/gogo/protobuf v1.3.2 // indirect
+    98	        github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+    99	        github.com/golang/protobuf v1.5.3 // indirect
+   100	        github.com/google/go-querystring v1.1.0 // indirect
+   101	        github.com/google/uuid v1.3.0 // indirect
+   102	        github.com/gorilla/securecookie v1.1.1 // indirect
+   103	        github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+   104	        github.com/hashicorp/errwrap v1.1.0 // indirect
+   105	        github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+   106	        github.com/hashicorp/go-hclog v1.4.0 // indirect
+   107	        github.com/hashicorp/go-uuid v1.0.3 // indirect
+   108	        github.com/hashicorp/hcl v1.0.0 // indirect
+   109	        github.com/imdario/mergo v0.3.15 // indirect
+   110	        github.com/inconshreveable/mousetrap v1.1.0 // indirect
+   111	        github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
+   112	        github.com/kevinburke/ssh_config v1.2.0 // indirect
+   113	        github.com/klauspost/compress v1.15.12 // indirect
+   114	        github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+   115	        github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
+   116	        github.com/magiconair/properties v1.8.7 // indirect
+   117	        github.com/mattn/go-colorable v0.1.13 // indirect
+   118	        github.com/mattn/go-isatty v0.0.17 // indirect
+   119	        github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
+   120	        github.com/moby/patternmatcher v0.5.0 // indirect
+   121	        github.com/moby/sys/sequential v0.5.0 // indirect
+   122	        github.com/moby/term v0.5.0 // indirect
+   123	        github.com/morikuni/aec v1.0.0 // indirect
+   124	        github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de // indirect
+   125	        github.com/onsi/gomega v1.26.0 // indirect
+   126	        github.com/opencontainers/go-digest v1.0.0 // indirect
+   127	        github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+   128	        github.com/opencontainers/runc v1.1.5 // indirect
+   129	        github.com/opentracing/opentracing-go v1.2.0 // indirect
+   130	        github.com/openzipkin/zipkin-go v0.4.1 // indirect
+   131	        github.com/pelletier/go-toml/v2 v2.0.8 // indirect
+   132	        github.com/pjbgf/sha1cd v0.3.0 // indirect
+   133	        github.com/pkg/errors v0.9.1 // indirect
+   134	        github.com/pmezard/go-difflib v1.0.0 // indirect
+   135	        github.com/prometheus/client_model v0.4.0 // indirect
+   136	        github.com/prometheus/common v0.43.0 // indirect
+   137	        github.com/prometheus/procfs v0.9.0 // indirect
+   138	        github.com/segmentio/backo-go v1.0.0 // indirect
+   139	        github.com/sergi/go-diff v1.1.0 // indirect
+   140	        github.com/sirupsen/logrus v1.9.2 // indirect
+   141	        github.com/skeema/knownhosts v1.1.1 // indirect
+   142	        github.com/spf13/afero v1.9.5 // indirect
+   143	        github.com/spf13/cast v1.5.1 // indirect
+   144	        github.com/spf13/jwalterweatherman v1.1.0 // indirect
+   145	        github.com/spf13/pflag v1.0.5 // indirect
+   146	        github.com/stretchr/objx v0.5.0 // indirect
+   147	        github.com/subosito/gotenv v1.4.2 // indirect
+   148	        github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
+   149	        github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
+   150	        github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+   151	        github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+   152	        github.com/xanzy/ssh-agent v0.3.3 // indirect
+   153	        github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
+   154	        go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.16.0 // indirect
+   155	        go.opentelemetry.io/proto/otlp v0.19.0 // indirect
+   156	        go.uber.org/atomic v1.11.0 // indirect
+   157	        go.uber.org/multierr v1.11.0 // indirect
+   158	        golang.org/x/crypto v0.9.0 // indirect
+   159	        golang.org/x/mod v0.10.0 // indirect
+   160	        golang.org/x/oauth2 v0.8.0 // indirect
+   161	        golang.org/x/sys v0.8.0 // indirect
+   162	        golang.org/x/text v0.9.0 // indirect
+   163	        golang.org/x/time v0.3.0 // indirect
+   164	        golang.org/x/tools v0.9.1 // indirect
+   165	        google.golang.org/appengine v1.6.7 // indirect
+   166	        google.golang.org/genproto v0.0.0-20230526203410-71b5a4ffd15e // indirect
+   167	        google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
+   168	        gopkg.in/ini.v1 v1.67.0 // indirect
+   169	        gopkg.in/warnings.v0 v0.1.2 // indirect
+   170	)
+   171	
+   172	replace (
+   173	        github.com/codahale/hdrhistogram => github.com/HdrHistogram/hdrhistogram-go v0.9.0
+   174	        github.com/dgrijalva/jwt-go v3.2.0+incompatible => github.com/golang-jwt/jwt/v4 v4.2.0
+   175	)
+   176	
+   177	replace (
+   178	        go.flipt.io/flipt/errors => ./errors/
+   179	        go.flipt.io/flipt/rpc/flipt => ./rpc/flipt/
+   180	        go.flipt.io/flipt/sdk/go => ./sdk/go/
+   181	)
+   182	
+
+
+
+
+Block 34 | User
+Observation: 
+
+
+
+
+
+
+
+
+
+
+The file /app/reproduce_error.go has been edited. Here's the result of running `cat -n` on a snippet of /app/reproduce_error.go:
+     1	package main
+     2	
+     3	import (
+     4	"fmt"
+     5	"encoding/json"
+     6	"github.com/mitchellh/mapstructure"
+     7	"go.flipt.io/flipt/internal/config"
+     8	)
+     9	
+    10	func main() {
+    11	// Try to access the unexported DefaultConfig symbol (this should fail)
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+
+
+Block 35 | Assistant
+Now let's update our reproduction script with the correct import:
+Block 36 | User
+Observation: 
+# command-line-arguments
+./reproduce_error.go:12:15: undefined: config.DefaultConfig
+./reproduce_error.go:18:17: undefined: config.DecodeHooks
+./reproduce_error.go:24:54: undefined: config.DecodeHooks
+
+
+
+Block 37 | Assistant
+Now let's try to run the reproduction script:
+Block 38 | User
+Observation: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+No replacement was performed, old_str `var decodeHooks = []mapstructure.DecodeHookFunc{
+mapstructure.StringToTimeDurationHookFunc(),
+stringToSliceHookFunc(),
+stringToEnumHookFunc(stringToLogEncoding),
+stringToEnumHookFunc(stringToCacheBackend),
+stringToEnumHookFunc(stringToTracingExporter),
+stringToEnumHookFunc(stringToScheme),
+stringToEnumHookFunc(stringToDatabaseProtocol),
+stringToEnumHookFunc(stringToAuthMethod),
+}` did not appear verbatim in /app/internal/config/config.go.
+
+
+
+Block 39 | Assistant
+Perfect! We've reproduced the exact error described in the PR - the unexported symbols `DefaultConfig` and `DecodeHooks` are not accessible from the config package.
+
+Let's examine the config file to understand what needs to be exported. Based on the PR description, we need to:
+
+1. Export a public function named `DefaultConfig` that returns a `*Config`
+2. Export a public variable named `DecodeHooks` that is a slice of `mapstructure.DecodeHookFunc`
+3. Ensure the Load path uses the exported `DecodeHooks` for consistent behavior
+
+Let's implement these changes in the config.go file:
+Block 40 | User
+Observation: 
+usage: str_replace_editor [-h] [--file_text FILE_TEXT]
+                          [--view_range VIEW_RANGE VIEW_RANGE]
+                          [--old_str OLD_STR] [--new_str NEW_STR]
+                          [--insert_line INSERT_LINE]
+                          command path
+str_replace_editor: error: argument --view_range: expected 2 arguments
+
+
+
+Block 41 | Assistant
+Let me check the exact formatting of the decodeHooks variable:
+Block 42 | User
+Observation: 
+usage: str_replace_editor [-h] [--file_text FILE_TEXT]
+                          [--view_range VIEW_RANGE VIEW_RANGE]
+                          [--old_str OLD_STR] [--new_str NEW_STR]
+                          [--insert_line INSERT_LINE]
+                          command path
+str_replace_editor: error: argument --view_range: expected 2 arguments
+
+
+
+Block 43 | User
+Observation: 
+var decodeHooks = []mapstructure.DecodeHookFunc{
+	mapstructure.StringToTimeDurationHookFunc(),
+	stringToSliceHookFunc(),
+	stringToEnumHookFunc(stringToLogEncoding),
+	stringToEnumHookFunc(stringToCacheBackend),
+	stringToEnumHookFunc(stringToTracingExporter),
+	stringToEnumHookFunc(stringToScheme),
+	stringToEnumHookFunc(stringToDatabaseProtocol),
+	stringToEnumHookFunc(stringToAuthMethod),
+}
+
+
+
+Block 44 | User
+Observation: 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+No replacement was performed, old_str `var decodeHooks = []mapstructure.DecodeHookFunc{
+mapstructure.StringToTimeDurationHookFunc(),
+stringToSliceHookFunc(),
+stringToEnumHookFunc(stringToLogEncoding),
+stringToEnumHookFunc(stringToCacheBackend),
+stringToEnumHookFunc(stringToTracingExporter),
+stringToEnumHookFunc(stringToScheme),
+stringToEnumHookFunc(stringToDatabaseProtocol),
+stringToEnumHookFunc(stringToAuthMethod),
+}` did not appear verbatim in /app/internal/config/config.go.
+
+
+
+Block 45 | Assistant
+Now let's make the necessary changes with the exact formatting:
+Block 46 | User
+Observation: 
+var decodeHooks = []mapstructure.DecodeHookFunc{
+	mapstructure.StringToTimeDurationHookFunc(),
+	stringToSliceHookFunc(),
+	stringToEnumHookFunc(stringToLogEncoding),
+	stringToEnumHookFunc(stringToCacheBackend),
+	stringToEnumHookFunc(stringToTracingExporter),
+	stringToEnumHookFunc(stringToScheme),
+	stringToEnumHookFunc(stringToDatabaseProtocol),
+	stringToEnumHookFunc(stringToAuthMethod),
+}
+
+
+
+Block 47 | Assistant
+Let me get the exact content using a different method:
+Block 48 | User
+Observation: 
+var decodeHooks = []mapstructure.DecodeHookFunc{$
+^Imapstructure.StringToTimeDurationHookFunc(),$
+^IstringToSliceHookFunc(),$
+^IstringToEnumHookFunc(stringToLogEncoding),$
+^IstringToEnumHookFunc(stringToCacheBackend),$
+^IstringToEnumHookFunc(stringToTracingExporter),$
+^IstringToEnumHookFunc(stringToScheme),$
+^IstringToEnumHookFunc(stringToDatabaseProtocol),$
+^IstringToEnumHookFunc(stringToAuthMethod),$
+}$
+
+
+
+Block 49 | Assistant
+Let's extract the exact lines and update them:
+Block 50 | User
+Observation: 
+The file /app/internal/config/config.go has been edited. Here's the result of running `cat -n` on a snippet of /app/internal/config/config.go:
+    11	        "github.com/mitchellh/mapstructure"
+    12	        "github.com/spf13/viper"
+    13	        "golang.org/x/exp/constraints"
+    14	)
+    15	
+    16	var DecodeHooks = []mapstructure.DecodeHookFunc{
+    17	        mapstructure.StringToTimeDurationHookFunc(),
+    18	        stringToSliceHookFunc(),
+    19	        stringToEnumHookFunc(stringToLogEncoding),
+Review the changes and make sure they are as expected. Edit the file again if necessary.
+
+
+
+Block 51 | Assistant
+Now let's proceed with the changes. First, let's rename decodeHooks to DecodeHooks:
+Block 52 | User
+Observation: 
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+
+.all-contributorsrc      CHANGELOG.template.md    docker-compose.yml
+.devcontainer/           CODE_OF_CONDUCT.md       errors/
+.dockerignore            DEPRECATIONS.md          examples/
+.git/                    DEVELOPMENT.md           flipt.png
+.github/                 Dockerfile               go.mod
+.gitignore               LICENSE                  go.sum
+.gitleaks.toml           README.md                go.work
+.gitleaksignore          _tools/                  go.work.sum
+.golangci.yml            bin/                     internal/
+.goreleaser.nightly.yml  buf.gen.yaml             logo.svg
+.goreleaser.yml          buf.public.gen.yaml      logos/
+.imgbotconfig            buf.work.yaml            magefile.go
+.markdownlint.yaml       build/                   reproduce_error.go
+.nancy-ignore            cmd/                     rpc/
+.prettierignore          codecov.yml              sdk/
+.vscode/                 config/                  stackhawk.yml
+CHANGELOG.md             cosign.pub               ui/
+
+bash: syntax error near unexpected token `('
+
+Block 53 | Assistant
+Now let's update the Load function to use the exported DecodeHooks variable:
+Block 54 | User
+Observation: Exited (autosubmitted)
+Chat
+Labels
+Transcript Chat
+Ask questions about the transcript (⌘K)

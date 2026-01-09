@@ -127,15 +127,17 @@ async def upload_agent_batch_filtered(
     agent_dir: Path,
     agent_name: str,
     dry_run: bool = False,
+    batch_size: int = 100,
 ) -> dict:
-    """Upload ALL filtered trajectories for an agent in a single Run."""
+    """Upload filtered trajectories for an agent, batching if needed to avoid 413 errors."""
 
     model_name = f"{agent_name}{MODEL_SUFFIX}"
 
     # Check if already uploaded
     existing = load_existing_upload(agent_dir)
-    if existing and existing.get('run_id'):
-        print(f"  {agent_name}: Already uploaded (run_id: {existing['run_id'][:8]}...)")
+    if existing and (existing.get('run_id') or existing.get('run_ids')):
+        run_info = existing.get('run_id', existing.get('run_ids', ['?'])[0])[:8] if existing.get('run_id') else f"{len(existing.get('run_ids', []))} runs"
+        print(f"  {agent_name}: Already uploaded ({run_info})")
         return {'skipped': True, 'existing': existing}
 
     results = load_results_for_agent(agent_name)
@@ -182,46 +184,65 @@ async def upload_agent_batch_filtered(
         return {'error': 'No valid trajectories'}
 
     if dry_run:
-        print(f"  {agent_name}: Would upload {len(trajectories)} filtered trajectories as {model_name}")
+        num_batches = (len(trajectories) + batch_size - 1) // batch_size
+        print(f"  {agent_name}: Would upload {len(trajectories)} filtered trajectories in {num_batches} batch(es) as {model_name}")
         return {'dry_run': True, 'trajectory_count': len(trajectories), 'model_name': model_name}
 
-    # Create single Run with ALL trajectories
-    print(f"  {agent_name}: Uploading {len(trajectories)} trajectories as {model_name}...")
+    # Upload in batches to avoid 413 errors
+    all_run_ids = []
+    all_traj_ids = []
 
-    run = Run(
-        task="swebench-verified",
-        model=model_name,
-        trajectories=trajectories,
-    )
+    num_batches = (len(trajectories) + batch_size - 1) // batch_size
+    print(f"  {agent_name}: Uploading {len(trajectories)} trajectories in {num_batches} batch(es) as {model_name}...")
 
-    try:
-        run_meta = await client.save_run(run)
-        run_id = run_meta['run_id']
-        traj_ids = run_meta.get('trajectory_ids', [])
+    for batch_idx in range(num_batches):
+        start = batch_idx * batch_size
+        end = min(start + batch_size, len(trajectories))
+        batch_trajs = trajectories[start:end]
 
-        print(f"  {agent_name}: SUCCESS - run_id: {run_id[:8]}... ({len(traj_ids)} trajectories)")
+        run = Run(
+            task="swebench-verified",
+            model=model_name,
+            trajectories=batch_trajs,
+        )
 
-        # Save tracking info
-        upload_info = {
-            'agent': agent_name,
-            'model_name': model_name,
-            'type': 'filtered',
-            'uploaded_at': datetime.now().isoformat(),
-            'run_id': run_id,
-            'trajectory_count': len(traj_ids),
-            'trajectory_ids': traj_ids,
-            'trajectories': [
-                {**info, 'trajectory_id': traj_ids[i] if i < len(traj_ids) else None}
-                for i, info in enumerate(trajectory_info)
-            ],
-        }
-        save_upload_tracking(agent_dir, upload_info)
+        try:
+            run_meta = await client.save_run(run)
+            run_id = run_meta['run_id']
+            traj_ids = run_meta.get('trajectory_ids', [])
 
-        return {'success': True, 'run_id': run_id, 'trajectory_count': len(traj_ids), 'model_name': model_name}
+            all_run_ids.append(run_id)
+            all_traj_ids.extend(traj_ids)
 
-    except Exception as e:
-        print(f"  {agent_name}: FAILED - {e}")
-        return {'error': str(e)}
+            print(f"    Batch {batch_idx + 1}/{num_batches}: {len(traj_ids)} trajectories -> run:{run_id[:8]}...")
+
+        except Exception as e:
+            print(f"    Batch {batch_idx + 1}/{num_batches}: FAILED - {e}")
+            # Continue with remaining batches
+
+    if not all_traj_ids:
+        return {'error': 'All batches failed'}
+
+    print(f"  {agent_name}: SUCCESS - {len(all_traj_ids)} trajectories in {len(all_run_ids)} run(s)")
+
+    # Save tracking info
+    upload_info = {
+        'agent': agent_name,
+        'model_name': model_name,
+        'type': 'filtered',
+        'uploaded_at': datetime.now().isoformat(),
+        'run_id': all_run_ids[0] if len(all_run_ids) == 1 else None,
+        'run_ids': all_run_ids,
+        'trajectory_count': len(all_traj_ids),
+        'trajectory_ids': all_traj_ids,
+        'trajectories': [
+            {**info, 'trajectory_id': all_traj_ids[i] if i < len(all_traj_ids) else None}
+            for i, info in enumerate(trajectory_info)
+        ],
+    }
+    save_upload_tracking(agent_dir, upload_info)
+
+    return {'success': True, 'run_ids': all_run_ids, 'trajectory_count': len(all_traj_ids), 'model_name': model_name}
 
 
 async def main():
