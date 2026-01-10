@@ -1,0 +1,110 @@
+============================================================
+Running openai/gpt-5.2-2025-12-11 on 10 tasks
+============================================================
+Tasks: ['scikit-learn__scikit-learn-14496', 'django__django-16527', 'sphinx-doc__sphinx-8475', 'django__django-15814', 'matplotlib__matplotlib-24637', 'django__django-14017', 'sympy__sympy-23413', 'django__django-11141', 'sympy__sympy-20438', 'django__django-15629']
+Completed: 0
+Remaining: 10
+Timestamp: 2026-01-10T01:26:27.407801
+
+============================================================
+Task 1/10: scikit-learn__scikit-learn-14496
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on scikit-learn__scikit-learn-14496 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id scikit-learn__scikit-learn-14496 --message-limit 50
+  Failed: Failed to pull swebench/sweb.eval.x86_64.sympy_1776_sympy-24539:latest: 404 Client Error for http+docker://localhost/v1.52/images/swebench/sweb.eval.x86_64.sympy_1776_sympy-24539:latest/json: Not Foun
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 2/10: django__django-16527
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on django__django-16527 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id django__django-16527 --message-limit 50
+  Failed: Failed to pull swebench/sweb.eval.x86_64.sympy_1776_sympy-24562:latest: 404 Client Error for http+docker://localhost/v1.52/images/swebench/sweb.eval.x86_64.sympy_1776_sympy-24562:latest/json: Not Foun
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 3/10: sphinx-doc__sphinx-8475
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on sphinx-doc__sphinx-8475 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id sphinx-doc__sphinx-8475 --message-limit 50
+  Failed: Failed to pull swebench/sweb.eval.x86_64.sympy_1776_sympy-24562:latest: 404 Client Error for http+docker://localhost/v1.52/images/swebench/sweb.eval.x86_64.sympy_1776_sympy-24562:latest/json: Not Foun
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 4/10: django__django-15814
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on django__django-15814 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id django__django-15814 --message-limit 50
+  Failed: Failed to pull swebench/sweb.eval.x86_64.sympy_1776_sympy-24661:latest: 404 Client Error for http+docker://localhost/v1.52/images/swebench/sweb.eval.x86_64.sympy_1776_sympy-24661:latest/json: Not Foun
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 5/10: matplotlib__matplotlib-24637
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on matplotlib__matplotlib-24637 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id matplotlib__matplotlib-24637 --message-limit 50
+  Failed: Failed to pull swebench/sweb.eval.x86_64.sympy_1776_sympy-24661:latest: 404 Client Error for http+docker://localhost/v1.52/images/swebench/sweb.eval.x86_64.sympy_1776_sympy-24661:latest/json: Not Foun
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 6/10: django__django-14017
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on django__django-14017 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id django__django-14017 --message-limit 50
+  Completed in 76.2s
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 7/10: sympy__sympy-23413
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on sympy__sympy-23413 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id sympy__sympy-23413 --message-limit 50
+  Completed in 190.1s
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 8/10: django__django-11141
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on django__django-11141 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id django__django-11141 --message-limit 50
+  Completed in 53.1s
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 9/10: sympy__sympy-20438
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on sympy__sympy-20438 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id sympy__sympy-20438 --message-limit 50
+  Completed in 214.7s
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+Task 10/10: django__django-15629
+============================================================
+
+--- Running openai/gpt-5.2-2025-12-11 on django__django-15629 ---
+  Command: inspect eval inspect_evals/swe_bench -T dataset=princeton-nlp/SWE-bench_Verified --model openai/gpt-5.2-2025-12-11 --sandbox lunette --sample-id django__django-15629 --message-limit 50
+  Completed in 208.3s
+  Saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json
+
+============================================================
+SUMMARY
+============================================================
+Model: openai/gpt-5.2-2025-12-11
+Tasks attempted: 10
+Tasks successful: 5
+Total time: 1047.9s (17.5 min)
+Total tokens: 0 in / 0 out
+Total cost: $0.0000
+Avg per task: 209.6s, $0.0000
+
+Results saved to chris_output/experiment_c/agent_gpt_5.2_10tasks.json

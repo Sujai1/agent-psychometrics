@@ -1,0 +1,131 @@
+============================================================
+Experiment C: Lunette Grading Cost (10 tasks)
+============================================================
+Timestamp: 2026-01-09T20:27:39.606102
+
+Selected tasks: [np.str_('scikit-learn__scikit-learn-14496'), np.str_('django__django-16527'), np.str_('sphinx-doc__sphinx-8475'), np.str_('django__django-15814'), np.str_('matplotlib__matplotlib-24637'), np.str_('django__django-14017'), np.str_('sympy__sympy-23413'), np.str_('django__django-11141'), np.str_('sympy__sympy-20438'), np.str_('django__django-15629')]
+
+============================================================
+Task 1/10: scikit-learn__scikit-learn-14496
+============================================================
+
+--- Running dummy eval on scikit-learn__scikit-learn-14496 ---
+  Eval completed in 9.8s
+  Run ID: 1ddcff5e...
+--- Running Lunette grading on 1ddcff5e... ---
+  Grading completed in 71.7s
+
+============================================================
+Task 2/10: django__django-16527
+============================================================
+
+--- Running dummy eval on django__django-16527 ---
+  Eval completed in 9.0s
+  Run ID: a2210fec...
+--- Running Lunette grading on a2210fec... ---
+  Grading completed in 67.6s
+
+============================================================
+Task 3/10: sphinx-doc__sphinx-8475
+============================================================
+
+--- Running dummy eval on sphinx-doc__sphinx-8475 ---
+  Eval completed in 8.3s
+  Run ID: d0012e95...
+--- Running Lunette grading on d0012e95... ---
+  Grading completed in 103.9s
+
+============================================================
+Task 4/10: django__django-15814
+============================================================
+
+--- Running dummy eval on django__django-15814 ---
+  Eval completed in 9.1s
+  Run ID: fe51b9d9...
+--- Running Lunette grading on fe51b9d9... ---
+  Grading completed in 131.3s
+
+============================================================
+Task 5/10: matplotlib__matplotlib-24637
+============================================================
+
+--- Running dummy eval on matplotlib__matplotlib-24637 ---
+  Eval completed in 10.2s
+  Run ID: 289637aa...
+--- Running Lunette grading on 289637aa... ---
+  Grading completed in 65.8s
+
+============================================================
+Task 6/10: django__django-14017
+============================================================
+
+--- Running dummy eval on django__django-14017 ---
+  Eval completed in 8.1s
+  Run ID: 12a56bfb...
+--- Running Lunette grading on 12a56bfb... ---
+  Grading completed in 73.9s
+
+============================================================
+Task 7/10: sympy__sympy-23413
+============================================================
+
+--- Running dummy eval on sympy__sympy-23413 ---
+  Eval completed in 8.1s
+  Run ID: 5c8fcca7...
+--- Running Lunette grading on 5c8fcca7... ---
+  Grading completed in 62.3s
+
+============================================================
+Task 8/10: django__django-11141
+============================================================
+
+--- Running dummy eval on django__django-11141 ---
+  Eval completed in 8.7s
+  Run ID: 276b88bc...
+--- Running Lunette grading on 276b88bc... ---
+  Grading completed in 66.0s
+
+============================================================
+Task 9/10: sympy__sympy-20438
+============================================================
+
+--- Running dummy eval on sympy__sympy-20438 ---
+  Eval completed in 7.4s
+  Run ID: a326a20b...
+--- Running Lunette grading on a326a20b... ---
+  Grading completed in 69.3s
+
+============================================================
+Task 10/10: django__django-15629
+============================================================
+
+--- Running dummy eval on django__django-15629 ---
+  Eval completed in 7.9s
+  Run ID: 8445409e...
+--- Running Lunette grading on 8445409e... ---
+  Grading completed in 68.3s
+
+============================================================
+SUMMARY
+============================================================
+Tasks attempted: 10
+Tasks successful: 10
+Total dummy eval time: 86.5s
+Total grading time: 780.0s
+Total time: 866.6s
+
+Avg per task: 86.7s
+
+Run IDs for server-side cost lookup:
+  scikit-learn__scikit-learn-14496: 1ddcff5e-5a98-454c-8966-05e2256bc305
+  django__django-16527: a2210fec-9a95-41e6-8cb7-487b26bd2f3e
+  sphinx-doc__sphinx-8475: d0012e95-7a00-4f39-b940-40f4bd31fbae
+  django__django-15814: fe51b9d9-d50c-4307-967e-96450e490854
+  matplotlib__matplotlib-24637: 289637aa-363e-4768-8645-9fb881732ba8
+  django__django-14017: 12a56bfb-ca5d-4732-8cdb-7d51aa4ab44a
+  sympy__sympy-23413: 5c8fcca7-fcaa-471b-9528-1148d22b6836
+  django__django-11141: 276b88bc-59a7-4b50-b83c-ec0556625432
+  sympy__sympy-20438: a326a20b-8cb6-4e7a-bff5-46e74d007b81
+  django__django-15629: 8445409e-4552-43a6-8b23-035dc83f00fd
+
+Results saved to chris_output/experiment_c/lunette_grading_10tasks.json

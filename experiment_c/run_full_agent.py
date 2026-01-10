@@ -11,6 +11,9 @@ Usage:
     # Run GPT-5.2 on selected tasks
     python experiment_c/run_full_agent.py --model openai/gpt-5.2-2025-12-11
 
+    # Resume from where we left off (skips completed tasks)
+    python experiment_c/run_full_agent.py --model anthropic/claude-sonnet-4-5-20250929 --resume
+
     # Specify tasks file
     python experiment_c/run_full_agent.py --model anthropic/claude-sonnet-4-5-20250929 --tasks_file chris_output/experiment_c/selected_tasks.json
 """
@@ -19,6 +22,7 @@ import argparse
 import json
 import subprocess
 import time
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -71,9 +75,8 @@ def run_agent_on_task(model: str, task_id: str) -> dict:
     print(f"  Command: {' '.join(cmd)}")
 
     try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=1800  # 30 min timeout
-        )
+        # No timeout - let tasks run to completion
+        proc = subprocess.run(cmd, capture_output=True, text=True)
         result["elapsed_seconds"] = time.time() - start_time
         result["return_code"] = proc.returncode
 
@@ -88,36 +91,38 @@ def run_agent_on_task(model: str, task_id: str) -> dict:
             print(f"  Completed in {result['elapsed_seconds']:.1f}s")
 
             # Try to extract token usage from the log
-            # Inspect logs token usage in the eval log (.eval files)
+            # Inspect .eval files are ZIP archives containing header.json with stats
             try:
                 # Find the most recent log file
                 log_dir = Path("logs")
                 if log_dir.exists():
                     log_files = sorted(log_dir.glob("*.eval"), key=lambda p: p.stat().st_mtime, reverse=True)
                     if log_files:
-                        with open(log_files[0]) as f:
-                            log_data = json.load(f)
-                            if "stats" in log_data:
-                                stats = log_data["stats"]
-                                result["input_tokens"] = stats.get("input_tokens", 0)
-                                result["output_tokens"] = stats.get("output_tokens", 0)
-                                result["total_tokens"] = result["input_tokens"] + result["output_tokens"]
+                        # .eval files are ZIP archives
+                        with zipfile.ZipFile(log_files[0], 'r') as zf:
+                            with zf.open('header.json') as f:
+                                log_data = json.load(f)
+                                if "stats" in log_data and "model_usage" in log_data["stats"]:
+                                    model_usage = log_data["stats"]["model_usage"]
+                                    # Find usage for our model
+                                    if model in model_usage:
+                                        usage = model_usage[model]
+                                        result["input_tokens"] = usage.get("input_tokens", 0)
+                                        result["output_tokens"] = usage.get("output_tokens", 0)
+                                        result["total_tokens"] = usage.get("total_tokens", result["input_tokens"] + result["output_tokens"])
+                                        result["input_tokens_cache_read"] = usage.get("input_tokens_cache_read", 0)
 
-                                # Calculate cost
-                                if model in PRICING:
-                                    pricing = PRICING[model]
-                                    input_cost = (result["input_tokens"] / 1_000_000) * pricing["input"]
-                                    output_cost = (result["output_tokens"] / 1_000_000) * pricing["output"]
-                                    result["cost_usd"] = input_cost + output_cost
-                                    print(f"  Tokens: {result['input_tokens']:,} in / {result['output_tokens']:,} out")
-                                    print(f"  Cost: ${result['cost_usd']:.4f}")
+                                        # Calculate cost
+                                        if model in PRICING:
+                                            pricing = PRICING[model]
+                                            input_cost = (result["input_tokens"] / 1_000_000) * pricing["input"]
+                                            output_cost = (result["output_tokens"] / 1_000_000) * pricing["output"]
+                                            result["cost_usd"] = input_cost + output_cost
+                                            print(f"  Tokens: {result['input_tokens']:,} in / {result['output_tokens']:,} out (cache: {result['input_tokens_cache_read']:,})")
+                                            print(f"  Cost: ${result['cost_usd']:.4f}")
             except Exception as e:
                 result["token_extraction_error"] = str(e)
 
-    except subprocess.TimeoutExpired:
-        result["elapsed_seconds"] = time.time() - start_time
-        result["error"] = "Timeout after 30 minutes"
-        print(f"  Timeout after 30 minutes")
     except Exception as e:
         result["elapsed_seconds"] = time.time() - start_time
         result["error"] = str(e)
@@ -140,6 +145,11 @@ def main():
         default="chris_output/experiment_c/selected_tasks.json",
         help="JSON file with selected tasks",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from previous run, skipping completed tasks",
+    )
     args = parser.parse_args()
 
     # Load tasks
@@ -147,21 +157,43 @@ def main():
         tasks_data = json.load(f)
     tasks = tasks_data["tasks"]
 
+    # Determine output file path
+    model_short = args.model.split("/")[-1].split("-")[0] + "_" + args.model.split("/")[-1].split("-")[1]
+    output_file = OUTPUT_DIR / f"agent_{model_short}_{len(tasks)}tasks.json"
+
+    # Check for existing results to resume from
+    completed_tasks = set()
+    if args.resume and output_file.exists():
+        with open(output_file) as f:
+            existing_results = json.load(f)
+        # Find tasks that completed successfully (no error)
+        for t in existing_results.get("tasks", []):
+            if "error" not in t:
+                completed_tasks.add(t["task_id"])
+        print(f"Resuming: found {len(completed_tasks)} completed tasks")
+        results = existing_results
+    else:
+        results = {
+            "model": args.model,
+            "timestamp": datetime.now().isoformat(),
+            "tasks_file": args.tasks_file,
+            "tasks": [],
+        }
+
     print("=" * 60)
     print(f"Running {args.model} on {len(tasks)} tasks")
     print("=" * 60)
     print(f"Tasks: {tasks}")
+    print(f"Completed: {len(completed_tasks)}")
+    print(f"Remaining: {len(tasks) - len(completed_tasks)}")
     print(f"Timestamp: {datetime.now().isoformat()}")
-
-    results = {
-        "model": args.model,
-        "timestamp": datetime.now().isoformat(),
-        "tasks_file": args.tasks_file,
-        "tasks": [],
-    }
 
     # Run each task sequentially
     for i, task_id in enumerate(tasks):
+        # Skip already completed tasks
+        if task_id in completed_tasks:
+            print(f"\nSkipping {task_id} (already completed)")
+            continue
         print(f"\n{'='*60}")
         print(f"Task {i+1}/{len(tasks)}: {task_id}")
         print("=" * 60)
@@ -169,12 +201,10 @@ def main():
         task_result = run_agent_on_task(args.model, task_id)
         results["tasks"].append(task_result)
 
-        # Save intermediate results
-        # Extract model name: "anthropic/claude-sonnet..." -> "claude_sonnet"
-        model_short = args.model.split("/")[-1].split("-")[0] + "_" + args.model.split("/")[-1].split("-")[1]
-        output_file = OUTPUT_DIR / f"agent_{model_short}_{len(tasks)}tasks.json"
+        # Save after each task completes
         with open(output_file, "w") as f:
             json.dump(results, f, indent=2)
+        print(f"  Saved to {output_file}")
 
     # Summary
     print("\n" + "=" * 60)
