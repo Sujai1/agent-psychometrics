@@ -10,9 +10,9 @@ The agent trajectory is used as a vehicle to get into Lunette's sandbox,
 but the primary focus is grading the task difficulty, not agent performance.
 
 Usage:
-    python llm_judge/lunette_analysis.py --run_id <lunette-run-id>
-    python llm_judge/lunette_analysis.py --upload_and_grade --num_tasks 50
-    python llm_judge/lunette_analysis.py --grade_all
+    python lunette_utils/lunette_analysis.py --run_id <lunette-run-id>
+    python lunette_utils/lunette_analysis.py --upload_and_grade --num_tasks 50
+    python lunette_utils/lunette_analysis.py --grade_all
 """
 
 import argparse
@@ -446,9 +446,9 @@ async def main():
         else:
             print("Please specify --run_id, --run_ids, --list_runs, or --grade_all")
             print("\nExample usage:")
-            print("  python llm_judge/lunette_analysis.py --list_runs")
-            print("  python llm_judge/lunette_analysis.py --run_id abc123")
-            print("  python llm_judge/lunette_analysis.py --grade_all")
+            print("  python lunette_utils/lunette_analysis.py --list_runs")
+            print("  python lunette_utils/lunette_analysis.py --run_id abc123")
+            print("  python lunette_utils/lunette_analysis.py --grade_all")
 
 
 if __name__ == "__main__":

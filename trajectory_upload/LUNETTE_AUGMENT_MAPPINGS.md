@@ -20,16 +20,16 @@ To grade or analyze specific trajectories, you need to know which run each task 
 source .venv/bin/activate
 
 # Augment all agents
-python llm_judge/lunette_augment_mappings.py
+python trajectory_upload/lunette_augment_mappings.py
 
 # Augment specific agents
-python llm_judge/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
+python trajectory_upload/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
 
 # Dry run to see what would be done
-python llm_judge/lunette_augment_mappings.py --dry_run
+python trajectory_upload/lunette_augment_mappings.py --dry_run
 
 # Force re-augmentation (overwrite existing mappings)
-python llm_judge/lunette_augment_mappings.py --force
+python trajectory_upload/lunette_augment_mappings.py --force
 ```
 
 ## Output
@@ -96,7 +96,7 @@ Building trajectory-to-run mapping...
   agent_without_mapping: No stored mapping, will query Lunette API
 
 Querying Lunette API for 1 agent(s)...
-(Tip: Run 'python llm_judge/lunette_augment_mappings.py' to pre-compute all mappings)
+(Tip: Run 'python trajectory_upload/lunette_augment_mappings.py' to pre-compute all mappings)
 ```
 
 ### Other Scripts
@@ -137,7 +137,7 @@ for traj in data["trajectories"]:
 ## Example Output
 
 ```bash
-$ python llm_judge/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
+$ python trajectory_upload/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
 
 === Lunette Upload Mapping Augmentation ===
 Found 1 agents to process
@@ -159,7 +159,7 @@ Failed: 0
 Run this script:
 - **Once** after uploading trajectories with `lunette_batch_upload.py`
 - **Again** if you force-reupload an agent (use `--force` flag)
-- **Periodically** for all agents: `python llm_judge/lunette_augment_mappings.py`
+- **Periodically** for all agents: `python trajectory_upload/lunette_augment_mappings.py`
 
 ## Performance
 

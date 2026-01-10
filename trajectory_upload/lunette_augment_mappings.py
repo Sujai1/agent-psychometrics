@@ -6,13 +6,13 @@ query the API every time you want to work with the uploaded trajectories.
 
 Usage:
     # Augment all agents
-    python llm_judge/lunette_augment_mappings.py
+    python trajectory_upload/lunette_augment_mappings.py
 
     # Augment specific agents
-    python llm_judge/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
+    python trajectory_upload/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
 
     # Dry run to see what would be done
-    python llm_judge/lunette_augment_mappings.py --dry_run
+    python trajectory_upload/lunette_augment_mappings.py --dry_run
 """
 
 import argparse

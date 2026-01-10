@@ -6,16 +6,16 @@ them to Lunette for grading/analysis.
 
 Usage:
     # Upload all converted trajectories for one agent
-    python llm_judge/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet
+    python trajectory_upload/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet
 
     # Upload from a specific directory
-    python llm_judge/lunette_upload.py --input_dir chris_output/unified_trajs/20240620_sweagent_claude3.5sonnet
+    python trajectory_upload/lunette_upload.py --input_dir chris_output/unified_trajs/20240620_sweagent_claude3.5sonnet
 
     # Upload with a limit
-    python llm_judge/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet --limit 50
+    python trajectory_upload/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet --limit 50
 
     # Dry run (show what would be uploaded)
-    python llm_judge/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet --dry_run
+    python trajectory_upload/lunette_upload.py --agent 20240620_sweagent_claude3.5sonnet --dry_run
 """
 
 import argparse

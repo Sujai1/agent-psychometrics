@@ -16,10 +16,10 @@ All trajectories should be uploaded and augmented with task-to-run mappings:
 
 ```bash
 # 1. Upload trajectories (if not already done)
-python llm_judge/lunette_batch_upload.py
+python trajectory_upload/lunette_batch_upload.py
 
 # 2. Augment with task-to-run mappings (recommended for performance)
-python llm_judge/lunette_augment_mappings.py
+python trajectory_upload/lunette_augment_mappings.py
 
 # This queries the Lunette API once to build mappings and stores them
 # in _lunette_uploads.json files. The batch grading script will use

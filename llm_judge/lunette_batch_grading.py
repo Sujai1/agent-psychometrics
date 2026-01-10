@@ -322,7 +322,7 @@ async def main():
     # Second pass: query API for agents without stored mappings
     if agents_need_api:
         print(f"\nQuerying Lunette API for {len(agents_need_api)} agent(s)...")
-        print("(Tip: Run 'python llm_judge/lunette_augment_mappings.py' to pre-compute all mappings)")
+        print("(Tip: Run 'python trajectory_upload/lunette_augment_mappings.py' to pre-compute all mappings)")
 
         async with LunetteClient() as client:
             for agent, agent_dir, upload_data, run_ids in agents_need_api:

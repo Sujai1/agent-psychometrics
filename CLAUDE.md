@@ -22,8 +22,8 @@ model_irt/
 │
 ├── llm_judge/                  # LLM-as-judge for difficulty prediction
 │   ├── llm_judge.py            # Direct LLM feature extraction
-│   ├── lunette_analysis.py     # Lunette-based analysis
 │   ├── predict_difficulty.py   # Heuristic feature prediction
+│   ├── lunette_batch_grading.py # Batch grading via Lunette
 │   └── evolutionary/           # Evolutionary feature discovery (PromptBreeder-inspired)
 │       ├── evolution_loop.py   # Main CLI and orchestration
 │       ├── feature_generator.py # Initial feature generation
@@ -31,12 +31,31 @@ model_irt/
 │       ├── feature_refiner.py  # 5 mutation operators
 │       └── analyze_results.py  # Visualization & reports
 │
+├── lunette_utils/              # Lunette shared utilities
+│   ├── dummy_solver.py         # Dummy solver for cost measurement
+│   ├── dummy_swebench_task.py  # SWE-bench task with dummy solver
+│   ├── grading_plan.yaml       # Grading plan configuration
+│   └── lunette_analysis.py     # Lunette-based analysis utilities
+│
+├── trajectory_upload/          # Trajectory conversion and upload to Lunette
+│   ├── trajectory_converter.py # Convert trajectories to unified format
+│   ├── trajectory_filter.py    # Filter trajectories by criteria
+│   ├── lunette_upload.py       # Single trajectory upload
+│   ├── lunette_batch_upload.py # Batch upload trajectories
+│   ├── lunette_filtered_upload.py # Filtered upload
+│   └── lunette_augment_mappings.py # Pre-compute task-to-run mappings
+│
+├── experiment_c/               # Experiment C: Lunette grading cost comparison
+│   ├── experiment_c_single_task.py # Single task test
+│   ├── experiment_c_rigorous.py    # Full 10-task experiment
+│   └── experiment_c_cost_analysis.py # Cost analysis
+│
 ├── chris_output/               # Outputs and trained models
 │   ├── clean_data/             # Trained IRT models
 │   ├── figures/                # Visualizations
 │   └── difficulty_prediction/  # Prediction outputs
 │
-├── trajectory_data/            # Trajectory processing scripts
+├── trajectory_data/            # Downloaded trajectory data
 ├── predict_question_difficulty.py  # Original difficulty prediction
 ├── out/                        # Original outputs
 ├── tests/                      # Test suite
@@ -216,7 +235,7 @@ Prompts an LLM to extract discrete features (1-5 scales) from the problem statem
 python llm_judge/llm_judge.py --num_tasks 50 --output_path chris_output/llm_judge/features.csv
 ```
 
-#### 2. Lunette-Based Grading (llm_judge/lunette_analysis.py)
+#### 2. Lunette-Based Grading (lunette_utils/lunette_analysis.py)
 
 Uses Lunette's GradingPlan API to analyze task + agent trajectory together. The judge has environment access and can examine the actual codebase.
 
@@ -333,13 +352,13 @@ Upload existing SWE-bench agent trajectories to Lunette for analysis:
 
 ```bash
 # Upload all agents
-python llm_judge/lunette_batch_upload.py
+python trajectory_upload/lunette_batch_upload.py
 
 # Upload specific agents
-python llm_judge/lunette_batch_upload.py --agents 20240620_sweagent_claude3.5sonnet
+python trajectory_upload/lunette_batch_upload.py --agents 20240620_sweagent_claude3.5sonnet
 
 # Dry run to see what would be uploaded
-python llm_judge/lunette_batch_upload.py --dry_run
+python trajectory_upload/lunette_batch_upload.py --dry_run
 ```
 
 **Key features:**
@@ -366,17 +385,17 @@ python llm_judge/lunette_batch_upload.py --dry_run
 
 #### Mapping Augmentation
 
-Pre-compute task-to-run mappings to avoid repeated API queries (see [LUNETTE_AUGMENT_MAPPINGS.md](llm_judge/LUNETTE_AUGMENT_MAPPINGS.md)):
+Pre-compute task-to-run mappings to avoid repeated API queries (see [LUNETTE_AUGMENT_MAPPINGS.md](trajectory_upload/LUNETTE_AUGMENT_MAPPINGS.md)):
 
 ```bash
 # Augment all agents (recommended after upload)
-python llm_judge/lunette_augment_mappings.py
+python trajectory_upload/lunette_augment_mappings.py
 
 # Augment specific agents
-python llm_judge/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
+python trajectory_upload/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
 
 # Force re-augmentation
-python llm_judge/lunette_augment_mappings.py --force
+python trajectory_upload/lunette_augment_mappings.py --force
 ```
 
 **What it does:**
@@ -412,7 +431,7 @@ python llm_judge/lunette_augment_mappings.py --force
 
 #### Batch Grading System
 
-Grade uploaded trajectories to evaluate how features predict IRT difficulty and discriminate between agents (see [LUNETTE_BATCH_GRADING.md](llm_judge/LUNETTE_BATCH_GRADING.md)):
+Grade uploaded trajectories to evaluate how features predict IRT difficulty and discriminate between agents (see [LUNETTE_BATCH_GRADING.md](trajectory_upload/LUNETTE_BATCH_GRADING.md)):
 
 ```bash
 # Dry run to see execution plan
@@ -544,7 +563,7 @@ async def grade_trajectory(run_id: str):
             plan=GradingPlan(
                 name="task-difficulty",
                 prompt="""Analyze this SWE-bench task to predict difficulty...
-                (see llm_judge/lunette_analysis.py for full prompt)"""
+                (see lunette_utils/lunette_analysis.py for full prompt)"""
             ),
             limit=1,
         )
@@ -552,6 +571,22 @@ async def grade_trajectory(run_id: str):
 
 asyncio.run(grade_trajectory("your-run-id"))
 ```
+
+**Deleting Runs:**
+```python
+import httpx
+import json
+
+with open("~/.lunette/config.json") as f:
+    api_key = json.load(f)["api_key"]
+
+with httpx.Client(base_url="https://lunette.dev/api", headers={"X-API-Key": api_key}) as client:
+    run_id = "your-run-id-here"
+    r = client.delete(f"/runs/{run_id}")  # NO trailing slash for DELETE
+    # Returns: {"message": "Run ... deleted successfully", "deleted_trajectories": N}
+```
+
+**Note:** GET requests require trailing slash (`/runs/`), DELETE requests must NOT have trailing slash (`/runs/{id}`).
 
 #### Downloaded Trajectories
 
@@ -568,13 +603,13 @@ python -m analysis.download_logs evaluation/verified/20240620_sweagent_claude3.5
 | File | Purpose |
 |------|---------|
 | `llm_judge/llm_judge.py` | Direct LLM feature extraction |
-| `llm_judge/lunette_analysis.py` | Original Lunette-based grading (single-upload) |
-| `llm_judge/lunette_batch_upload.py` | Batch upload trajectories to Lunette |
-| `llm_judge/lunette_augment_mappings.py` | Pre-compute task-to-run mappings |
+| `lunette_utils/lunette_analysis.py` | Original Lunette-based grading (single-upload) |
+| `trajectory_upload/lunette_batch_upload.py` | Batch upload trajectories to Lunette |
+| `trajectory_upload/lunette_augment_mappings.py` | Pre-compute task-to-run mappings |
 | `llm_judge/lunette_batch_grading.py` | Batch grading of uploaded trajectories |
 | `llm_judge/evolutionary/lunette_data_loader.py` | Data loader for uploaded trajectories |
-| `llm_judge/LUNETTE_BATCH_GRADING.md` | Batch grading documentation |
-| `llm_judge/LUNETTE_AUGMENT_MAPPINGS.md` | Mapping augmentation documentation |
+| `trajectory_upload/LUNETTE_BATCH_GRADING.md` | Batch grading documentation |
+| `trajectory_upload/LUNETTE_AUGMENT_MAPPINGS.md` | Mapping augmentation documentation |
 | `chris_output/lunette/task_features_50_extracted.csv` | Raw feature values (original grading, n=39) |
 | `chris_output/lunette/correlation_summary.csv` | Correlation results (original grading) |
 | `chris_output/lunette_grading/` | Batch grading results directory |
