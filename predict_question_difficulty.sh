@@ -26,7 +26,7 @@ DIFFS="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/irt_verified_1pl_e5
 OUT_DIR="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/verified_qs_sol_instr_qwen25coder14b_lr"
 mkdir -p "${OUT_DIR}"
 
-"${VENV_PY}" /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/predict_question_difficulty_qs_solution_instruction.py \
+"${VENV_PY}" /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/predict_question_difficulty.py \
   --difficulties "${DIFFS}" \
   --dataset_name "princeton-nlp/SWE-bench_Verified" \
   --split "test" \
