@@ -137,15 +137,69 @@ def last_token_pool(last_hidden_state: torch.Tensor, attention_mask: torch.Tenso
     return last_hidden_state.gather(dim=1, index=idx).squeeze(1)  # [B, H]
 
 
-def load_difficulties_csv(path: str) -> Dict[str, float]:
-    diffs: Dict[str, float] = {}
+def load_ground_truth_csv(path: str) -> Dict[str, float]:
+    """
+    Load ground-truth labels keyed by item_id.
+
+    Supports two common formats:
+
+    1) Difficulty CSV (older):
+       columns include: item_id, diff
+       (may also include item_ix)
+
+    2) IRT items.csv (newer):
+       columns include: <blank header>, b, b_std
+       where the first column (blank header) holds the item_id and `b` is the difficulty parameter.
+    """
+    labels: Dict[str, float] = {}
     with open(path, newline="") as f:
         r = csv.DictReader(f)
-        if "item_id" not in (r.fieldnames or []) or "diff" not in (r.fieldnames or []):
-            raise ValueError(f"Expected columns item_id,diff in {path}; got {r.fieldnames}")
+        fns = list(r.fieldnames or [])
+        if not fns:
+            raise ValueError(f"Empty CSV or missing header row: {path}")
+
+        # Determine id/label columns.
+        id_col: Optional[str] = None
+        y_col: Optional[str] = None
+
+        # Prefer explicit schema.
+        if "item_id" in fns:
+            id_col = "item_id"
+        elif "instance_id" in fns:
+            id_col = "instance_id"
+        elif "id" in fns:
+            id_col = "id"
+        else:
+            # `items.csv` uses a blank header for the first column.
+            id_col = fns[0]
+
+        if "diff" in fns:
+            y_col = "diff"
+        elif "b" in fns:
+            y_col = "b"
+        elif "difficulty" in fns:
+            y_col = "difficulty"
+
+        if id_col is None or y_col is None:
+            raise ValueError(
+                "Unrecognized ground-truth CSV schema. Expected either columns "
+                "`item_id,diff` or `<blank>,b` (plus optional extras). "
+                f"Got {fns} in {path}"
+            )
+
         for row in r:
-            diffs[str(row["item_id"])] = float(row["diff"])
-    return diffs
+            raw_id = str(row.get(id_col, "") or "").strip()
+            if not raw_id:
+                continue
+            item_id = normalize_swebench_item_id(raw_id)
+            raw_y = row.get(y_col, None)
+            if raw_y is None:
+                continue
+            s = str(raw_y).strip()
+            if not s:
+                continue
+            labels[item_id] = float(s)
+    return labels
 
 
 def prompt_signature(instruction: str) -> str:
@@ -574,9 +628,48 @@ def embed_items(
     return ids_sorted, per_id, counts, int(embedding_dim)
 
 
+def _npz_scalar(value, default=None):
+    """
+    Robustly convert an NPZ entry to a Python scalar.
+
+    Handles common patterns like:
+    - np.array([x])  -> x
+    - np.array(x)    -> x
+    - ["x"] / [x]    -> x
+    """
+    if value is None:
+        return default
+    try:
+        import numpy as _np  # local import; numpy is required already
+
+        if isinstance(value, _np.ndarray):
+            if value.shape == ():
+                return value.item()
+            if value.size == 1:
+                return value.reshape(-1)[0].item()
+            return value.tolist()
+    except Exception:
+        pass
+    if isinstance(value, (list, tuple)):
+        if len(value) == 0:
+            return default
+        if len(value) == 1:
+            return value[0]
+        return list(value)
+    return value
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--difficulties", type=str, default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/question_difficulties.csv")
+    p.add_argument(
+        "--difficulties",
+        type=str,
+        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/question_difficulties.csv",
+        help=(
+            "Path to ground-truth labels CSV. Supports either (a) columns item_id,diff (older) "
+            "or (b) IRT items.csv with columns '<blank>,b,b_std' (newer; uses b as label)."
+        ),
+    )
 
     p.add_argument("--dataset_name", type=str, default="princeton-nlp/SWE-bench_Verified")
     p.add_argument("--split", type=str, default="test")
@@ -644,8 +737,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         data = np.load(emb_cache, allow_pickle=True)
         task_ids = [str(x) for x in list(data["task_ids"].tolist())]
         X = data["X"].astype(np.float32)
-        counts_kind = str(data["counts_kind"].tolist()) if "counts_kind" in data else ""
-        cached_layer = int(data["embedding_layer"].tolist()) if "embedding_layer" in data else -1
+        counts_kind = str(_npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
+        cached_layer = int(_npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
         if int(args.embedding_layer) != int(cached_layer):
             raise RuntimeError(
                 f"Embeddings cache was created with embedding_layer={cached_layer}, but you requested "
@@ -658,8 +751,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         data = np.load(emb_cache, allow_pickle=True)
         task_ids = [str(x) for x in list(data["task_ids"].tolist())]
         X = data["X"].astype(np.float32)
-        counts_kind = str(data["counts_kind"].tolist()) if "counts_kind" in data else ""
-        cached_layer = int(data["embedding_layer"].tolist()) if "embedding_layer" in data else -1
+        counts_kind = str(_npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
+        cached_layer = int(_npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
         if int(args.embedding_layer) != int(cached_layer):
             raise RuntimeError(
                 f"Embeddings cache (explicit) was created with embedding_layer={cached_layer}, but you requested "
@@ -720,7 +813,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"Wrote embeddings cache: {emb_cache} (n={len(ids_sorted)}, dim={X.shape[1]}, embedding_layer={int(args.embedding_layer)})")
         task_ids = ids_sorted
 
-    diffs = load_difficulties_csv(str(args.difficulties))
+    diffs = load_ground_truth_csv(str(args.difficulties))
 
     # Align X with y by item_id / instance_id
     id_to_row = {tid: i for i, tid in enumerate(task_ids)}
@@ -808,7 +901,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "torch_dtype": str(args.torch_dtype),
         "attn_implementation": str(args.attn_implementation),
         "embeddings_cache": emb_cache,
-        "difficulties_csv": str(args.difficulties),
+        "ground_truth_csv": str(args.difficulties),
     }
     save_json(os.path.join(args.out_dir, "metrics.json"), metrics)
 

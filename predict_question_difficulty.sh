@@ -23,9 +23,8 @@ echo "Using venv python: ${VENV_PY}"
 export HF_HOME="/orcd/scratch/orcd/001/daria_k/.cache/huggingface"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-DIFFS="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/irt_verified_1pl_e500_seed0/question_difficulties.csv"
-OUT_DIR="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/verified_qs_sol_instr_qwen25coder14b_lr"
-mkdir -p "${OUT_DIR}"
+DIFFS="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/swebench_verified_20251115_full/1d_1pl/items.csv"
+OUT_DIR="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt_qwen3vl8b_linear"
 
 "${VENV_PY}" /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/predict_question_difficulty.py \
   --difficulties "${DIFFS}" \
