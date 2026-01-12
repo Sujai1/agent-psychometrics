@@ -1,4 +1,9 @@
-"""Simple linear model for prior difficulty prediction."""
+"""Prior models for difficulty prediction.
+
+Supports two approaches:
+1. HeuristicPriorModel: Simple features (repo, text length) + Ridge
+2. EmbeddingPriorModel: Daria's embeddings + Ridge (better performance)
+"""
 
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -161,3 +166,114 @@ class PriorModel:
         coeffs = regressor.coef_
 
         return dict(zip(all_names, coeffs))
+
+
+class EmbeddingPriorModel:
+    """Prior model using Daria's pre-computed embeddings + Ridge regression.
+
+    This typically gives much better performance than heuristic features.
+    Requires a pre-computed embeddings .npz file from the Qwen3-VL model.
+    """
+
+    def __init__(self, embeddings_path: Path, alpha: float = 10000.0):
+        """Initialize embedding prior.
+
+        Args:
+            embeddings_path: Path to pre-computed embeddings .npz file
+            alpha: Ridge regression regularization parameter
+        """
+        self.embeddings_path = embeddings_path
+        self.alpha = alpha
+        self.model: Optional[Pipeline] = None
+        self._embeddings: Optional[Dict[str, np.ndarray]] = None
+        self._embedding_dim: Optional[int] = None
+
+        # Load embeddings immediately
+        self._load_embeddings()
+
+    def _load_embeddings(self) -> None:
+        """Load embeddings from .npz file."""
+        data = np.load(self.embeddings_path, allow_pickle=True)
+
+        # Extract task IDs and embedding matrix
+        task_ids = [str(x) for x in data["task_ids"].tolist()]
+        X = data["X"].astype(np.float32)
+
+        self._embedding_dim = int(X.shape[1])
+        self._embeddings = {task_id: X[i] for i, task_id in enumerate(task_ids)}
+        print(f"Loaded {len(self._embeddings)} embeddings, dim={self._embedding_dim}")
+
+    def fit(self, task_ids: List[str], difficulties: np.ndarray) -> "EmbeddingPriorModel":
+        """Fit Ridge regression on task embeddings.
+
+        Args:
+            task_ids: List of training task identifiers
+            difficulties: Array of ground truth difficulty values
+        """
+        if self._embeddings is None:
+            raise RuntimeError("Embeddings not loaded")
+
+        # Get embeddings for training tasks
+        available_tasks = [t for t in task_ids if t in self._embeddings]
+        if len(available_tasks) < len(task_ids):
+            missing = len(task_ids) - len(available_tasks)
+            print(f"Warning: {missing} tasks missing from embeddings")
+
+        if not available_tasks:
+            print("Warning: No tasks with embeddings found")
+            return self
+
+        # Build training matrix
+        X = np.stack([self._embeddings[t] for t in available_tasks])
+        y = np.array([difficulties[task_ids.index(t)] for t in available_tasks])
+
+        # Fit StandardScaler + Ridge
+        self.model = Pipeline([
+            ("scaler", StandardScaler(with_mean=True, with_std=True)),
+            ("ridge", Ridge(alpha=self.alpha)),
+        ])
+        self.model.fit(X, y)
+        print(f"Embedding prior trained on {len(available_tasks)} tasks")
+
+        return self
+
+    def predict(self, task_ids: List[str]) -> np.ndarray:
+        """Predict difficulty for tasks."""
+        if self.model is None or self._embeddings is None:
+            return np.zeros(len(task_ids))
+
+        # Get embeddings for prediction tasks
+        available_tasks = [t for t in task_ids if t in self._embeddings]
+
+        if not available_tasks:
+            return np.zeros(len(task_ids))
+
+        X = np.stack([self._embeddings[t] for t in available_tasks])
+        predictions = self.model.predict(X)
+
+        # Return predictions aligned with input task_ids
+        result = np.zeros(len(task_ids))
+        pred_dict = dict(zip(available_tasks, predictions))
+        for i, t in enumerate(task_ids):
+            if t in pred_dict:
+                result[i] = pred_dict[t]
+
+        return result
+
+    def get_prior_predictions(self, task_ids: List[str]) -> Dict[str, float]:
+        """Get prior predictions as a dict."""
+        predictions = self.predict(task_ids)
+        return dict(zip(task_ids, predictions))
+
+    def get_feature_coefficients(self) -> Dict[str, float]:
+        """Get coefficients (not very interpretable for embeddings)."""
+        if self.model is None:
+            return {}
+        # Just return summary stats since embedding dims aren't interpretable
+        ridge = self.model.named_steps["ridge"]
+        return {
+            "n_features": len(ridge.coef_),
+            "coef_mean": float(np.mean(ridge.coef_)),
+            "coef_std": float(np.std(ridge.coef_)),
+            "coef_max": float(np.max(np.abs(ridge.coef_))),
+        }

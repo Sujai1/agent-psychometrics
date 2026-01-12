@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.data_splits import create_experiment_split
-from experiment_b.prior_model import PriorModel
+from experiment_b.prior_model import PriorModel, EmbeddingPriorModel
 from experiment_b.posterior_model import PosteriorModel
 
 
@@ -62,11 +62,14 @@ def run_experiment(config: ExperimentConfig) -> Dict:
     print("=" * 60)
     print("EXPERIMENT B: POSTERIOR DIFFICULTY PREDICTION")
     print("=" * 60)
+    print(f"Feature source: {config.feature_source}")
+    print(f"Prior only: {config.prior_only}")
 
     # Resolve paths relative to ROOT
     items_path = ROOT / config.items_path
     responses_path = ROOT / config.responses_path
     trajectories_dir = ROOT / config.trajectories_dir
+    lunette_features_dir = ROOT / config.lunette_features_dir
     output_dir = ROOT / config.output_dir
 
     # Load IRT difficulties
@@ -97,10 +100,17 @@ def run_experiment(config: ExperimentConfig) -> Dict:
 
     # Train prior model (on ALL tasks)
     print("\n3. Training prior model...")
+    print(f"   Prior source: {config.prior_source}")
     all_task_ids = list(items_df.index)
     all_difficulties = items_df["b"].values
 
-    prior_model = PriorModel(alpha=config.prior_alpha)
+    if config.prior_source == "embedding":
+        if config.embeddings_path is None:
+            raise ValueError("embeddings_path required when prior_source='embedding'")
+        embeddings_path = ROOT / config.embeddings_path
+        prior_model = EmbeddingPriorModel(embeddings_path, alpha=config.prior_alpha)
+    else:
+        prior_model = PriorModel(alpha=config.prior_alpha)
     prior_model.fit(all_task_ids, all_difficulties)
 
     # Evaluate prior on D_train
@@ -113,20 +123,32 @@ def run_experiment(config: ExperimentConfig) -> Dict:
     print("\n4. Training posterior model...")
     train_difficulties = items_df.loc[split.d_train_tasks, "b"].values
 
-    posterior_model = PosteriorModel(prior_model, alpha=config.posterior_alpha)
-    posterior_model.fit(
-        task_ids=split.d_train_tasks,
-        ground_truth_difficulties=train_difficulties,
-        weak_agents=split.m1_agents,
-        trajectories_dir=trajectories_dir,
-    )
+    if config.prior_only:
+        print("   Skipping posterior (prior_only mode)")
+        posterior_model = None
+    else:
+        posterior_model = PosteriorModel(
+            prior_model,
+            alpha=config.posterior_alpha,
+            feature_source=config.feature_source,
+            lunette_features_dir=lunette_features_dir,
+        )
+        posterior_model.fit(
+            task_ids=split.d_train_tasks,
+            ground_truth_difficulties=train_difficulties,
+            weak_agents=split.m1_agents,
+            trajectories_dir=trajectories_dir,
+        )
 
     # Evaluate posterior on D_train
-    posterior_train_preds = posterior_model.predict(
-        split.d_train_tasks, split.m1_agents, trajectories_dir
-    )
-    posterior_train_eval = evaluate_predictions(posterior_train_preds, train_gt)
-    print(f"   Posterior on D_train: r={posterior_train_eval.get('pearson_r', 'N/A'):.3f}")
+    if posterior_model is not None:
+        posterior_train_preds = posterior_model.predict(
+            split.d_train_tasks, split.m1_agents, trajectories_dir
+        )
+        posterior_train_eval = evaluate_predictions(posterior_train_preds, train_gt)
+        print(f"   Posterior on D_train: r={posterior_train_eval.get('pearson_r', 'N/A'):.3f}")
+    else:
+        posterior_train_eval = {"skipped": True, "reason": "prior_only mode"}
 
     # Evaluate on D_valid
     print("\n5. Evaluating on D_valid...")
@@ -143,11 +165,14 @@ def run_experiment(config: ExperimentConfig) -> Dict:
         print(f"   Prior on D_valid: r={prior_valid_eval.get('pearson_r', 'N/A'):.3f}")
 
         # Posterior on D_valid (using M2 trajectories)
-        posterior_valid_preds = posterior_model.predict(
-            split.d_valid_tasks, split.m2_agents, trajectories_dir
-        )
-        posterior_valid_eval = evaluate_predictions(posterior_valid_preds, valid_gt)
-        print(f"   Posterior on D_valid: r={posterior_valid_eval.get('pearson_r', 'N/A'):.3f}")
+        if posterior_model is not None:
+            posterior_valid_preds = posterior_model.predict(
+                split.d_valid_tasks, split.m2_agents, trajectories_dir
+            )
+            posterior_valid_eval = evaluate_predictions(posterior_valid_preds, valid_gt)
+            print(f"   Posterior on D_valid: r={posterior_valid_eval.get('pearson_r', 'N/A'):.3f}")
+        else:
+            posterior_valid_eval = {"skipped": True, "reason": "prior_only mode"}
 
     # Compile results
     results = {
@@ -162,8 +187,8 @@ def run_experiment(config: ExperimentConfig) -> Dict:
         "posterior_train": posterior_train_eval,
         "prior_valid": prior_valid_eval,
         "posterior_valid": posterior_valid_eval,
-        "psi_coefficients": posterior_model.get_feature_importance(),
-        "posterior_training_stats": posterior_model.get_training_stats(),
+        "psi_coefficients": posterior_model.get_feature_importance() if posterior_model else {},
+        "posterior_training_stats": posterior_model.get_training_stats() if posterior_model else {},
         "prior_coefficients": prior_model.get_feature_coefficients(),
         "config": config.to_dict(),
     }
@@ -208,6 +233,31 @@ def main():
         help="Output directory",
     )
     parser.add_argument(
+        "--feature_source",
+        type=str,
+        choices=["simple", "lunette"],
+        default="simple",
+        help="Feature source: 'simple' (message stats) or 'lunette' (LLM-extracted)",
+    )
+    parser.add_argument(
+        "--prior_source",
+        type=str,
+        choices=["heuristic", "embedding"],
+        default="heuristic",
+        help="Prior source: 'heuristic' (repo, text length) or 'embedding' (Daria's embeddings)",
+    )
+    parser.add_argument(
+        "--embeddings_path",
+        type=str,
+        default=None,
+        help="Path to embeddings .npz file (required if prior_source='embedding')",
+    )
+    parser.add_argument(
+        "--prior_only",
+        action="store_true",
+        help="Run prior-only baseline (no trajectory correction)",
+    )
+    parser.add_argument(
         "--dry_run",
         action="store_true",
         help="Show configuration without running",
@@ -218,6 +268,10 @@ def main():
         weak_threshold=args.weak_threshold,
         strong_min_improvement=args.strong_min_improvement,
         output_dir=Path(args.output_dir),
+        feature_source=args.feature_source,
+        prior_source=args.prior_source,
+        embeddings_path=Path(args.embeddings_path) if args.embeddings_path else None,
+        prior_only=args.prior_only,
     )
 
     if args.dry_run:

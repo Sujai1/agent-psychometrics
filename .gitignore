@@ -22,6 +22,9 @@ trajectory_data/filtered_unified/
 trajectory_data/swebench_pro/
 IssueSolvingEmpirical/
 
+# Embeddings from cluster (large files, don't sync back)
+out/
+
 
 # Output files
 *.out
@@ -44,6 +47,9 @@ IssueSolvingEmpirical/
 .vscode/
 *.code-workspace
 trajectory_data/unified_trajs/_blob_style/
+
+# Experiment B reference papers
+experiment_b/LLM judge inspiration papers/
 
 # Personal cluster setup notes
 MIT_ENGAGING_SETUP.md
