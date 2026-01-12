@@ -14,49 +14,47 @@ model_irt/
 │   └── analysis/               # Analysis scripts
 │
 ├── swebench_irt/               # IRT model training code
-│   ├── train.py                # Train 1D-6D IRT models
+│   ├── train.py                # Train 1D-6D IRT models (supports 1PL and 2PL)
 │   ├── train_rep.py            # Multi-seed training
 │   ├── compare_dims.py         # AIC/BIC model comparison
 │   ├── prep_swebench.py        # Build response matrix
 │   └── ...
 │
+├── experiment_b/               # Experiment B: Posterior difficulty prediction
+│   ├── config.py               # Configuration parameters
+│   ├── data_splits.py          # Agent/task splitting logic
+│   ├── prior_model.py          # Linear prior on task features
+│   ├── posterior_model.py      # Prior + trajectory correction
+│   ├── trajectory_features.py  # Extract features from trajectories
+│   └── train_evaluate.py       # Main training/evaluation pipeline
+│
 ├── llm_judge/                  # LLM-as-judge for difficulty prediction
 │   ├── llm_judge.py            # Direct LLM feature extraction
 │   ├── predict_difficulty.py   # Heuristic feature prediction
-│   ├── lunette_batch_grading.py # Batch grading via Lunette
-│   └── evolutionary/           # Evolutionary feature discovery (PromptBreeder-inspired)
-│       ├── evolution_loop.py   # Main CLI and orchestration
-│       ├── feature_generator.py # Initial feature generation
-│       ├── feature_evaluator.py # Score extraction & correlation
-│       ├── feature_refiner.py  # 5 mutation operators
-│       └── analyze_results.py  # Visualization & reports
+│   └── lunette_batch_grading.py # Batch grading via Lunette
 │
 ├── lunette_utils/              # Lunette shared utilities
 │   ├── dummy_solver.py         # Dummy solver for cost measurement
 │   ├── dummy_swebench_task.py  # SWE-bench task with dummy solver
-│   ├── grading_plan.yaml       # Grading plan configuration
 │   └── lunette_analysis.py     # Lunette-based analysis utilities
 │
 ├── trajectory_upload/          # Trajectory conversion and upload to Lunette
 │   ├── trajectory_converter.py # Convert trajectories to unified format
-│   ├── trajectory_filter.py    # Filter trajectories by criteria
-│   ├── lunette_reupload_with_metadata.py # Upload with SWE-bench metadata
-│   ├── lunette_filtered_upload.py # Filtered upload
-│   └── lunette_augment_mappings.py # Pre-compute task-to-run mappings
+│   └── lunette_reupload_with_metadata.py # Upload with SWE-bench metadata
 │
-├── experiment_c/               # Experiment C: Lunette grading cost comparison
-│   ├── experiment_c_single_task.py # Single task test
-│   ├── experiment_c_rigorous.py    # Full 10-task experiment
-│   └── experiment_c_cost_analysis.py # Cost analysis
+├── clean_data/                 # Trained IRT models (primary location)
+│   └── swebench_verified_20251115_full/
+│       ├── 1d/                 # 2PL model (a, b parameters)
+│       └── 1d_1pl/             # 1PL model (b only)
 │
-├── chris_output/               # Outputs and trained models
-│   ├── clean_data/             # Trained IRT models
+├── chris_output/               # Outputs and analysis results
+│   ├── clean_data/             # Response matrices
 │   ├── figures/                # Visualizations
-│   └── difficulty_prediction/  # Prediction outputs
+│   └── experiment_b/           # Experiment B results
 │
 ├── trajectory_data/            # Downloaded trajectory data
-├── predict_question_difficulty.py  # Original difficulty prediction
-├── out/                        # Original outputs
+│   └── unified_trajs/          # Unified format trajectories (78 agents)
+│
 ├── tests/                      # Test suite
 ├── requirements.txt            # Python dependencies
 └── CLAUDE.md                   # This file
@@ -105,14 +103,14 @@ discriminations = list(trainer.best_params["disc"])
 ```
 experiments/evaluation/verified/<agent>/results/results.json
          ↓
-    swebench_irt/prep_swebench.py (--complete_matrix --cutoff_date 20250930)
+    swebench_irt/prep_swebench.py (--complete_matrix --cutoff_date 20251115)
          ↓
-chris_output/clean_data/swebench_verified/swebench_verified_20250930_full.jsonl
+chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl
          ↓
-    swebench_irt/train.py (--dims 1 2 3)
+    swebench_irt/train.py (--dims 1 --model 1pl/2pl)
          ↓
-chris_output/clean_data/swebench_verified_20250930_full/{1d,2d,3d}/
-    ├── items.csv   (a, b per task)
+clean_data/swebench_verified_20251115_full/{1d,1d_1pl}/
+    ├── items.csv   (a, b for 2PL; b only for 1PL)
     └── abilities.csv (theta per agent)
          ↓
     swebench_irt/compare_dims.py (AIC/BIC comparison)
@@ -122,14 +120,13 @@ chris_output/clean_data/swebench_verified_20250930_full/{1d,2d,3d}/
 
 | File | Purpose |
 |------|---------|
-| `swebench_irt/train.py` | Train 1D-6D IRT models via py_irt |
+| `swebench_irt/train.py` | Train 1D-6D IRT models via py_irt (supports 1PL and 2PL) |
 | `swebench_irt/train_rep.py` | Train with multiple random seeds for stability analysis |
 | `swebench_irt/compare_dims.py` | Compare models via AIC/BIC, optional 2D scatter |
 | `swebench_irt/prep_swebench.py` | Build JSONL response matrix from experiments repo |
-| `swebench_irt/check_matrix.py` | Verify agents/tasks/observations in JSONL |
+| `experiment_b/train_evaluate.py` | Run Experiment B: posterior difficulty prediction |
 | `llm_judge/llm_judge.py` | Direct LLM feature extraction |
 | `llm_judge/predict_difficulty.py` | Heuristic feature prediction |
-| `llm_judge/evolutionary/` | Evolutionary feature discovery (PromptBreeder-inspired) |
 | `py_irt/` | Local fork of py_irt with Multidim2PL model |
 | `tests/test_irt_pipeline.py` | 26 tests covering preprocessing, training, evaluation |
 
@@ -163,21 +160,21 @@ Where:
 ## Output Structure
 
 ```
-chris_output/clean_data/swebench_verified_20250930_full/
-├── 1d/
+clean_data/swebench_verified_20251115_full/
+├── 1d/               # 2PL model
 │   ├── items.csv     # a, b, a_std, b_std (500 tasks)
-│   └── abilities.csv # theta, theta_std (123 agents)
-├── 2d/
-│   └── ...
-└── 3d/
-    └── ...
+│   └── abilities.csv # theta, theta_std (130 agents)
+└── 1d_1pl/           # 1PL (Rasch) model
+    ├── items.csv     # b, b_std only (500 tasks)
+    └── abilities.csv # theta, theta_std (130 agents)
 ```
 
 ## Current Dataset
 
-- **123 agents** (cutoff: 2025-09-30)
+- **130 agents** (cutoff: 2025-11-15)
 - **500 tasks** (SWE-bench Verified)
-- **61,500 observations** (complete matrix, missing → 0)
+- **65,000 observations** (complete matrix, missing → 0)
+- **78 agents** with unified trajectories (for Experiment B)
 
 ## Quick Start
 
@@ -185,18 +182,24 @@ chris_output/clean_data/swebench_verified_20250930_full/
 # Activate environment
 source .venv/bin/activate
 
-# Train 1D model
+# Train 1D 2PL model
 python swebench_irt/train.py \
-    --data_path chris_output/clean_data/swebench_verified/swebench_verified_20250930_full.jsonl \
+    --data_path chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl \
     --dims 1 \
-    --output_dir chris_output/clean_data/swebench_verified_20250930_full \
+    --model 2pl \
+    --output_dir clean_data/swebench_verified_20251115_full \
     --epochs 5000
 
-# Compare models (if training multiple dims)
-python swebench_irt/compare_dims.py \
-    --results_dir chris_output/clean_data/swebench_verified_20250930_full \
-    --responses_path chris_output/clean_data/swebench_verified/swebench_verified_20250930_full.jsonl \
-    --output_dir chris_output/figures/swebench_verified_20250930_full
+# Train 1D 1PL (Rasch) model
+python swebench_irt/train.py \
+    --data_path chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl \
+    --dims 1 \
+    --model 1pl \
+    --output_dir clean_data/swebench_verified_20251115_full \
+    --epochs 5000
+
+# Run Experiment B
+python -m experiment_b.train_evaluate
 
 # Run tests
 pytest tests/test_irt_pipeline.py -v
@@ -208,7 +211,7 @@ Use the fitted 1D difficulty parameters as labels for supervised learning:
 
 ```python
 import pandas as pd
-items = pd.read_csv("chris_output/clean_data/swebench_verified_20250930_full/1d/items.csv", index_col=0)
+items = pd.read_csv("clean_data/swebench_verified_20251115_full/1d/items.csv", index_col=0)
 
 # items.index contains task IDs like "django__django-12345"
 # items["b"] contains the fitted difficulty (-2 to +5 range typically)
@@ -253,84 +256,6 @@ Using linear models (Ridge/Lasso) with heuristic features:
 - **R² = 0.14**, correlation = 0.405
 - Top predictors: repo effects (scikit-learn, pylint hardest), human labels, test complexity
 - ~86% of variance unexplained by heuristics → semantic understanding needed
-
-### Evolutionary Feature Discovery (llm_judge/evolutionary/)
-
-Automatically discover and evolve LLM-extracted features that predict IRT difficulty. Inspired by **PromptBreeder** (Fernando et al., 2023).
-
-#### How It Works
-
-1. **Generation 0**: Sample high/low difficulty tasks, prompt LLM to hypothesize distinguishing features
-2. **Evaluate**: Extract 1-5 scores for each feature × task, compute Pearson correlation with IRT `b`
-3. **Select**: Keep top-K features, remove redundant ones (score correlation > 0.8)
-4. **Evolve**: Apply mutation operators to surviving features
-5. **Repeat**: Until correlation plateaus or max generations reached
-
-#### Mutation Operators (PromptBreeder-inspired)
-
-| Operator | Weight | Description |
-|----------|--------|-------------|
-| direct_mutation | 35% | Refine based on failure cases |
-| eda_mutation | 25% | Crossover between two features |
-| hypermutation | 25% | Self-referentially evolve the mutation prompt |
-| zero_order | 15% | Generate novel features with context |
-
-#### Usage
-
-```bash
-source .venv/bin/activate
-
-# Dry run (see execution plan, no API calls)
-python -m llm_judge.evolutionary.evolution_loop --dry_run
-
-# Small test run with Sonnet (~$127)
-python -m llm_judge.evolutionary.evolution_loop
-
-# Full run with Opus 4.5 (~$600-800)
-python -m llm_judge.evolutionary.evolution_loop \
-    --model claude-opus-4-5-20251101 \
-    --initial_features 20 \
-    --top_k 10 \
-    --tasks_per_eval 100 \
-    --max_generations 10
-
-# Resume from checkpoint
-python -m llm_judge.evolutionary.evolution_loop --resume
-
-# Analyze results
-python -m llm_judge.evolutionary.analyze_results
-```
-
-#### CLI Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--model` | claude-sonnet-4-20250514 | LLM model (use opus for full runs) |
-| `--initial_features` | 10 | Features to generate in gen 0 |
-| `--top_k` | 5 | Features to keep each generation |
-| `--tasks_per_eval` | 50 | Tasks per evaluation batch |
-| `--max_generations` | 5 | Maximum generations |
-| `--output_dir` | llm_judge/evolutionary_results | Results directory |
-| `--dry_run` | - | Show plan without running |
-| `--resume` | - | Resume from checkpoint |
-
-#### Output Structure
-
-```
-llm_judge/evolutionary_results/
-├── generations/
-│   ├── gen_000/
-│   │   ├── features.json      # Feature definitions
-│   │   ├── evaluations.json   # Per-task scores + correlations
-│   │   └── summary.json       # Best correlation, surviving features
-│   └── gen_001/...
-├── best_features.json         # Top K across all generations
-├── evolution_log.json         # Full run history + cost tracking
-├── checkpoint.json            # For resume capability
-├── report.txt                 # Text summary (after analyze)
-├── correlation_progression.png
-└── feature_genealogy.png
-```
 
 ### Lunette Integration
 
@@ -394,52 +319,6 @@ python trajectory_upload/lunette_reupload_with_metadata.py --batch_size 10
 }
 ```
 
-#### Mapping Augmentation
-
-Pre-compute task-to-run mappings to avoid repeated API queries (see [LUNETTE_AUGMENT_MAPPINGS.md](trajectory_upload/LUNETTE_AUGMENT_MAPPINGS.md)):
-
-```bash
-# Augment all agents (recommended after upload)
-python trajectory_upload/lunette_augment_mappings.py
-
-# Augment specific agents
-python trajectory_upload/lunette_augment_mappings.py --agents 20240620_sweagent_claude3.5sonnet
-
-# Force re-augmentation
-python trajectory_upload/lunette_augment_mappings.py --force
-```
-
-**What it does:**
-- Queries Lunette API once per agent to determine task distribution across runs
-- Stores both forward (`task_id -> run_id`) and reverse (`run_id -> [task_ids]`) mappings
-- Augments each trajectory object with its `run_id` field
-
-**Augmented tracking file structure:**
-```json
-{
-  "agent": "20240620_sweagent_claude3.5sonnet",
-  "run_ids": ["4b42140c-...", "c5dd5b11-...", ...],
-  "task_to_run_map": {
-    "django__django-11728": "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785",
-    "astropy__astropy-12907": "c5dd5b11-8b03-4082-b20b-ec0c1f012c74"
-  },
-  "run_to_tasks_map": {
-    "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785": ["django__django-11728", ...],
-    "c5dd5b11-8b03-4082-b20b-ec0c1f012c74": ["astropy__astropy-12907", ...]
-  },
-  "task_to_run_map_updated_at": "2026-01-08T14:30:52.123456",
-  "trajectories": [
-    {
-      "task_id": "django__django-11728",
-      "trajectory_id": "0f77e97b-0dd2-406d-8b4f-54c123c6e139",
-      "resolved": false,
-      "message_count": 91,
-      "run_id": "4b42140c-d28b-4bcd-b6ad-5f09e7c8e785"
-    }
-  ]
-}
-```
-
 #### Batch Grading System
 
 Grade uploaded trajectories to evaluate how features predict IRT difficulty and discriminate between agents (see [LUNETTE_BATCH_GRADING.md](trajectory_upload/LUNETTE_BATCH_GRADING.md)):
@@ -472,46 +351,18 @@ python llm_judge/lunette_batch_grading.py \
 
 #### Accessing Uploaded Trajectories
 
-**Python API:**
 ```python
 import json
 from pathlib import Path
 
-# Load augmented tracking file
+# Load tracking file
 agent_dir = Path("trajectory_data/unified_trajs/20240620_sweagent_claude3.5sonnet")
 with open(agent_dir / "_lunette_uploads.json") as f:
     data = json.load(f)
 
-# Forward mapping: task_id -> run_id
-task_to_run = data["task_to_run_map"]
-run_id = task_to_run["django__django-11728"]
-
-# Reverse mapping: run_id -> list of task_ids
-run_to_tasks = data["run_to_tasks_map"]
-tasks_in_run = run_to_tasks["4b42140c-d28b-4bcd-b6ad-5f09e7c8e785"]
-
-# Iterate through trajectories (each has run_id already)
+# Iterate through trajectories
 for traj in data["trajectories"]:
     print(f"{traj['task_id']} -> {traj['run_id']}")
-```
-
-**Data loader utility:**
-```python
-from llm_judge.evolutionary.lunette_data_loader import LunetteDataLoader
-
-loader = LunetteDataLoader(
-    items_path=Path("chris_output/clean_data/swebench_verified_20250930_full/1d/items.csv"),
-    trajectories_dir=Path("trajectory_data/unified_trajs"),
-)
-
-# Get all agents with uploaded trajectories
-agents = loader.get_agents()
-
-# Filter by agent
-trajs = loader.filter_by_agent("20240620_sweagent_claude3.5sonnet")
-
-# Stratified sample by difficulty
-sample = loader.stratified_sample(n_tasks=50, n_agents=3, seed=42)
 ```
 
 #### Running SWE-bench Evals
@@ -614,13 +465,214 @@ python -m analysis.download_logs evaluation/verified/20240620_sweagent_claude3.5
 | File | Purpose |
 |------|---------|
 | `llm_judge/llm_judge.py` | Direct LLM feature extraction |
-| `lunette_utils/lunette_analysis.py` | Original Lunette-based grading (single-upload) |
+| `lunette_utils/lunette_analysis.py` | Lunette-based grading utilities |
 | `trajectory_upload/lunette_reupload_with_metadata.py` | Upload trajectories with SWE-bench metadata |
-| `trajectory_upload/lunette_augment_mappings.py` | Pre-compute task-to-run mappings |
 | `llm_judge/lunette_batch_grading.py` | Batch grading of uploaded trajectories |
-| `llm_judge/evolutionary/lunette_data_loader.py` | Data loader for uploaded trajectories |
-| `trajectory_upload/LUNETTE_BATCH_GRADING.md` | Batch grading documentation |
-| `trajectory_upload/LUNETTE_AUGMENT_MAPPINGS.md` | Mapping augmentation documentation |
-| `chris_output/lunette/task_features_50_extracted.csv` | Raw feature values (original grading, n=39) |
-| `chris_output/lunette/correlation_summary.csv` | Correlation results (original grading) |
+| `chris_output/lunette/correlation_summary.csv` | Correlation results from grading |
 | `chris_output/lunette_grading/` | Batch grading results directory |
+
+### Experiment B: Failure-Informed Posterior Difficulty Prediction
+
+Uses failing agent trajectories to improve IRT difficulty prediction. The key insight is that trajectory features from weak models (that fail on a task) provide signal about task difficulty beyond what can be inferred from static task features alone.
+
+#### Model Architecture
+
+```
+posterior_difficulty_i = prior(x_i) + psi^T * avg_j[f(tau_ij)]
+
+Loss = MSE(predicted, ground_truth_b) + lambda * ||psi||^2
+```
+
+Where:
+- `prior(x_i)` = simple linear model on task features (repo, text length, etc.)
+- `psi` = single set of learned weights (same for all trajectories)
+- `f(tau_ij)` = feature vector from trajectory of agent j on task i
+- `avg_j` = average across all weak model trajectories for task i
+
+#### Directory Structure
+
+```
+experiment_b/
+├── __init__.py
+├── config.py                # Configuration parameters (paths, thresholds)
+├── data_splits.py           # Agent and task splitting logic
+├── prior_model.py           # Simple linear prior on task features
+├── trajectory_features.py   # Extract features from trajectories
+├── posterior_model.py       # Prior + trajectory correction
+└── train_evaluate.py        # Main training/evaluation pipeline
+```
+
+#### Module Details
+
+| File | Purpose |
+|------|---------|
+| `config.py` | `ExperimentConfig` dataclass with paths, split fractions, thresholds |
+| `data_splits.py` | Split agents by date (M1/M2/M3), filter tasks by pass rate |
+| `prior_model.py` | Ridge regression on task features (problem_len, patch_len, repo) |
+| `trajectory_features.py` | Extract 5 features: message_count, total_chars, assistant_ratio, message_length, resolved_rate |
+| `posterior_model.py` | Learn psi coefficients to correct prior predictions using trajectory features |
+| `train_evaluate.py` | Full pipeline: load data → split → train prior → train posterior → evaluate |
+
+#### Data Splitting Strategy
+
+**Agent Splitting (by submission date):**
+- Parse YYYYMMDD prefix from agent names
+- M1 (oldest 40%): Used for training posterior on D_train
+- M2 (middle 40%): Used for evaluating posterior on D_valid
+- M3 (newest 20%): Held out for future testing
+
+**Task Splitting (by empirical pass rate):**
+- D_train: Tasks with ≤20% pass rate among M1, but >30% among M2 (tasks that got easier)
+- D_valid: Tasks with ≤20% pass rate among M2, but >30% among M3 (disjoint from D_train)
+- Threshold (20%) is configurable via `--weak_threshold`
+
+#### Usage
+
+```bash
+# Activate environment
+source .venv/bin/activate
+
+# Run with defaults
+python -m experiment_b.train_evaluate
+
+# Adjust pass rate threshold
+python -m experiment_b.train_evaluate --weak_threshold 0.1
+
+# Dry run (show config without running)
+python -m experiment_b.train_evaluate --dry_run
+
+# Custom output directory
+python -m experiment_b.train_evaluate --output_dir chris_output/experiment_b_v2
+```
+
+#### Configuration
+
+```python
+@dataclass
+class ExperimentConfig:
+    # Data paths (relative to project root)
+    items_path: Path = Path("clean_data/swebench_verified_20251115_full/1d/items.csv")
+    responses_path: Path = Path("chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl")
+    trajectories_dir: Path = Path("trajectory_data/unified_trajs")
+    output_dir: Path = Path("chris_output/experiment_b")
+
+    # Agent splitting
+    m1_fraction: float = 0.4  # Oldest 40%
+    m2_fraction: float = 0.4  # Middle 40%
+    # M3 = remaining 20%
+
+    # Task selection
+    weak_threshold: float = 0.2  # Max pass rate for "hard" tasks
+    strong_min_improvement: float = 0.1  # Min improvement for strong group
+
+    # Model parameters
+    prior_alpha: float = 1.0  # Ridge alpha for prior
+    posterior_alpha: float = 1.0  # Ridge alpha for psi
+```
+
+#### Trajectory Features
+
+5 simple features extracted from each trajectory and averaged across agents:
+
+| Feature | Description |
+|---------|-------------|
+| `avg_message_count` | Average number of messages in trajectory |
+| `avg_total_chars` | Average total character count |
+| `avg_assistant_ratio` | Ratio of assistant messages to total |
+| `avg_message_length` | Average characters per message |
+| `resolved_rate` | Fraction of trajectories that resolved the task |
+
+#### Output
+
+Results saved to `chris_output/experiment_b/experiment_b_results.json`:
+
+```json
+{
+  "split": {
+    "m1_agents": ["agent1", ...],
+    "m2_agents": ["agent2", ...],
+    "m3_agents": ["agent3", ...],
+    "d_train_tasks": ["task1", ...],
+    "d_valid_tasks": ["task2", ...]
+  },
+  "prior_train": {"pearson_r": 0.031, "mse": 1.23, "n": 45},
+  "posterior_train": {"pearson_r": 0.114, "mse": 1.18, "n": 45},
+  "prior_valid": {"pearson_r": -0.153, "mse": 1.45, "n": 38},
+  "posterior_valid": {"pearson_r": -0.087, "mse": 1.41, "n": 38},
+  "psi_coefficients": {...},
+  "config": {...}
+}
+```
+
+#### Initial Results (2026-01-12)
+
+With default settings (weak_threshold=0.2):
+
+| Dataset | Prior r | Posterior r | Improvement |
+|---------|---------|-------------|-------------|
+| D_train (n=45) | 0.031 | 0.114 | +0.083 |
+| D_valid (n=38) | -0.153 | -0.087 | +0.066 |
+
+**Interpretation:** Posterior shows modest improvement over prior on both train and validation sets. The weak correlations suggest trajectory features provide some signal, but more sophisticated features or larger datasets may be needed.
+
+### IRT Model Variants
+
+#### 1PL vs 2PL Models
+
+The codebase supports both 1-parameter logistic (1PL/Rasch) and 2-parameter logistic (2PL) IRT models:
+
+**1PL (Rasch):**
+```
+P(Y=1) = sigmoid(theta_j - b_i)
+```
+- Only difficulty parameter `b`
+- Assumes equal discrimination across all tasks
+
+**2PL:**
+```
+P(Y=1) = sigmoid(a_i * (theta_j - b_i))
+```
+- Difficulty `b` and discrimination `a` parameters
+- Allows tasks to vary in how well they differentiate ability levels
+
+#### Training Both Models
+
+```bash
+source .venv/bin/activate
+
+# Train 1PL model (saves to 1d_1pl/)
+python swebench_irt/train.py \
+    --data_path chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl \
+    --dims 1 \
+    --model 1pl \
+    --output_dir clean_data/swebench_verified_20251115_full
+
+# Train 2PL model (saves to 1d/)
+python swebench_irt/train.py \
+    --data_path chris_output/clean_data/swebench_verified/swebench_verified_20251115_full.jsonl \
+    --dims 1 \
+    --model 2pl \
+    --output_dir clean_data/swebench_verified_20251115_full
+```
+
+#### Frontier Ability Over Time (Experiment D)
+
+Plots the frontier of model abilities over time to check if progress is linear:
+
+```bash
+python chris_output/figures/frontier_ability_over_time_comparison.py
+```
+
+**Results (2026-01-12, 130 agents, 500 tasks):**
+
+| Model | Trend (θ/year) | R² |
+|-------|----------------|-----|
+| 1D 2PL | 2.94 | 0.9833 |
+| 1D 1PL | 4.19 | 0.9660 |
+
+Both models show strong linear trends, with 2PL having slightly better fit (higher R²).
+
+**Output files:**
+- `chris_output/figures/frontier_ability_over_time_2pl.png`
+- `chris_output/figures/frontier_ability_over_time_1pl.png`
+- `chris_output/figures/frontier_ability_1pl_vs_2pl.png` (side-by-side comparison)

@@ -20,6 +20,7 @@ import pandas as pd
 from py_irt.dataset import Dataset
 from py_irt.models import Multidim2PL
 from py_irt.models import TwoParamLog
+from py_irt.models import OneParamLog
 from py_irt.config import IrtConfig
 from py_irt.training import IrtModelTrainer
 import argparse
@@ -85,6 +86,49 @@ def fit_1d_irt(data: Dataset, epochs: int, output_name: str) -> IrtModelTrainer:
     abilities_df.to_csv(out_dir / "abilities.csv")
 
     return trainer
+
+
+def fit_1d_1pl_irt(data: Dataset, epochs: int, output_name: str) -> IrtModelTrainer:
+    """Fit a 1D 1PL (Rasch) model - no discrimination parameter."""
+    config = IrtConfig(
+        model_type=OneParamLog,
+        priors="hierarchical",
+        initializers=[
+            {"name": "difficulty_from_accuracy", "eps": 1e-3},
+        ],
+    )
+    trainer = IrtModelTrainer(config=config, data_path=None, dataset=data)
+    trainer.train(epochs=epochs)
+
+    # Extract parameters and uncertainties
+    difficulties = list(trainer.best_params["diff"])
+    item_id_map = trainer.best_params["item_ids"]
+    subject_id_map = trainer.best_params["subject_ids"]
+    item_ids = [item_id_map[i] for i in range(len(difficulties))]
+    abilities = list(trainer.best_params["ability"])
+    subject_ids = [subject_id_map[i] for i in range(len(abilities))]
+
+    ability_std = list(pyro.param("scale_ability").detach().cpu().numpy())
+    diff_std = list(pyro.param("scale_diff").detach().cpu().numpy())
+
+    out_dir = ROOT / "clean_data" / output_name / "1d_1pl"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1PL has no discrimination parameter - save only b
+    items_df = pd.DataFrame({
+        "b": difficulties,
+        "b_std": diff_std,
+    }, index=item_ids)
+    items_df.to_csv(out_dir / "items.csv")
+
+    abilities_df = pd.DataFrame({
+        "theta": abilities,
+        "theta_std": ability_std,
+    }, index=subject_ids).sort_values("theta", ascending=False)
+    abilities_df.to_csv(out_dir / "abilities.csv")
+
+    return trainer
+
 
 def fit_md_irt(data: Dataset, dims:int, epochs:int, output_name:str) -> IrtModelTrainer:
 
@@ -161,7 +205,7 @@ def fit_md_irt(data: Dataset, dims:int, epochs:int, output_name:str) -> IrtModel
 
 def main():
     parser = argparse.ArgumentParser(description='Train IRT models')
-    parser.add_argument('--dims', type=int, nargs='*', default=[1, 2, 3, 4, 5, 6], 
+    parser.add_argument('--dims', type=int, nargs='*', default=[1, 2, 3, 4, 5, 6],
         help='Dims to fit (default: 1–6)')
     parser.add_argument('--output_dir', type=str, default="chris_output/clean_data/training_results",
         help="Directory to save results to")
@@ -169,16 +213,24 @@ def main():
         help="Path to JSONL responses")
     parser.add_argument('--epochs', type=int, default=5000,
         help='Number of training epochs (default: 5000)')
+    parser.add_argument('--model', type=str, default="2pl", choices=["1pl", "2pl"],
+        help='IRT model type for 1D (1pl=Rasch, 2pl=discrimination+difficulty)')
     args = parser.parse_args()
-    
+
     data_path = resolve_path(args.data_path)
     data, item_columns = load_irt_data(data_path)
 
     for dim in args.dims:
         pyro.clear_param_store()  # Clear parameters between different dimensional models
         if dim == 1:
-            fit_1d_irt(data=data, epochs=args.epochs, output_name=args.output_dir)
+            if args.model == "1pl":
+                print(f"Training 1D 1PL (Rasch) model...")
+                fit_1d_1pl_irt(data=data, epochs=args.epochs, output_name=args.output_dir)
+            else:
+                print(f"Training 1D 2PL model...")
+                fit_1d_irt(data=data, epochs=args.epochs, output_name=args.output_dir)
         else:
+            print(f"Training {dim}D 2PL model...")
             fit_md_irt(data=data, dims=dim, epochs=args.epochs, output_name=args.output_dir)
 
 if __name__ == "__main__":
