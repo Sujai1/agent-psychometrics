@@ -1,5 +1,6 @@
 """Posterior model: Prior + linear correction from trajectory features."""
 
+import json
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
@@ -37,6 +38,19 @@ from .llm_judge_features_v5_single import (
     load_llm_judge_v5_single_features_for_task,
     aggregate_llm_judge_v5_single_features,
 )
+from .trajectory_features_v2 import (
+    EXECUTION_FEATURE_NAMES,
+)
+from .llm_judge_features_v6 import (
+    LLM_JUDGE_V6_FEATURE_NAMES,
+    load_llm_judge_v6_features_for_task,
+    aggregate_llm_judge_v6_features,
+)
+from .llm_judge_features_v7 import (
+    LLM_JUDGE_V7_FEATURE_NAMES,
+    load_llm_judge_v7_features_for_task,
+    aggregate_llm_judge_v7_features,
+)
 
 
 class PosteriorModel:
@@ -51,26 +65,43 @@ class PosteriorModel:
         self,
         prior_model: PriorModel,
         alpha: float = 1.0,
-        feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single"] = "simple",
+        feature_source: Literal[
+            "simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5",
+            "llm_judge_v5_single", "execution", "discoverability", "combined_v2",
+            "llm_judge_v7", "mechanical_v7"
+        ] = "simple",
         lunette_features_dir: Optional[Path] = None,
         llm_judge_features_dir: Optional[Path] = None,
         llm_judge_v4_features_dir: Optional[Path] = None,
         llm_judge_v5_features_dir: Optional[Path] = None,
         llm_judge_v5_single_features_dir: Optional[Path] = None,
+        execution_features_dir: Optional[Path] = None,
+        llm_judge_v6_features_dir: Optional[Path] = None,
+        llm_judge_v7_features_dir: Optional[Path] = None,
     ):
         """Initialize posterior model.
 
         Args:
             prior_model: Trained prior model
             alpha: Ridge regularization parameter for psi
-            feature_source: "simple" for message stats, "lunette" for Lunette API,
-                           "llm_judge" for direct LLM API, "llm_judge_v4" for V4 features,
-                           "llm_judge_v5" for V5 features, "llm_judge_v5_single" for single feature
+            feature_source: Feature source to use:
+                - "simple": Basic message stats (count, chars, resolved_rate)
+                - "lunette": Lunette API features
+                - "llm_judge": Direct LLM API (v1)
+                - "llm_judge_v4": V4 LLM features
+                - "llm_judge_v5": V5 LLM features
+                - "llm_judge_v5_single": Single location_vs_fix_alignment feature
+                - "execution": Deterministic execution features (v2)
+                - "discoverability": LLM judge v6 solution discoverability
+                - "combined_v2": execution + discoverability combined
             lunette_features_dir: Directory containing pre-computed Lunette features
             llm_judge_features_dir: Directory containing pre-computed LLM judge features
             llm_judge_v4_features_dir: Directory for V4 LLM judge features
             llm_judge_v5_features_dir: Directory for V5 LLM judge features
-            llm_judge_v5_single_features_dir: Directory for V5 single feature (location_vs_fix_alignment only)
+            llm_judge_v5_single_features_dir: Directory for V5 single feature
+            execution_features_dir: Directory for execution features (v2)
+            llm_judge_v6_features_dir: Directory for v6 discoverability features
+            llm_judge_v7_features_dir: Directory for v7 unified semantic features
         """
         self.prior_model = prior_model
         self.alpha = alpha
@@ -80,6 +111,9 @@ class PosteriorModel:
         self.llm_judge_v4_features_dir = llm_judge_v4_features_dir
         self.llm_judge_v5_features_dir = llm_judge_v5_features_dir
         self.llm_judge_v5_single_features_dir = llm_judge_v5_single_features_dir
+        self.execution_features_dir = execution_features_dir
+        self.llm_judge_v6_features_dir = llm_judge_v6_features_dir
+        self.llm_judge_v7_features_dir = llm_judge_v7_features_dir
         self.psi_model: Optional[Ridge] = None
         self.training_stats: Dict = {}
 
@@ -94,6 +128,17 @@ class PosteriorModel:
             self.feature_names = LLM_JUDGE_V5_FEATURE_NAMES
         elif feature_source == "llm_judge_v5_single":
             self.feature_names = LLM_JUDGE_V5_SINGLE_FEATURE_NAMES
+        elif feature_source == "execution":
+            self.feature_names = EXECUTION_FEATURE_NAMES
+        elif feature_source == "discoverability":
+            self.feature_names = LLM_JUDGE_V6_FEATURE_NAMES
+        elif feature_source == "combined_v2":
+            self.feature_names = EXECUTION_FEATURE_NAMES + LLM_JUDGE_V6_FEATURE_NAMES
+        elif feature_source == "llm_judge_v7":
+            self.feature_names = LLM_JUDGE_V7_FEATURE_NAMES
+        elif feature_source == "mechanical_v7":
+            # Mechanical features + v7 semantic features
+            self.feature_names = EXECUTION_FEATURE_NAMES + LLM_JUDGE_V7_FEATURE_NAMES
         else:
             self.feature_names = TRAJECTORY_FEATURE_NAMES
 
@@ -149,12 +194,89 @@ class PosteriorModel:
             if not features:
                 return None
             return aggregate_llm_judge_v5_single_features(features)
+        elif self.feature_source == "execution":
+            return self._load_execution_features(task_id)
+        elif self.feature_source == "discoverability":
+            if self.llm_judge_v6_features_dir is None:
+                return None
+            features = load_llm_judge_v6_features_for_task(
+                task_id, agents, self.llm_judge_v6_features_dir
+            )
+            if not features:
+                return None
+            return aggregate_llm_judge_v6_features(features)
+        elif self.feature_source == "combined_v2":
+            # Combine execution features with discoverability
+            exec_feat = self._load_execution_features(task_id)
+            if exec_feat is None:
+                return None
+            if self.llm_judge_v6_features_dir is None:
+                # Just return execution features if no v6 dir
+                return exec_feat
+            v6_features = load_llm_judge_v6_features_for_task(
+                task_id, agents, self.llm_judge_v6_features_dir
+            )
+            if not v6_features:
+                # Just return execution features if no v6 data
+                return exec_feat
+            v6_agg = aggregate_llm_judge_v6_features(v6_features)
+            return np.concatenate([exec_feat, v6_agg])
+        elif self.feature_source == "llm_judge_v7":
+            if self.llm_judge_v7_features_dir is None:
+                return None
+            features = load_llm_judge_v7_features_for_task(
+                task_id, agents, self.llm_judge_v7_features_dir
+            )
+            if not features:
+                return None
+            return aggregate_llm_judge_v7_features(features)
+        elif self.feature_source == "mechanical_v7":
+            # Combine mechanical features with v7 semantic features
+            exec_feat = self._load_execution_features(task_id)
+            if exec_feat is None:
+                return None
+            if self.llm_judge_v7_features_dir is None:
+                # Just return mechanical features if no v7 dir
+                return exec_feat
+            v7_features = load_llm_judge_v7_features_for_task(
+                task_id, agents, self.llm_judge_v7_features_dir
+            )
+            if not v7_features:
+                # Just return mechanical features if no v7 data
+                return exec_feat
+            v7_agg = aggregate_llm_judge_v7_features(v7_features)
+            return np.concatenate([exec_feat, v7_agg])
         else:
             # Simple trajectory features
             traj_features = load_trajectories_for_task(task_id, agents, trajectories_dir)
             if not traj_features:
                 return None
             return aggregate_trajectory_features(traj_features)
+
+    def _load_execution_features(self, task_id: str) -> Optional[np.ndarray]:
+        """Load pre-computed execution features for a task.
+
+        Args:
+            task_id: Task instance ID
+
+        Returns:
+            Aggregated feature vector or None
+        """
+        if self.execution_features_dir is None:
+            return None
+
+        feature_file = self.execution_features_dir / f"{task_id}.json"
+        if not feature_file.exists():
+            return None
+
+        try:
+            with open(feature_file) as f:
+                data = json.load(f)
+            if "aggregated" in data:
+                return np.array(data["aggregated"])
+            return None
+        except (json.JSONDecodeError, IOError):
+            return None
 
     def fit(
         self,

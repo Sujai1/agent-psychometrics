@@ -18,6 +18,9 @@ class ExperimentConfig:
     llm_judge_v4_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v4_features")
     llm_judge_v5_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v5_features")
     llm_judge_v5_single_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v5_single_features")
+    execution_features_dir: Path = Path("chris_output/experiment_b/execution_features")
+    llm_judge_v6_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v6_features")
+    llm_judge_v7_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v7_features")
     output_dir: Path = Path("chris_output/experiment_b")
 
     # Agent splitting
@@ -35,9 +38,17 @@ class ExperimentConfig:
     prior_alpha: float = 10000.0  # Ridge alpha for embedding prior
     posterior_alpha: float = 1.0  # Ridge alpha for psi
 
-    # Feature source: "simple" (message stats), "lunette" (Lunette API), "llm_judge" (direct LLM API),
-    # "llm_judge_v4", "llm_judge_v5" (4 features), or "llm_judge_v5_single" (location_vs_fix_alignment only)
-    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single"] = "simple"
+    # Feature source options:
+    # - "simple": Basic message stats (count, chars, resolved_rate)
+    # - "lunette": Lunette API features
+    # - "llm_judge": Direct LLM API (v1)
+    # - "llm_judge_v4": V4 LLM features
+    # - "llm_judge_v5": V5 LLM features (4 features)
+    # - "llm_judge_v5_single": Single location_vs_fix_alignment feature
+    # - "execution": Deterministic execution features (v2) - error misdirection, edit entropy, etc.
+    # - "discoverability": LLM judge v6 solution discoverability
+    # - "combined_v2": execution + discoverability combined
+    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7"] = "simple"
 
     # Prior source: "heuristic" (repo, text length) or "embedding" (Daria's embeddings)
     prior_source: Literal["heuristic", "embedding"] = "heuristic"
@@ -59,7 +70,7 @@ class ExperimentConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ExperimentConfig":
         """Create config from dict, converting strings to Paths."""
-        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "llm_judge_v5_features_dir", "llm_judge_v5_single_features_dir", "output_dir", "embeddings_path"}
+        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "llm_judge_v5_features_dir", "llm_judge_v5_single_features_dir", "execution_features_dir", "llm_judge_v6_features_dir", "llm_judge_v7_features_dir", "output_dir", "embeddings_path"}
         converted = {}
         for k, v in d.items():
             if k in path_fields and isinstance(v, str):
