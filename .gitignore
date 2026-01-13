@@ -92,6 +92,12 @@ chris_output/experiment_b/m1_m2_residual_analysis.json
 # Sandbox test results
 chris_output/sandbox_test_results.json
 
+# Sandbox runs outputs
+chris_output/experiment_a/sandbox_runs/
+
+# Docker compose files
+lunette_utils/.compose.yaml
+
 # Overnight logs
 overnight.log
 overnight_resume.log
