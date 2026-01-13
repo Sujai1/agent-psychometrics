@@ -75,6 +75,23 @@ chris_output/experiment_a/llm_judge_features/
 # Experiment B LLM judge v4 features
 chris_output/experiment_b/llm_judge_v4_features/
 
+# Experiment B LLM judge v5 features
+chris_output/experiment_b/llm_judge_v5_features/
+
+# Experiment B simple results (regenerable)
+chris_output/experiment_b/simple_results/
+
+# Compute logs
+chris_output/experiment_b/v5_compute_log.txt
+chris_output/experiment_b/v5_single_compute_log.txt
+chris_output/experiment_b/v5_single_valid_compute_log.txt
+
+# Residual analysis outputs
+chris_output/experiment_b/m1_m2_residual_analysis.json
+
+# Sandbox test results
+chris_output/sandbox_test_results.json
+
 # Overnight logs
 overnight.log
 overnight_resume.log
