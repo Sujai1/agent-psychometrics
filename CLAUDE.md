@@ -663,6 +663,35 @@ The prior model (heuristic features: problem_len, patch_len, repo) has r=0.031 w
 
 This suggests LLM judge should focus on: (1) whether the problem has a "trick" that makes it harder than patch size suggests, (2) how confused/exploratory vs directed agents are, (3) whether agents give up or succeed with short/focused attempts.
 
+#### ⚠️ Restriction of Range Issue (D_train correlation)
+
+**Key Finding (2026-01-12):** The embedding prior shows r=0.093 correlation on D_train, but this is **misleading** due to the "restriction of range" statistical phenomenon.
+
+**The Problem:**
+D_train is a biased subset (tasks that M1 agents failed but M2 passed), which has much lower variance in difficulty:
+
+| Dataset | Mean b | Std b | Range |
+|---------|--------|-------|-------|
+| All 500 tasks | 0.21 | 2.13 | [-3.78, 5.16] |
+| D_train (119) | 0.91 | 0.81 | [-0.43, 3.58] |
+
+When you restrict the range of values, correlation drops even if predictions are accurate!
+
+**Proof that the prior is working:**
+```
+Embedding prior performance:
+  On ALL 500 tasks:      r = 0.731
+  On D_train (n=119):    r = 0.093  ← misleadingly low!
+  On RANDOM 119 tasks:   r = 0.732  ← similar to full dataset
+
+  D_train RMSE: 1.115  ← actually GOOD (better than overall!)
+```
+
+**Implication for Experiment B evaluation:**
+- **Use RMSE, not correlation** when evaluating on D_train/D_valid
+- Low correlation does NOT mean the prior is failing
+- The embedding prior (r=0.63 on held-out test, RMSE≈1.1) is actually performing well
+
 ### Experiment A: Prior Validation (IRT AUC)
 
 Evaluates how well a difficulty predictor can predict agent success on held-out tasks using the 1PL IRT model. This validates whether predicted difficulties are useful for forecasting agent performance.
