@@ -92,9 +92,9 @@ def main() -> None:
         help="Limit number of agents after sorting by name",
     )
     parser.add_argument(
-        "--complete_matrix",
+        "--no_complete_matrix",
         action="store_true",
-        help="Fill missing tasks with 0 using the global task list",
+        help="Don't fill missing tasks (sparse matrix). Default is to fill with 0.",
     )
     parser.add_argument(
         "--output_path",
@@ -133,10 +133,10 @@ def main() -> None:
     items_list = sorted(all_items)
     records = []
     for agent_dir, responses, source in selected:
-        if not responses and not args.complete_matrix:
+        if not responses and args.no_complete_matrix:
             summary.append((agent_dir.name, 0, 0, source))
             continue
-        if args.complete_matrix:
+        if not args.no_complete_matrix:
             responses = {iid: int(responses.get(iid, 0)) for iid in items_list}
         resolved_ct = sum(responses.values())
         summary.append((agent_dir.name, len(responses), resolved_ct, source))
@@ -154,10 +154,10 @@ def main() -> None:
         counts = [len(r["responses"]) for r in records]
         print(f"Total observations: {obs_total}")
         print(f"Tasks per agent: min={min(counts)} max={max(counts)} mean={obs_total / len(counts):.2f}")
-        if args.complete_matrix:
+        if not args.no_complete_matrix:
             print("Complete matrix: yes")
         else:
-            print("Complete matrix: no")
+            print("Complete matrix: no (sparse)")
     if summary:
         empty = sum(1 for _name, count, _res, _src in summary if count == 0)
         print(f"Agents with no responses: {empty}")
