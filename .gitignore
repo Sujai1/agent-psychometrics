@@ -67,6 +67,14 @@ chris_output/experiment_b/heuristic_*/
 # Experiment A Lunette features (large, regenerable from API)
 chris_output/experiment_a/lunette_features/
 chris_output/experiment_a/lunette_features.csv
+chris_output/experiment_a/lunette_features_v2/
+
+# Experiment B LLM judge v4 features
+chris_output/experiment_b/llm_judge_v4_features/
+
+# Overnight logs
+overnight.log
+overnight_resume.log
 
 # Personal cluster setup notes
 MIT_ENGAGING_SETUP.md
