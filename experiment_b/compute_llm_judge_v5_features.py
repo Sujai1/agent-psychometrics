@@ -102,8 +102,9 @@ def parse_response(response_text: str) -> Optional[Dict]:
     try:
         result = json.loads(response_text[start:end])
         # Validate integer features are in 1-5 range
+        # V5.1: solution_discoverability replaces design_intent_gap
         for key in ["navigation_efficiency", "reproduction_success",
-                    "location_vs_fix_alignment", "exploration_breadth"]:
+                    "location_vs_fix_alignment", "solution_discoverability"]:
             if key in result:
                 val = int(result[key])
                 result[key] = max(1, min(5, val))  # Clamp to 1-5
@@ -303,21 +304,21 @@ def main():
             print(f"  -> Saved: nav={features.get('navigation_efficiency')}, "
                   f"repro={features.get('reproduction_success')}, "
                   f"loc={features.get('location_vs_fix_alignment')}, "
-                  f"breadth={features.get('exploration_breadth')}")
+                  f"disc={features.get('solution_discoverability')}")
 
             # Show expected vs actual correlation for extreme tasks
             if args.test_extreme:
-                nav = features.get('navigation_efficiency', 3)
-                repro = features.get('reproduction_success', 3)
                 loc = features.get('location_vs_fix_alignment', 3)
+                disc = features.get('solution_discoverability', 3)
 
-                # Expected: high residual → high nav/repro values
+                # Expected for hard tasks: high discoverability score (solution not discoverable)
+                # Expected for easy tasks: low discoverability score (solution was obvious)
                 if residual > 1:
-                    expected = "high nav/repro (hard task)"
-                    match = "YES" if (nav >= 3 or repro >= 3) else "NO"
+                    expected = "high disc (hard task, solution not discoverable)"
+                    match = "YES" if disc >= 3 else "NO"
                 else:
-                    expected = "low nav/repro (easy task)"
-                    match = "YES" if (nav <= 3 or repro <= 3) else "NO"
+                    expected = "low disc (easy task, solution discoverable)"
+                    match = "YES" if disc <= 3 else "NO"
                 print(f"  -> Expected: {expected}, Match: {match}")
         else:
             errors += 1
