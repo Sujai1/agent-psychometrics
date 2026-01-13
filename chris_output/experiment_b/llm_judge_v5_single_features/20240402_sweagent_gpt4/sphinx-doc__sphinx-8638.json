@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "No source code files edited, only explored documentation files",
+  "gold_patch_files": "sphinx/domains/python.py",
+  "reasoning": "The agent never found the correct file (sphinx/domains/python.py) and made no edits to source code, only exploring documentation files.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

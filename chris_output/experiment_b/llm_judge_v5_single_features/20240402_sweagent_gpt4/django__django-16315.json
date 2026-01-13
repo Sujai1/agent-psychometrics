@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/db/models/query.py, django/db/models/sql/compiler.py",
+  "gold_patch_files": "django/db/models/query.py, django/db/models/sql/compiler.py",
+  "reasoning": "The agent found and edited the exact same files and functions as the gold patch - specifically the bulk_create method in query.py and the as_sql method in compiler.py. The agent successfully identified the root cause and attempted multiple fixes at the precise locations where the gold patch applies.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

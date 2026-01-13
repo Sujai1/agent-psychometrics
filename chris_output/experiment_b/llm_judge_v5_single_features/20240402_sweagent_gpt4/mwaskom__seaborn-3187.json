@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "['seaborn/_core/scales.py']",
+  "gold_patch_files": "['seaborn/_core/scales.py', 'seaborn/utils.py']",
+  "reasoning": "The agent found the exact right location in scales.py around lines 377-382 where the legend is configured and made multiple attempts to fix the offset issue at those precise lines, matching the gold patch location perfectly.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

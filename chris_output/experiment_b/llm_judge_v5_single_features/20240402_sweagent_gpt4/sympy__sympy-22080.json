@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 3,
+  "agent_files_edited": "sympy/printing/precedence.py",
+  "gold_patch_files": "sympy/printing/codeprinter.py, sympy/printing/precedence.py",
+  "reasoning": "Agent found the right file and made correct changes to precedence.py, but completely missed the main fix location in codeprinter.py where the unary minus handling needed to be corrected.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

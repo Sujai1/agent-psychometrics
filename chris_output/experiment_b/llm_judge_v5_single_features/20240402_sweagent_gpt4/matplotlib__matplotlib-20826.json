@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 2,
+  "agent_files_edited": "lib/matplotlib/axes/_base.py",
+  "gold_patch_files": "lib/matplotlib/axis.py",
+  "reasoning": "Agent found clearing-related code but edited the wrong file - worked on Axes.cla() method instead of the Axis.clear() method where the actual fix was needed.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

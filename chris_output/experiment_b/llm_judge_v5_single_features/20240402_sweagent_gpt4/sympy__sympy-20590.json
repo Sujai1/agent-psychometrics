@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "test_symbol_dict.py (test file only, no actual fixes)",
+  "gold_patch_files": "sympy/core/_print_helpers.py",
+  "reasoning": "The agent never found the correct file (_print_helpers.py) and focused entirely on the wrong location (symbol.py), missing that the issue was in a mixin class.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

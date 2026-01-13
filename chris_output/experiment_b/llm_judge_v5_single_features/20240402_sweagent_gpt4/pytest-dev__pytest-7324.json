@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_crash.py",
+  "gold_patch_files": "src/_pytest/mark/expression.py",
+  "reasoning": "The agent never found the right location, only editing a test reproduction script instead of the pytest source code that needed fixing.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

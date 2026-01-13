@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "None - no files were edited",
+  "gold_patch_files": "sphinx/pycode/ast.py",
+  "reasoning": "The agent never found the right location, spending the entire session looking for external pyvista files instead of recognizing this was a Sphinx internal parsing issue in ast.py.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

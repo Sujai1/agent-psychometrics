@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/db/models/query.py",
+  "gold_patch_files": "django/db/models/query.py",
+  "reasoning": "The agent found the exact same file, function, and lines as the gold patch, targeting the uniqueness check in the in_bulk() method, but failed due to implementation issues with imports and syntax.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

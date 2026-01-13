@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_issue.sh",
+  "gold_patch_files": "pylint/lint/expand_modules.py, pylint/lint/pylinter.py",
+  "reasoning": "The agent never found the correct files that needed modification, only creating and editing a test script while exploring various unrelated source files.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

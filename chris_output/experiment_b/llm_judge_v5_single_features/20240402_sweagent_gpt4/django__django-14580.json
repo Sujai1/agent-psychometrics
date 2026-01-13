@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "app/migrations/0001_initial.py",
+  "gold_patch_files": "django/db/migrations/serializer.py",
+  "reasoning": "The agent edited a generated migration file to manually fix the symptom, while the gold patch fixes the root cause in Django's serialization code that generates migrations. The agent never found the actual location where the bug originates.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

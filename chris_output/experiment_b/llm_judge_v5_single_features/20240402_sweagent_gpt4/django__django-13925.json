@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "fix_w042.py (created new file)",
+  "gold_patch_files": "django/db/models/base.py",
+  "reasoning": "The agent never found the correct location and instead created an entirely new file with documentation/examples rather than editing the actual Django source code where the bug exists in the _check_default_pk method.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

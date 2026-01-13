@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 3,
+  "agent_files_edited": "django/db/models/options.py",
+  "gold_patch_files": "django/db/models/base.py, django/db/models/options.py",
+  "reasoning": "Agent found the right file and area for part of the fix (options.py) and edited the exact lines needed there, but completely missed the equally important changes required in base.py.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

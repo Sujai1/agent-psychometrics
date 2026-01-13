@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "reproduce_issue.py (test file only)",
+  "gold_patch_files": "sympy/polys/factortools.py",
+  "reasoning": "The agent found the exact function and line that needed to be changed (dmp_ext_factor, line 1150) and even noted the suspicious difference between variables f and F, but failed to implement any actual fix.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

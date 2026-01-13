@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "[]",
+  "gold_patch_files": "['sphinx/util/rst.py']",
+  "reasoning": "The agent found the exact right file and function (prepend_prolog in sphinx/util/rst.py) and identified the problematic docinfo_re regex pattern, but failed to implement any fix despite understanding the issue location.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

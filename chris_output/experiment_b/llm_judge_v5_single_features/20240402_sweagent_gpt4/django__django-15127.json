@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "tests/messages_tests/test_override_settings.py, runtests.py",
+  "gold_patch_files": "django/contrib/messages/apps.py",
+  "reasoning": "The agent never found the right location, editing only test files while the gold patch requires changes to the core messages app configuration file.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

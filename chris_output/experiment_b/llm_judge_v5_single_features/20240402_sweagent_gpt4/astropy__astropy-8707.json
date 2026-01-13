@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "astropy/io/fits/header.py, astropy/io/fits/card.py",
+  "gold_patch_files": "astropy/io/fits/header.py, astropy/io/fits/card.py",
+  "reasoning": "The agent found and edited the exact same files and functions as the gold patch (Header.fromstring and Card.fromstring), but failed to implement the correct comprehensive solution for handling bytes input.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

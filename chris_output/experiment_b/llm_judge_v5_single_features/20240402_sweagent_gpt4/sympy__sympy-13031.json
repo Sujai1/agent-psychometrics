@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "sympy/matrices/common.py",
+  "gold_patch_files": "sympy/matrices/sparse.py",
+  "reasoning": "Agent edited a completely different file (common.py) than the gold patch target (sparse.py), missing the underlying col_join/row_join methods that needed fixing.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

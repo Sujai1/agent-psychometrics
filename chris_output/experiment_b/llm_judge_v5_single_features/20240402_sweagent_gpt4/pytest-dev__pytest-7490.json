@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "src/_pytest/nodes.py",
+  "gold_patch_files": "src/_pytest/skipping.py",
+  "reasoning": "The agent edited a completely different file (nodes.py) than the gold patch target (skipping.py), focusing on marker addition rather than xfail evaluation logic.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

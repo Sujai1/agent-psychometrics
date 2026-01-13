@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_bug.py",
+  "gold_patch_files": "sympy/polys/matrices/normalforms.py",
+  "reasoning": "The agent never edited the actual source code file that needed fixing, only creating and modifying a test reproduction script.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

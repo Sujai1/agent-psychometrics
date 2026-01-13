@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/contrib/admin/utils.py",
+  "gold_patch_files": "django/contrib/admin/utils.py",
+  "reasoning": "The agent found the exact same file, function, and lines as the gold patch, making multiple attempts to add JSONField handling to display_for_field around lines 380-402.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

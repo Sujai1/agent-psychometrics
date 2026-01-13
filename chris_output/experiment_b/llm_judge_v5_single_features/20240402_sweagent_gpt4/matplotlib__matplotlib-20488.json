@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "lib/matplotlib/colors.py",
+  "gold_patch_files": "lib/matplotlib/image.py",
+  "reasoning": "Agent edited a completely different file (colors.py) than the gold patch (image.py), indicating they never found the right location for the fix.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

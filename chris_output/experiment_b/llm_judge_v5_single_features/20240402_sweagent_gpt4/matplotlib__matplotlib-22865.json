@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "['/matplotlib__matplotlib/lib/matplotlib/colorbar.py']",
+  "gold_patch_files": "['lib/matplotlib/colorbar.py']",
+  "reasoning": "The agent found the exact same file, method, and lines as the gold patch but failed to implement the correct conditional logic for handling extend cases.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": true
+}

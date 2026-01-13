@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/core/management/commands/inspectdb.py",
+  "gold_patch_files": "django/core/management/commands/inspectdb.py",
+  "reasoning": "Agent found the exact right location (same file, same function, same lines 118-133) where the gold patch applies, but failed to implement the correct fix due to syntax errors and incorrect logic.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

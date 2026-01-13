@@ -1,0 +1,14 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": [
+    "reproduce_bug.py",
+    "django/db/migrations/operations/models.py"
+  ],
+  "gold_patch_files": [
+    "django/db/migrations/operations/models.py"
+  ],
+  "reasoning": "The agent found the exact same file, method, and lines as the gold patch, implementing the identical fix but failed to complete the task properly.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

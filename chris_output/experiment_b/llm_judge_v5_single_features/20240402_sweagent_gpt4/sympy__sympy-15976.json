@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "reproduce_bug.py",
+  "gold_patch_files": "sympy/printing/mathml.py",
+  "reasoning": "Agent found the exact right file and function (_print_Symbol in mathml.py) but failed to implement any fix, indicating they knew WHERE but not WHAT to change.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

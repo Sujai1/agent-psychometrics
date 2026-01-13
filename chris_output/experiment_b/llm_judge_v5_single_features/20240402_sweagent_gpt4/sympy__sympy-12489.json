@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "sympy/combinatorics/permutations.py",
+  "gold_patch_files": "sympy/combinatorics/permutations.py",
+  "reasoning": "The agent found the exact same file, class, and methods as the gold patch, editing the same core functions like `_af_new` and `__new__` with very similar changes.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

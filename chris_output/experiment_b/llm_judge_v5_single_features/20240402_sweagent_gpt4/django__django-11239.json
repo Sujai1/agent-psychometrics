@@ -1,0 +1,13 @@
+{
+  "location_vs_fix_alignment": 4,
+  "agent_files_edited": [
+    "django/db/backends/postgresql/client.py"
+  ],
+  "gold_patch_files": [
+    "django/db/backends/postgresql/client.py"
+  ],
+  "reasoning": "The agent found the correct file and the correct function (runshell_db), but used command-line arguments (--set) instead of environment variables like the gold patch does.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

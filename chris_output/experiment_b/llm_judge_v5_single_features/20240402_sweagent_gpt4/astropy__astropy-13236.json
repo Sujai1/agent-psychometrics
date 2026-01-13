@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "astropy/table/table.py",
+  "gold_patch_files": "astropy/table/table.py",
+  "reasoning": "The agent found the exact same file and exact same lines (1244-1247) as the gold patch, but implemented a FutureWarning instead of removing the code block entirely as required by the gold patch.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

@@ -181,6 +181,10 @@ def main():
         "--agents", nargs="+", default=None,
         help="Specific agents to compute for (default: first M1 agent)"
     )
+    parser.add_argument(
+        "--task_set", type=str, default="train", choices=["train", "valid", "both"],
+        help="Which task set to compute: train, valid, or both"
+    )
     args = parser.parse_args()
 
     output_dir = ROOT / args.output_dir
@@ -193,6 +197,7 @@ def main():
 
     m1_agents = results["split"]["m1_agents"]
     d_train_tasks = results["split"]["d_train_tasks"]
+    d_valid_tasks = results["split"].get("d_valid_tasks", [])
 
     # Select agents
     if args.agents:
@@ -200,13 +205,21 @@ def main():
     else:
         agents = [m1_agents[0]]
 
+    # Select task set
+    if args.task_set == "train":
+        tasks = d_train_tasks
+    elif args.task_set == "valid":
+        tasks = d_valid_tasks
+    else:  # both
+        tasks = d_train_tasks + d_valid_tasks
+
     print(f"Agents to compute for: {agents}")
-    print(f"Tasks: {len(d_train_tasks)}")
+    print(f"Task set: {args.task_set} ({len(tasks)} tasks)")
 
     # Build list of (agent, task) pairs to compute
     pairs_to_compute = []
     for agent in agents:
-        for task_id in d_train_tasks:
+        for task_id in tasks:
             pairs_to_compute.append((agent, task_id))
 
     print(f"Total pairs to compute: {len(pairs_to_compute)}")

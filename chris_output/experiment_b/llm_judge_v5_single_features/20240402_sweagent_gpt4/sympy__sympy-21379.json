@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "sympy/polys/polytools.py",
+  "gold_patch_files": "sympy/core/mod.py",
+  "reasoning": "The agent found and edited sympy/polys/polytools.py around the PolynomialError code, but the gold patch applies to sympy/core/mod.py which deals with modular arithmetic. The agent never found the correct file or location where the actual fix needed to be applied.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 4,
+  "agent_files_edited": "astropy/io/fits/card.py",
+  "gold_patch_files": "astropy/io/fits/card.py",
+  "reasoning": "The agent found the correct file and function (_split method) but edited the wrong lines - they modified line 862 with a conditional replacement approach, while the gold patch removes the replace operation entirely on line 862 and adds a '$' anchor to the regex on line 69.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

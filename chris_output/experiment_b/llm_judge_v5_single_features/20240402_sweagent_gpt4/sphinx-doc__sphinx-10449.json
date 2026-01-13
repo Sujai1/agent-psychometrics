@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "sample_package/__init__.py, docs/index.rst, docs/conf.py, build_docs.sh",
+  "gold_patch_files": "sphinx/ext/autodoc/typehints.py",
+  "reasoning": "The agent never found the right location - it only created reproduction files but never searched for or edited the actual Sphinx source code file that needed fixing (sphinx/ext/autodoc/typehints.py).",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

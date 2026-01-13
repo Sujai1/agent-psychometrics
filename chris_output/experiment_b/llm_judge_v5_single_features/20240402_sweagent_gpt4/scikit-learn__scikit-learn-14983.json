@@ -1,0 +1,13 @@
+{
+  "location_vs_fix_alignment": 3,
+  "agent_files_edited": [
+    "sklearn/model_selection/_split.py"
+  ],
+  "gold_patch_files": [
+    "sklearn/model_selection/_split.py"
+  ],
+  "reasoning": "The agent found the correct file and identified the RepeatedKFold and RepeatedStratifiedKFold classes, but attempted to add __repr__ methods directly to these classes instead of adding it to the parent _RepeatedSplits class and modifying _build_repr as shown in the gold patch.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

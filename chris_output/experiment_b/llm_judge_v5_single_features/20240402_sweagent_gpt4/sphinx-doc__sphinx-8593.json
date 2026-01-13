@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce.py, index.rst, build_docs.py, patch_autodoc.py",
+  "gold_patch_files": "sphinx/ext/autodoc/__init__.py, sphinx/ext/autodoc/importer.py",
+  "reasoning": "Agent never found the correct source files - edited only test/reproduction files while the gold patch modifies core autodoc implementation files.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

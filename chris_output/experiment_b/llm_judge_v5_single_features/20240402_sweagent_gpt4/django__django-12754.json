@@ -1,0 +1,13 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": [
+    "reproduce_issue.py"
+  ],
+  "gold_patch_files": [
+    "django/db/migrations/autodetector.py"
+  ],
+  "reasoning": "The agent never found the correct file (autodetector.py) and only worked on creating a reproduction script, completely missing the actual source code that needed to be modified.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

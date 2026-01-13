@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/db/models/sql/compiler.py",
+  "gold_patch_files": "django/db/models/sql/compiler.py",
+  "reasoning": "The agent found the exact right location in the compiler.py file and correctly identified the find_ordering_name function where the fix needed to be applied, making multiple edit attempts at the precise lines that match the gold patch.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

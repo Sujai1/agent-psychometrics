@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "django/contrib/auth/tokens.py",
+  "gold_patch_files": "django/contrib/auth/tokens.py",
+  "reasoning": "The agent found the exact same file, method, and line as the gold patch but implemented a naive solution that directly accessed user.email instead of the robust approach with proper email field handling.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

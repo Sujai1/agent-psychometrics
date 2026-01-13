@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 2,
+  "agent_files_edited": "['/django__django/django/forms/models.py']",
+  "gold_patch_files": "['/django__django/django/forms/models.py']",
+  "reasoning": "Agent found the correct file but focused on the wrong function (modelform_factory) instead of the ModelFormOptions and ModelFormMetaclass classes where the actual fix needed to be implemented.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_issue.py",
+  "gold_patch_files": "django/forms/models.py",
+  "reasoning": "The agent never found the right location and spent the entire time creating and debugging a reproduction script instead of examining the actual Django forms code that needed to be modified.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

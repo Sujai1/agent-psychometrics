@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_bug.py",
+  "gold_patch_files": "django/db/models/base.py",
+  "reasoning": "The agent never found the right location - they only edited their own test script and never touched the actual Django source code file that needed to be fixed.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

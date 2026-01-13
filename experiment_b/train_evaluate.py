@@ -292,10 +292,16 @@ def run_experiment(config: ExperimentConfig) -> Dict:
         prior_valid_auc = compute_auc(prior_valid_preds, abilities_df, responses, split.d_valid_tasks, split.m2_agents)
         print(f"   Prior AUC on D_valid (M2 agents): {prior_valid_auc.get('auc', 'N/A'):.4f}" if 'auc' in prior_valid_auc else f"   Prior AUC: {prior_valid_auc.get('error', 'N/A')}")
 
-        # Posterior on D_valid (using M2 trajectories)
+        # Posterior on D_valid
+        # For LLM judge features, we use M1 agents since those are what we computed
+        # For simple/lunette features, we use M2 agents which matches the original design
         if posterior_model is not None:
+            if config.feature_source.startswith("llm_judge"):
+                valid_agents_for_features = split.m1_agents
+            else:
+                valid_agents_for_features = split.m2_agents
             posterior_valid_preds = posterior_model.predict(
-                split.d_valid_tasks, split.m2_agents, trajectories_dir
+                split.d_valid_tasks, valid_agents_for_features, trajectories_dir
             )
             posterior_valid_eval = evaluate_predictions(posterior_valid_preds, valid_gt)
             print(f"   Posterior on D_valid: r={posterior_valid_eval.get('pearson_r', 'N/A'):.3f}, RMSE={posterior_valid_eval.get('rmse', 'N/A'):.3f}")

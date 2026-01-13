@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 2,
+  "agent_files_edited": "test_deletion_optimization.py",
+  "gold_patch_files": "django/contrib/admin/utils.py, django/db/models/deletion.py",
+  "reasoning": "Agent found and examined the right file (django/db/models/deletion.py) and relevant code sections but never actually edited any implementation files, only creating test files.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

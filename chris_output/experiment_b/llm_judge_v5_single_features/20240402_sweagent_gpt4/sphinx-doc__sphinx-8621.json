@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 4,
+  "agent_files_edited": "sphinx/builders/html/transforms.py",
+  "gold_patch_files": "sphinx/builders/html/transforms.py",
+  "reasoning": "The agent found the exact correct file and function (KeyboardTransform.run) but implemented a completely different approach by rewriting the entire logic instead of just fixing the regex pattern as shown in the gold patch. The agent targeted the right function but wrong implementation strategy.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

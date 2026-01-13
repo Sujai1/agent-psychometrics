@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "tests/annotations/tests.py",
+  "gold_patch_files": "django/db/models/fields/related_lookups.py, django/db/models/sql/query.py",
+  "reasoning": "Agent never found the right location - only edited test files while the gold patch fixes core Django ORM lookup and query handling code.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

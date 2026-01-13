@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "reproduce_bug.py, minimal_settings.py",
+  "gold_patch_files": "django/db/models/base.py",
+  "reasoning": "The agent never found the correct file to edit, spending all time on test reproduction rather than locating the actual bug in Django's model base class.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

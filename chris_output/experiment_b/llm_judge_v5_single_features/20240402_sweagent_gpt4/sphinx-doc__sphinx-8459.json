@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "sphinx/util/inspect.py",
+  "gold_patch_files": "sphinx/ext/autodoc/typehints.py",
+  "reasoning": "The agent edited a completely different file from the gold patch, missing the actual location where type aliases need to be passed to inspect.signature in the typehints module.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

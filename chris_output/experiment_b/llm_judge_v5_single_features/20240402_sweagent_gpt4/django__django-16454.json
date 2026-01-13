@@ -1,0 +1,13 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": [
+    "reproduce_bug.py"
+  ],
+  "gold_patch_files": [
+    "django/core/management/base.py"
+  ],
+  "reasoning": "Agent never edited the correct file - only created and modified a test script, despite finding and exploring the right location.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

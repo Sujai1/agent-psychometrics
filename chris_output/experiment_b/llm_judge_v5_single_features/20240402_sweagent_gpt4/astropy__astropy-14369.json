@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 5,
+  "agent_files_edited": "astropy/units/format/cds.py",
+  "gold_patch_files": "astropy/units/format/cds.py, astropy/units/format/cds_parsetab.py",
+  "reasoning": "The agent found the exact right location and made the correct fix to the division grammar rule, though it missed regenerating the parser table file.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}

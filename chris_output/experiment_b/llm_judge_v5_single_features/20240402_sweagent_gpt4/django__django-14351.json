@@ -1,0 +1,9 @@
+{
+  "location_vs_fix_alignment": 1,
+  "agent_files_edited": "django/db/models/sql/compiler.py",
+  "gold_patch_files": "django/db/models/lookups.py",
+  "reasoning": "The agent edited a completely different file (compiler.py) than the gold patch (lookups.py), showing they never found the correct location for the fix.",
+  "_model": "claude-sonnet-4-20250514",
+  "_provider": "anthropic",
+  "_resolved": false
+}
