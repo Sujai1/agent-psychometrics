@@ -790,6 +790,72 @@ Results saved to `chris_output/experiment_a/experiment_a_results.json`:
 }
 ```
 
+#### Lunette Feature Extraction (Experiment A)
+
+Extracts 24 features per task using Lunette's sandbox environment to predict IRT difficulty.
+
+**Features extracted (24 total):**
+- **Environment-based (15)**: repo_file_count, repo_line_count, patch_file_count, patch_line_count, test_file_count, related_file_count, import_count, class_count_in_file, function_count_in_file, test_count_fail_to_pass, test_count_pass_to_pass, git_commit_count, directory_depth, has_conftest, has_init
+- **Semantic (9)**: fix_in_description (0-3), problem_clarity (1-5), error_message_provided (0/1), reproduction_steps (0/1), fix_locality (1-3), domain_knowledge_required (1-5), fix_complexity (1-5), logical_reasoning_required (1-5), atypicality (1-5)
+
+**Key files:**
+| File | Purpose |
+|------|---------|
+| `experiment_a/lunette_grading_prompt.py` | 24-feature extraction prompt with shell commands |
+| `experiment_a/overnight_lunette_extraction.py` | Robust overnight extraction with retries |
+| `experiment_a/postprocess_lunette_features.py` | Parse features from free-form Lunette responses |
+| `experiment_a/run_evaluation_v2.py` | Run evaluation with v2 features only |
+| `experiment_a/run_overnight.sh` | Bash wrapper for nohup operation |
+
+**Running extraction:**
+```bash
+# Dry run
+python -m experiment_a.overnight_lunette_extraction --dry_run
+
+# Full extraction (~$75 for 500 tasks)
+nohup python -m experiment_a.overnight_lunette_extraction --concurrency 5 &> overnight.log &
+
+# Resume after interruption
+python -m experiment_a.overnight_lunette_extraction --resume --concurrency 5
+
+# Monitor progress
+tail -f overnight.log
+cat chris_output/experiment_a/lunette_features_v2/progress.json
+```
+
+**Output directory:** `chris_output/experiment_a/lunette_features_v2/`
+- `*.json` - Parsed feature files (with `_extraction_version: "v2"`)
+- `*_raw.json` - Raw Lunette responses for post-processing
+- `progress.json` - Resume tracking
+- `lunette_features.csv` - Aggregated CSV for evaluation
+
+**Results (2026-01-13, 298/500 tasks, 88/100 test):**
+
+| Method | AUC | Description |
+|--------|-----|-------------|
+| Oracle (true b) | 0.9447 | Upper bound |
+| **Embedding** | **0.8333** | Qwen3-VL-8B embeddings + Ridge |
+| **Lunette v2** | **0.7522** | 24 features with Lasso selection |
+| Constant baseline | 0.7176 | Predict mean b |
+| Agent-only | 0.7178 | Use agent success rate |
+
+**Top Lunette coefficients (Ridge on standardized features):**
+| Feature | Coefficient | Interpretation |
+|---------|-------------|----------------|
+| domain_knowledge_required | +0.89 | More domain knowledge → harder |
+| has_init | -0.73 | Package structure → easier |
+| test_count_fail_to_pass | +0.70 | More failing tests → harder |
+| directory_depth | -0.60 | Deeper directories → easier |
+| fix_complexity | +0.58 | Complex fixes → harder |
+
+**⚠️ Train/Test Split Bias:**
+The hash-based split has statistically significant bias (p=0.025):
+- Train tasks: mean b = +0.61
+- Test tasks: mean b = -0.27
+- Effect size: Cohen's d = 0.25 (small)
+
+For fully reliable results, run extraction on all 500 tasks.
+
 ### IRT Model Variants
 
 #### 1PL vs 2PL Models
