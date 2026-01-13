@@ -16,6 +16,7 @@ class ExperimentConfig:
     lunette_features_dir: Path = Path("chris_output/experiment_b/lunette_features")
     llm_judge_features_dir: Path = Path("chris_output/experiment_b/llm_judge_features")
     llm_judge_v4_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v4_features")
+    llm_judge_v5_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v5_features")
     output_dir: Path = Path("chris_output/experiment_b")
 
     # Agent splitting
@@ -33,8 +34,9 @@ class ExperimentConfig:
     prior_alpha: float = 10000.0  # Ridge alpha for embedding prior
     posterior_alpha: float = 1.0  # Ridge alpha for psi
 
-    # Feature source: "simple" (message stats), "lunette" (Lunette API), "llm_judge" (direct LLM API), or "llm_judge_v4"
-    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4"] = "simple"
+    # Feature source: "simple" (message stats), "lunette" (Lunette API), "llm_judge" (direct LLM API),
+    # "llm_judge_v4", or "llm_judge_v5" (failure pattern analysis)
+    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5"] = "simple"
 
     # Prior source: "heuristic" (repo, text length) or "embedding" (Daria's embeddings)
     prior_source: Literal["heuristic", "embedding"] = "heuristic"
@@ -56,7 +58,7 @@ class ExperimentConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ExperimentConfig":
         """Create config from dict, converting strings to Paths."""
-        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "output_dir", "embeddings_path"}
+        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "llm_judge_v5_features_dir", "output_dir", "embeddings_path"}
         converted = {}
         for k, v in d.items():
             if k in path_fields and isinstance(v, str):
