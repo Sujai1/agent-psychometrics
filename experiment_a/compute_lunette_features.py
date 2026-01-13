@@ -294,6 +294,12 @@ async def main():
         default=str(OUTPUT_DIR),
         help="Output directory for features",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=5,
+        help="Number of concurrent tasks to process (default: 5)",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -357,14 +363,32 @@ async def main():
 
     all_features = []
 
-    async with LunetteClient() as client:
-        for i, task in enumerate(tasks):
+    # Determine concurrency level
+    concurrency = args.concurrency
+    print(f"Concurrency level: {concurrency}")
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def process_with_semaphore(client, task, output_dir, idx, total):
+        """Process a task with concurrency limiting."""
+        async with semaphore:
             task_id = task["instance_id"]
-            print(f"\n[{i + 1}/{len(tasks)}] {task_id}")
+            print(f"\n[{idx + 1}/{total}] {task_id}")
+            return await extract_features_for_task(client, task, output_dir)
 
-            features = await extract_features_for_task(client, task, output_dir)
+    async with LunetteClient() as client:
+        # Process tasks concurrently with semaphore limiting
+        coroutines = [
+            process_with_semaphore(client, task, output_dir, i, len(tasks))
+            for i, task in enumerate(tasks)
+        ]
 
-            if features:
+        results = await asyncio.gather(*coroutines, return_exceptions=True)
+
+        for features in results:
+            if isinstance(features, Exception):
+                print(f"  -> Exception: {features}")
+                stats["failed"] += 1
+            elif features:
                 all_features.append(features)
                 if features.get("_cached"):
                     stats["cached"] += 1
