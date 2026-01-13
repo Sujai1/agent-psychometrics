@@ -167,6 +167,7 @@ def run_experiment(config: ExperimentConfig) -> Dict:
     trajectories_dir = ROOT / config.trajectories_dir
     lunette_features_dir = ROOT / config.lunette_features_dir
     llm_judge_features_dir = ROOT / config.llm_judge_features_dir
+    llm_judge_v4_features_dir = ROOT / config.llm_judge_v4_features_dir
     output_dir = ROOT / config.output_dir
 
     # Load IRT difficulties and abilities
@@ -243,6 +244,7 @@ def run_experiment(config: ExperimentConfig) -> Dict:
             feature_source=config.feature_source,
             lunette_features_dir=lunette_features_dir,
             llm_judge_features_dir=llm_judge_features_dir,
+            llm_judge_v4_features_dir=llm_judge_v4_features_dir,
         )
         posterior_model.fit(
             task_ids=split.d_train_tasks,
@@ -382,9 +384,9 @@ def main():
     parser.add_argument(
         "--feature_source",
         type=str,
-        choices=["simple", "lunette", "llm_judge"],
+        choices=["simple", "lunette", "llm_judge", "llm_judge_v4"],
         default="simple",
-        help="Feature source: 'simple' (message stats), 'lunette' (Lunette API), or 'llm_judge' (direct LLM API)",
+        help="Feature source: 'simple', 'lunette', 'llm_judge', or 'llm_judge_v4'",
     )
     parser.add_argument(
         "--prior_source",
