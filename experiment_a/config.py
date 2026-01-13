@@ -18,6 +18,10 @@ class ExperimentAConfig:
         split_seed: Random seed for deterministic train/test splits
         embeddings_path: Path to pre-computed embeddings .npz file
         ridge_alpha: Ridge regression regularization parameter
+        lunette_features_path: Path to Lunette features CSV file
+        lunette_ridge_alpha: Ridge alpha for Lunette predictor
+        lunette_feature_selection: Feature selection method ("lasso_cv" or "select_k_best")
+        lunette_max_features: Maximum number of features to select
     """
 
     # Data paths
@@ -34,6 +38,12 @@ class ExperimentAConfig:
     embeddings_path: Optional[Path] = None  # Required for EmbeddingPredictor
     ridge_alpha: float = 10000.0
 
+    # Lunette predictor config
+    lunette_features_path: Optional[Path] = None  # Required for LunettePredictor
+    lunette_ridge_alpha: float = 1.0
+    lunette_feature_selection: str = "lasso_cv"  # "lasso_cv" or "select_k_best"
+    lunette_max_features: int = 10
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
         d = asdict(self)
@@ -45,7 +55,10 @@ class ExperimentAConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ExperimentAConfig":
         """Create config from dict, converting strings to Paths."""
-        path_fields = {"abilities_path", "items_path", "responses_path", "output_dir", "embeddings_path"}
+        path_fields = {
+            "abilities_path", "items_path", "responses_path",
+            "output_dir", "embeddings_path", "lunette_features_path"
+        }
         converted = {}
         for k, v in d.items():
             if k in path_fields and isinstance(v, str):

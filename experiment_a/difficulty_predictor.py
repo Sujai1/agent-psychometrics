@@ -1,11 +1,12 @@
 """Difficulty predictor protocol and implementations."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Protocol
+from typing import Dict, List, Optional, Protocol, Tuple
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, LassoCV
+from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -203,3 +204,277 @@ class GroundTruthPredictor:
             if t in self._items.index:
                 predictions[t] = float(self._items.loc[t, "b"])
         return predictions
+
+
+class LunettePredictor:
+    """Difficulty predictor using Lunette-extracted features + Ridge regression.
+
+    Includes automatic feature selection to handle high-dimensional features.
+    Supports two selection methods:
+    - "lasso_cv": Use Lasso with cross-validation for sparse selection
+    - "select_k_best": Use correlation-based selection (faster)
+    """
+
+    # Default feature columns to use (exclude metadata and reasoning)
+    DEFAULT_FEATURE_COLS = [
+        "repo_file_count",
+        "repo_line_count",
+        "patch_file_count",
+        "patch_line_count",
+        "test_file_count",
+        "related_file_count",
+        "import_count",
+        "class_count_in_file",
+        "function_count_in_file",
+        "test_count_fail_to_pass",
+        "test_count_pass_to_pass",
+        "git_commit_count",
+        "directory_depth",
+        "has_conftest",
+        "has_init",
+        "fix_in_description",
+        "problem_clarity",
+        "error_message_provided",
+        "reproduction_steps",
+        "fix_locality",
+        "domain_knowledge_required",
+        "fix_complexity",
+        "logical_reasoning_required",
+        "atypicality",
+    ]
+
+    def __init__(
+        self,
+        features_path: Path,
+        ridge_alpha: float = 1.0,
+        feature_selection: str = "lasso_cv",
+        max_features: Optional[int] = 10,
+        feature_cols: Optional[List[str]] = None,
+    ):
+        """Initialize Lunette predictor.
+
+        Args:
+            features_path: Path to CSV file with Lunette features
+            ridge_alpha: Ridge regression regularization parameter
+            feature_selection: Method for feature selection ("lasso_cv" or "select_k_best")
+            max_features: Maximum number of features to select (None = no limit)
+            feature_cols: List of feature columns to use (None = use defaults)
+        """
+        self.features_path = Path(features_path)
+        self.ridge_alpha = ridge_alpha
+        self.feature_selection = feature_selection
+        self.max_features = max_features
+        self.feature_cols = feature_cols or self.DEFAULT_FEATURE_COLS
+
+        self._model: Optional[Ridge] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._features_df: Optional[pd.DataFrame] = None
+        self._selected_features: Optional[List[str]] = None
+        self._feature_coefficients: Optional[Dict[str, float]] = None
+
+        # Load features immediately
+        self._load_features()
+
+    def _load_features(self) -> None:
+        """Load features from CSV file."""
+        if not self.features_path.exists():
+            raise FileNotFoundError(f"Features file not found: {self.features_path}")
+
+        self._features_df = pd.read_csv(self.features_path)
+
+        # Set index to instance_id
+        if "_instance_id" in self._features_df.columns:
+            self._features_df = self._features_df.set_index("_instance_id")
+        elif "instance_id" in self._features_df.columns:
+            self._features_df = self._features_df.set_index("instance_id")
+
+        # Filter to available feature columns
+        available_cols = [c for c in self.feature_cols if c in self._features_df.columns]
+        if len(available_cols) < len(self.feature_cols):
+            missing = set(self.feature_cols) - set(available_cols)
+            print(f"Warning: Missing feature columns: {missing}")
+
+        self.feature_cols = available_cols
+
+    def _get_feature_matrix(self, task_ids: List[str]) -> Tuple[np.ndarray, List[str]]:
+        """Get feature matrix for given task IDs.
+
+        Returns:
+            (X, available_task_ids) where X is (n_tasks, n_features)
+        """
+        if self._features_df is None:
+            raise RuntimeError("Features not loaded")
+
+        # Filter to available tasks
+        available_tasks = [t for t in task_ids if t in self._features_df.index]
+
+        if not available_tasks:
+            return np.array([]).reshape(0, len(self.feature_cols)), []
+
+        # Extract feature matrix
+        X = self._features_df.loc[available_tasks, self.feature_cols].values.astype(np.float32)
+
+        # Handle NaN values
+        X = np.nan_to_num(X, nan=0.0)
+
+        return X, available_tasks
+
+    def fit(self, task_ids: List[str], ground_truth_b: np.ndarray) -> None:
+        """Fit Ridge regression with feature selection.
+
+        Args:
+            task_ids: List of training task identifiers
+            ground_truth_b: Array of ground truth difficulty values
+        """
+        # Get feature matrix
+        X, available_tasks = self._get_feature_matrix(task_ids)
+
+        if len(available_tasks) < len(task_ids):
+            missing = len(task_ids) - len(available_tasks)
+            print(f"Warning: {missing} tasks missing from Lunette features")
+
+        if len(available_tasks) == 0:
+            raise ValueError("No tasks available for training")
+
+        # Get corresponding ground truth values
+        y = np.array([ground_truth_b[task_ids.index(t)] for t in available_tasks])
+
+        # Step 1: Feature selection
+        if self.feature_selection == "lasso_cv":
+            self._fit_with_lasso_selection(X, y)
+        elif self.feature_selection == "select_k_best":
+            self._fit_with_kbest_selection(X, y)
+        else:
+            raise ValueError(f"Unknown feature selection method: {self.feature_selection}")
+
+    def _fit_with_lasso_selection(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Fit using Lasso for feature selection, then Ridge for final model."""
+        # Normalize features
+        self._scaler = StandardScaler()
+        X_scaled = self._scaler.fit_transform(X)
+
+        # Lasso for feature selection
+        lasso = LassoCV(cv=5, max_iter=10000, random_state=42)
+        lasso.fit(X_scaled, y)
+
+        # Get non-zero coefficients
+        coef_abs = np.abs(lasso.coef_)
+        nonzero_mask = coef_abs > 1e-6
+
+        # Select features
+        if self.max_features and np.sum(nonzero_mask) > self.max_features:
+            # Take top k by absolute coefficient
+            top_k_idx = np.argsort(coef_abs)[-self.max_features:]
+            selected_mask = np.zeros(len(self.feature_cols), dtype=bool)
+            selected_mask[top_k_idx] = True
+        elif np.sum(nonzero_mask) == 0:
+            # No features selected, use top k by correlation
+            print("Warning: Lasso selected 0 features, falling back to top-k correlation")
+            k = self.max_features or 5
+            selector = SelectKBest(f_regression, k=min(k, X.shape[1]))
+            selector.fit(X_scaled, y)
+            selected_mask = selector.get_support()
+        else:
+            selected_mask = nonzero_mask
+
+        self._selected_features = [
+            self.feature_cols[i] for i in range(len(self.feature_cols)) if selected_mask[i]
+        ]
+
+        # Fit Ridge on selected features
+        X_selected = X_scaled[:, selected_mask]
+        self._model = Ridge(alpha=self.ridge_alpha)
+        self._model.fit(X_selected, y)
+
+        # Store coefficients for reporting
+        self._feature_coefficients = dict(
+            zip(self._selected_features, self._model.coef_.tolist())
+        )
+        self._selected_mask = selected_mask
+
+    def _fit_with_kbest_selection(self, X: np.ndarray, y: np.ndarray) -> None:
+        """Fit using SelectKBest for feature selection, then Ridge for final model."""
+        # Normalize features
+        self._scaler = StandardScaler()
+        X_scaled = self._scaler.fit_transform(X)
+
+        # SelectKBest
+        k = self.max_features or 10
+        selector = SelectKBest(f_regression, k=min(k, X.shape[1]))
+        X_selected = selector.fit_transform(X_scaled, y)
+        selected_mask = selector.get_support()
+
+        self._selected_features = [
+            self.feature_cols[i] for i in range(len(self.feature_cols)) if selected_mask[i]
+        ]
+
+        # Fit Ridge on selected features
+        self._model = Ridge(alpha=self.ridge_alpha)
+        self._model.fit(X_selected, y)
+
+        # Store coefficients for reporting
+        self._feature_coefficients = dict(
+            zip(self._selected_features, self._model.coef_.tolist())
+        )
+        self._selected_mask = selected_mask
+
+    def predict(self, task_ids: List[str]) -> Dict[str, float]:
+        """Predict difficulty for tasks.
+
+        Args:
+            task_ids: List of task identifiers
+
+        Returns:
+            Dict mapping task_id to predicted difficulty
+        """
+        if self._model is None:
+            raise RuntimeError("Model not fitted. Call fit() first.")
+
+        # Get feature matrix
+        X, available_tasks = self._get_feature_matrix(task_ids)
+
+        if not available_tasks:
+            return {}
+
+        # Transform and select features
+        X_scaled = self._scaler.transform(X)
+        X_selected = X_scaled[:, self._selected_mask]
+
+        # Predict
+        preds = self._model.predict(X_selected)
+
+        return dict(zip(available_tasks, preds.tolist()))
+
+    @property
+    def selected_features(self) -> Optional[List[str]]:
+        """Return names of selected features."""
+        return self._selected_features
+
+    @property
+    def feature_coefficients(self) -> Optional[Dict[str, float]]:
+        """Return coefficients of selected features."""
+        return self._feature_coefficients
+
+    @property
+    def n_features(self) -> int:
+        """Return number of available features."""
+        return len(self.feature_cols)
+
+    @property
+    def n_tasks(self) -> int:
+        """Return number of tasks with features."""
+        return len(self._features_df) if self._features_df is not None else 0
+
+    def print_selected_features(self) -> None:
+        """Print selected features and their coefficients."""
+        if self._feature_coefficients is None:
+            print("Model not fitted yet")
+            return
+
+        print(f"\nSelected features ({self.feature_selection}, n={len(self._selected_features)}):")
+        sorted_features = sorted(
+            self._feature_coefficients.items(), key=lambda x: abs(x[1]), reverse=True
+        )
+        for name, coef in sorted_features:
+            sign = "+" if coef >= 0 else ""
+            print(f"  {name:30s}: {sign}{coef:.4f}")

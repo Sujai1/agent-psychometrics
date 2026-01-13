@@ -7,7 +7,11 @@
     "test_fraction": 0.2,
     "split_seed": 0,
     "embeddings_path": null,
-    "ridge_alpha": 10000.0
+    "ridge_alpha": 10000.0,
+    "lunette_features_path": "chris_output/experiment_a/lunette_features.csv",
+    "lunette_ridge_alpha": 1.0,
+    "lunette_feature_selection": "lasso_cv",
+    "lunette_max_features": 10
   },
   "data_summary": {
     "n_agents": 130,
@@ -40,5 +44,8 @@
   },
   "embedding_predictor": {
     "error": "No embeddings_path provided"
+  },
+  "lunette_predictor": {
+    "error": "No tasks available for training"
   }
 }

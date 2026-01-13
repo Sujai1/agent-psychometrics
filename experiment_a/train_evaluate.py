@@ -19,6 +19,7 @@ from experiment_a.difficulty_predictor import (
     EmbeddingPredictor,
     ConstantPredictor,
     GroundTruthPredictor,
+    LunettePredictor,
 )
 from experiment_a.irt_evaluation import compute_auc, compute_difficulty_prediction_metrics
 from experiment_a.baselines import agent_only_baseline, task_only_baseline
@@ -163,6 +164,74 @@ def run_experiment_a(config: ExperimentAConfig) -> Dict[str, Any]:
         print("\n6. No embeddings path provided, skipping embedding predictor")
         results["embedding_predictor"] = {"error": "No embeddings_path provided"}
 
+    # 9. Lunette predictor (if features provided)
+    if config.lunette_features_path is not None:
+        lunette_path = ROOT / config.lunette_features_path
+        if lunette_path.exists():
+            print(f"\n7. Training Lunette predictor...")
+            print(f"   Loading features from: {lunette_path}")
+
+            try:
+                lunette_predictor = LunettePredictor(
+                    features_path=lunette_path,
+                    ridge_alpha=config.lunette_ridge_alpha,
+                    feature_selection=config.lunette_feature_selection,
+                    max_features=config.lunette_max_features,
+                )
+                print(f"   Features loaded: {lunette_predictor.n_tasks} tasks")
+                print(f"   Feature count: {lunette_predictor.n_features}")
+
+                lunette_predictor.fit(data.train_tasks, train_b)
+
+                # Print selected features
+                lunette_predictor.print_selected_features()
+
+                lunette_preds = lunette_predictor.predict(data.test_tasks)
+
+                # IRT-based AUC
+                lunette_result = compute_auc(
+                    lunette_preds, data.abilities, data.responses, data.test_tasks
+                )
+                print(f"\n   Lunette AUC: {lunette_result.get('auc', 'N/A'):.4f}")
+
+                # Difficulty prediction metrics
+                diff_metrics = compute_difficulty_prediction_metrics(
+                    lunette_preds, data.items, data.test_tasks
+                )
+                print(f"   Difficulty prediction Pearson r: {diff_metrics.get('pearson_r', 'N/A'):.4f}")
+
+                results["lunette_predictor"] = {
+                    "auc_result": lunette_result,
+                    "difficulty_metrics": diff_metrics,
+                    "features_path": str(lunette_path),
+                    "ridge_alpha": config.lunette_ridge_alpha,
+                    "feature_selection": config.lunette_feature_selection,
+                    "max_features": config.lunette_max_features,
+                    "n_tasks": lunette_predictor.n_tasks,
+                    "n_features": lunette_predictor.n_features,
+                    "selected_features": lunette_predictor.selected_features,
+                    "feature_coefficients": lunette_predictor.feature_coefficients,
+                }
+
+                # Store predictions for analysis
+                if "difficulty_predictions" not in results:
+                    results["difficulty_predictions"] = {
+                        "ground_truth": {t: float(data.items.loc[t, "b"]) for t in data.test_tasks},
+                    }
+                results["difficulty_predictions"]["lunette"] = lunette_preds
+
+            except Exception as e:
+                print(f"   Error loading Lunette features: {e}")
+                import traceback
+                traceback.print_exc()
+                results["lunette_predictor"] = {"error": str(e)}
+        else:
+            print(f"\n7. Lunette features file not found: {lunette_path}")
+            results["lunette_predictor"] = {"error": f"File not found: {lunette_path}"}
+    else:
+        print("\n7. No Lunette features path provided, skipping Lunette predictor")
+        results["lunette_predictor"] = {"error": "No lunette_features_path provided"}
+
     # Print summary
     print("\n" + "=" * 60)
     print("SUMMARY")
@@ -173,13 +242,14 @@ def run_experiment_a(config: ExperimentAConfig) -> Dict[str, Any]:
 
     for name, key in [
         ("Oracle (true b)", "oracle"),
+        ("Lunette predictor", "lunette_predictor"),
         ("Embedding predictor", "embedding_predictor"),
         ("Constant (mean b)", "constant_baseline"),
         ("Agent-only", "agent_only_baseline"),
         ("Task-only", "task_only_baseline"),
     ]:
         result = results.get(key, {})
-        if key == "embedding_predictor" and "auc_result" in result:
+        if key in ("embedding_predictor", "lunette_predictor") and "auc_result" in result:
             auc = result["auc_result"].get("auc")
         else:
             auc = result.get("auc")
@@ -226,6 +296,32 @@ def main():
         default="chris_output/experiment_a",
         help="Output directory (default: chris_output/experiment_a)",
     )
+    # Lunette predictor arguments
+    parser.add_argument(
+        "--lunette_features_path",
+        type=str,
+        default=None,
+        help="Path to Lunette features CSV file",
+    )
+    parser.add_argument(
+        "--lunette_ridge_alpha",
+        type=float,
+        default=1.0,
+        help="Ridge alpha for Lunette predictor (default: 1.0)",
+    )
+    parser.add_argument(
+        "--lunette_feature_selection",
+        type=str,
+        default="lasso_cv",
+        choices=["lasso_cv", "select_k_best"],
+        help="Feature selection method for Lunette (default: lasso_cv)",
+    )
+    parser.add_argument(
+        "--lunette_max_features",
+        type=int,
+        default=10,
+        help="Max features to select for Lunette (default: 10)",
+    )
     parser.add_argument(
         "--dry_run",
         action="store_true",
@@ -239,6 +335,11 @@ def main():
         embeddings_path=Path(args.embeddings_path) if args.embeddings_path else None,
         ridge_alpha=args.ridge_alpha,
         output_dir=Path(args.output_dir),
+        # Lunette config
+        lunette_features_path=Path(args.lunette_features_path) if args.lunette_features_path else None,
+        lunette_ridge_alpha=args.lunette_ridge_alpha,
+        lunette_feature_selection=args.lunette_feature_selection,
+        lunette_max_features=args.lunette_max_features,
     )
 
     if args.dry_run:
