@@ -102,6 +102,19 @@ Features:
 
 Uses Lunette API for grading. Requires trajectories to be uploaded first (see [LUNETTE.md](../lunette_utils/LUNETTE.md)).
 
+### 4. Embedding Features (Experimental)
+
+Uses VLM trajectory embeddings instead of hand-crafted features. See [EMBEDDINGS.md](EMBEDDINGS.md) for full documentation.
+
+```bash
+# Compute embeddings on cluster (GPU required)
+sbatch scripts/embedding/compute_embeddings_multi_gpu.sh
+
+# Train and evaluate (CPU)
+python -m experiment_b.train_evaluate_embeddings \
+    --embeddings_dir chris_output/experiment_b/trajectory_embeddings/full_difficulty
+```
+
 ## Module Structure
 
 ```
