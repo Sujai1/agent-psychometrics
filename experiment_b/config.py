@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, Union
 
 # Regression mode for posterior model
 # - "residual": posterior = prior + psi * traj_features (current behavior)
@@ -44,7 +44,7 @@ class ExperimentConfig:
     # NOTE: For embedding prior, alpha=10000 gives r≈0.63 on held-out test (proper regularization)
     #       alpha=1 causes overfitting (r=0.9999 on train, memorizes data)
     prior_alpha: float = 10000.0  # Ridge alpha for embedding prior
-    posterior_alpha: float = 1.0  # Ridge alpha for psi
+    posterior_alpha: Union[float, str] = "cv"  # Ridge alpha for psi ("cv" for cross-validation)
 
     # Feature source options:
     # - "simple": Basic message stats (count, chars, resolved_rate)

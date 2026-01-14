@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, RidgeCV
 
 from .config import RegressionMode
 from .prior_model import PriorModel, EmbeddingPriorModel
@@ -75,7 +75,7 @@ class PosteriorModel:
     def __init__(
         self,
         prior_model: Union[PriorModel, EmbeddingPriorModel],
-        alpha: float = 1.0,
+        alpha: Union[float, str] = "cv",
         feature_source: Literal[
             "simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5",
             "llm_judge_v5_single", "execution", "discoverability", "combined_v2",
@@ -96,7 +96,8 @@ class PosteriorModel:
 
         Args:
             prior_model: Trained prior model
-            alpha: Ridge regularization parameter for psi
+            alpha: Ridge regularization. Use "cv" for cross-validation search (default),
+                or a float for fixed alpha.
             feature_source: Feature source to use:
                 - "simple": Basic message stats (count, chars, resolved_rate)
                 - "lunette": Lunette API features
@@ -134,9 +135,10 @@ class PosteriorModel:
         self.llm_judge_v6_features_dir = llm_judge_v6_features_dir
         self.llm_judge_v7_features_dir = llm_judge_v7_features_dir
         self.test_progression_features_dir = test_progression_features_dir
-        self.psi_model: Optional[Ridge] = None
+        self.psi_model: Optional[Union[Ridge, RidgeCV]] = None
         self.training_stats: Dict = {}
         self._prior_feature_dim: Optional[int] = None
+        self.best_alpha: Optional[float] = None
 
         # Set feature names based on source
         if feature_source == "lunette":
@@ -430,9 +432,18 @@ class PosteriorModel:
         X = np.array(X_features)
         y = np.array(y_targets)
 
-        # Fit Ridge regression
-        self.psi_model = Ridge(alpha=self.alpha)
-        self.psi_model.fit(X, y)
+        # Fit Ridge regression with optional cross-validation
+        if self.alpha == "cv":
+            # Use cross-validation to find best alpha
+            alphas = [1e-2, 1e-1, 1, 10, 100, 1000, 10000, 100000, 1000000]
+            self.psi_model = RidgeCV(alphas=alphas, cv=5, scoring="neg_mean_squared_error")
+            self.psi_model.fit(X, y)
+            self.best_alpha = float(self.psi_model.alpha_)
+            print(f"RidgeCV selected alpha={self.best_alpha:.0e}")
+        else:
+            self.psi_model = Ridge(alpha=float(self.alpha))
+            self.psi_model.fit(X, y)
+            self.best_alpha = float(self.alpha)
 
         print(f"Posterior model ({self.feature_source}, {self.regression_mode}) trained on {len(valid_task_ids)} tasks")
         print(f"  Tasks with features: {tasks_with_features}")
@@ -508,4 +519,7 @@ class PosteriorModel:
 
     def get_training_stats(self) -> Dict:
         """Get training statistics."""
-        return self.training_stats
+        stats = self.training_stats.copy()
+        if self.best_alpha is not None:
+            stats["best_alpha"] = self.best_alpha
+        return stats
