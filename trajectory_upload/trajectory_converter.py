@@ -239,13 +239,30 @@ def convert_traj_sweagent(data: dict, file_path: Path) -> list[Message]:
     return messages
 
 
+def _normalize_content(content) -> str:
+    """Normalize message content to string.
+
+    Some agents (OpenHands, codesweep) store content as a list of content blocks
+    like [{'type': 'text', 'text': '...'}] instead of a plain string.
+    """
+    if isinstance(content, list):
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict):
+                text_parts.append(item.get("text", str(item)))
+            else:
+                text_parts.append(str(item))
+        return " ".join(text_parts)
+    return str(content) if content else ""
+
+
 def convert_yaml_history(data: dict, file_path: Path) -> list[Message]:
     """Convert YAML history format."""
     messages = []
 
     for msg in data.get('history', []):
         role = msg.get('role', 'user')
-        content = msg.get('content', '')
+        content = _normalize_content(msg.get('content', ''))
 
         if role == 'system':
             messages.append(Message(role='system', content=content))
