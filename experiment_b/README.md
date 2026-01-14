@@ -57,7 +57,7 @@ python -m experiment_b.train_evaluate --dry_run
 - **D_valid**: Tasks with ≤20% pass rate among M2, but >30% among M3 (disjoint from D_train)
 - Threshold (20%) is configurable via `--weak_threshold`
 
-## Results (2026-01-12)
+## Results (2026-01-13)
 
 **Primary metric: AUC-ROC** - Uses IRT formula P(success) = sigmoid(θ - β) to predict agent-task outcomes.
 
@@ -67,8 +67,25 @@ python -m experiment_b.train_evaluate --dry_run
 | + Simple features | 0.7076 | **0.7444** | **+0.0062** | Best result |
 | + LLM judge features | 0.6929 | 0.7215 | -0.0168 | Overfits |
 | + Lunette features | 0.6846 | 0.7383 | +0.0000 | Too few |
+| + Trajectory embeddings | — | 0.7384 | +0.0002 | No improvement |
 
-**Key finding:** Simple trajectory features (message count, chars, resolve rate) provide a small but positive improvement. LLM judge features overfit and hurt validation.
+**Key finding:** Simple trajectory features (message count, chars, resolve rate) provide a small but positive improvement. LLM judge features overfit and hurt validation. Trajectory embeddings provide no signal beyond the prior.
+
+### Embedding PCA Ablation (2026-01-13)
+
+Tested trajectory embeddings with PCA dimensionality reduction and varying ridge alphas. Key findings:
+
+| Aggregation | PCA Dims | Best Alpha | D_valid AUC | ΔAUC |
+|-------------|----------|------------|-------------|------|
+| mean_only | None | 1M | 0.7384 | +0.0001 |
+| mean_only | 25 | 1M | 0.7384 | +0.0002 |
+| mean_std | None | 1M | 0.7383 | 0.0000 |
+
+**Conclusion:** Embeddings contain no useful signal for difficulty residual prediction:
+- Only alpha=1M (extreme regularization) preserves prior performance
+- Lower alphas (100-100k) hurt AUC by -0.7% to -5%
+- PCA doesn't help—the correction term is zeroed out regardless of dimensionality
+- The feature/sample ratio (4096-8192 dims / 119 samples) is too extreme
 
 ## Feature Sources
 
@@ -88,8 +105,8 @@ python -m experiment_b.train_evaluate --dry_run
 
 Pre-compute with:
 ```bash
-python -m experiment_b.compute_llm_judge_features --dry_run  # See what would be computed
-python -m experiment_b.compute_llm_judge_features --limit 50  # Compute 50 features
+python -m experiment_b.llm_judge.compute_features_v1 --dry_run  # See what would be computed
+python -m experiment_b.llm_judge.compute_features_v7 --limit 50  # Compute v7 features
 ```
 
 Features:
@@ -104,14 +121,14 @@ Uses Lunette API for grading. Requires trajectories to be uploaded first (see [L
 
 ### 4. Embedding Features (Experimental)
 
-Uses VLM trajectory embeddings instead of hand-crafted features. See [EMBEDDINGS.md](EMBEDDINGS.md) for full documentation.
+Uses VLM trajectory embeddings instead of hand-crafted features. See [embeddings/README.md](embeddings/README.md) for full documentation.
 
 ```bash
 # Compute embeddings on cluster (GPU required)
 sbatch scripts/embedding/compute_embeddings_multi_gpu.sh
 
 # Train and evaluate (CPU)
-python -m experiment_b.train_evaluate_embeddings \
+python -m experiment_b.embeddings.train_evaluate \
     --embeddings_dir chris_output/experiment_b/trajectory_embeddings/full_difficulty
 ```
 
@@ -120,17 +137,32 @@ python -m experiment_b.train_evaluate_embeddings \
 ```
 experiment_b/
 ├── __init__.py
+├── README.md                      # This file
 ├── config.py                      # ExperimentConfig dataclass
 ├── data_splits.py                 # Agent/task splitting logic
-├── prior_model.py                 # Linear prior on task features
-├── trajectory_features.py         # Simple feature extraction
-├── llm_judge_features.py          # LLM judge feature extraction
-├── llm_judge_features_v2.py       # Updated LLM judge features
-├── compute_llm_judge_features.py  # Pre-compute LLM features
-├── lunette_features.py            # Lunette feature extraction
-├── compute_lunette_features.py    # Pre-compute Lunette features
+├── prior_model.py                 # Prior models (heuristic + embedding)
 ├── posterior_model.py             # Prior + trajectory correction
-└── train_evaluate.py              # Main training/evaluation pipeline
+├── train_evaluate.py              # Main training pipeline
+├── trajectory_features.py         # Simple 5-feature extraction
+├── trajectory_features_v2.py      # Extended simple features
+│
+├── embeddings/                    # VLM embedding approach
+│   ├── README.md                  # Embedding documentation
+│   ├── compute_embeddings.py      # GPU embedding extraction
+│   ├── aggregator.py              # Multi-trajectory aggregation
+│   ├── posterior_model.py         # Ridge regression on embeddings
+│   ├── train_evaluate.py          # Embedding training pipeline
+│   └── pca_ablation.py            # PCA ablation study
+│
+├── llm_judge/                     # LLM-as-judge approach
+│   ├── features_v1.py ... v7.py   # Feature extraction versions
+│   ├── compute_features_*.py      # Pre-compute scripts
+│   └── analyze_residuals.py       # Analysis scripts
+│
+└── lunette/                       # Lunette grading approach
+    ├── features.py                # Lunette feature extraction
+    ├── compute_features.py        # Pre-compute with Lunette API
+    └── structured_output.py       # Structured output utilities
 ```
 
 ## Configuration

@@ -38,7 +38,7 @@ echo "=============================================="
 
 if [[ "$RUN_ABLATIONS" == "1" ]]; then
     echo "Running full ablation study..."
-    python -m experiment_b.train_evaluate_embeddings \
+    python -m experiment_b.embeddings.train_evaluate \
         --ablations \
         --embeddings_base_dir "chris_output/experiment_b/trajectory_embeddings" \
         --output_dir "$OUTPUT_DIR"
@@ -47,7 +47,7 @@ else
     echo "Aggregation: $AGGREGATION"
     echo "Alpha: $ALPHA"
 
-    python -m experiment_b.train_evaluate_embeddings \
+    python -m experiment_b.embeddings.train_evaluate \
         --embeddings_dir "$EMBEDDINGS_DIR" \
         --aggregation "$AGGREGATION" \
         --alpha "$ALPHA" \

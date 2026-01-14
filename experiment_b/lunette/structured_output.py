@@ -5,7 +5,7 @@ This module provides:
 2. TrajectoryGradingPlan - Custom AnalysisPlan that includes the schema in serialization
 
 Usage:
-    from experiment_b.lunette_structured_output import TrajectoryGradingPlan, TrajectoryFeatures
+    from experiment_b.lunette.structured_output import TrajectoryGradingPlan, TrajectoryFeatures
 
     plan = TrajectoryGradingPlan(
         name="difficulty-prediction",

@@ -37,7 +37,7 @@ echo "Total embeddings: ${total}"
 
 echo ""
 echo "=== Running Evaluation ==="
-python -m experiment_b.train_evaluate_embeddings \
+python -m experiment_b.embeddings.train_evaluate \
     --embeddings_dir "${EMBEDDINGS_DIR}"
 
 echo ""

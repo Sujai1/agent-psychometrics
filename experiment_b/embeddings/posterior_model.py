@@ -18,13 +18,13 @@ from sklearn.linear_model import Ridge, RidgeCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from .embedding_aggregator import (
+from .aggregator import (
     AggregationType,
     EmbeddingAggregator,
     batch_aggregate_embeddings,
     aggregate_task_embeddings,
 )
-from .prior_model import EmbeddingPriorModel, PriorModel
+from ..prior_model import EmbeddingPriorModel, PriorModel
 
 
 class EmbeddingPosteriorModel:

@@ -1,7 +1,8 @@
-"""Compute V5 LLM judge features for experiment B.
+"""Compute V4 LLM judge features for experiment B.
 
-V5 features focus on HOW the agent failed (navigation, reproduction, location alignment)
-rather than effort/complexity ratios. Uses integer scales (1-5) for reliability.
+This script extracts V4 features (effort_to_solution_ratio, problem_text_accuracy,
+error_misdirection, fix_complexity_vs_description, exploration_efficiency) for
+all task-agent combinations needed in experiment B.
 """
 
 import argparse
@@ -11,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -21,7 +22,7 @@ try:
 except ImportError:
     HAS_ANTHROPIC = False
 
-from experiment_b.llm_judge_features_v5 import V5_PROMPT, LLMJudgeV5Features
+from experiment_b.llm_judge.features_v4 import V4_PROMPT, LLMJudgeV4Features
 
 
 def load_swebench_metadata() -> Dict[str, dict]:
@@ -100,27 +101,19 @@ def parse_response(response_text: str) -> Optional[Dict]:
         return None
 
     try:
-        result = json.loads(response_text[start:end])
-        # Validate integer features are in 1-5 range
-        # V5.1: solution_discoverability replaces design_intent_gap
-        for key in ["navigation_efficiency", "reproduction_success",
-                    "location_vs_fix_alignment", "solution_discoverability"]:
-            if key in result:
-                val = int(result[key])
-                result[key] = max(1, min(5, val))  # Clamp to 1-5
-        return result
-    except (json.JSONDecodeError, ValueError):
+        return json.loads(response_text[start:end])
+    except json.JSONDecodeError:
         return None
 
 
-def extract_v5_features(
+def extract_v4_features(
     task_id: str,
     agent: str,
     trajectories_dir: Path,
     swebench_data: Dict,
     model: str = "claude-sonnet-4-20250514",
 ) -> Optional[Dict]:
-    """Extract V5 features for a task-agent pair."""
+    """Extract V4 features for a task-agent pair."""
     traj = load_trajectory(task_id, agent, trajectories_dir)
     if traj is None:
         return None
@@ -133,7 +126,7 @@ def extract_v5_features(
     patch = meta.get("patch", "")
     hints = meta.get("hints_text", "")
 
-    prompt = V5_PROMPT.format(
+    prompt = V4_PROMPT.format(
         instance_id=task_id,
         repo=meta.get("repo", "unknown"),
         problem_len=len(problem),
@@ -148,10 +141,9 @@ def extract_v5_features(
     try:
         response = call_anthropic(prompt, model)
         features = parse_response(response)
-        if features and "navigation_efficiency" in features:
+        if features and "effort_to_solution_ratio" in features:
             features["_model"] = model
             features["_provider"] = "anthropic"
-            features["_resolved"] = traj.get("resolved", False)
             return features
     except Exception as e:
         print(f"    Error: {e}")
@@ -159,39 +151,16 @@ def extract_v5_features(
     return None
 
 
-def load_residuals() -> Dict[str, float]:
-    """Load residuals from residual analysis file."""
-    residual_path = ROOT / "chris_output/experiment_b/llm_judge_residual_analysis.json"
-    if not residual_path.exists():
-        return {}
-
-    with open(residual_path) as f:
-        data = json.load(f)
-
-    residuals = {}
-    for task in data.get("train_tasks", []):
-        residuals[task["task_id"]] = task["actual_residual"]
-    return residuals
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Compute V5 LLM judge features")
+    parser = argparse.ArgumentParser(description="Compute V4 LLM judge features")
     parser.add_argument("--dry_run", action="store_true", help="Show what would be computed")
     parser.add_argument("--limit", type=int, default=None, help="Limit tasks per agent")
     parser.add_argument("--model", type=str, default="claude-sonnet-4-20250514", help="Model to use")
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="chris_output/experiment_b/llm_judge_v5_features",
+        default="chris_output/experiment_b/llm_judge_v4_features",
         help="Output directory",
-    )
-    parser.add_argument(
-        "--test_extreme", action="store_true",
-        help="Only compute for 10 extreme-residual tasks (5 high, 5 low)"
-    )
-    parser.add_argument(
-        "--agents", nargs="+", default=None,
-        help="Specific agents to compute for (default: first M1 agent)"
     )
     args = parser.parse_args()
 
@@ -204,54 +173,32 @@ def main():
         results = json.load(f)
 
     m1_agents = results["split"]["m1_agents"]
+    m2_agents = results["split"]["m2_agents"]
     d_train_tasks = results["split"]["d_train_tasks"]
-
-    # Select tasks to compute
-    if args.test_extreme:
-        # Load residuals and select extreme tasks
-        residuals = load_residuals()
-        if not residuals:
-            print("Error: Could not load residuals for extreme task selection")
-            return
-
-        task_residuals = [(t, residuals.get(t, 0)) for t in d_train_tasks if t in residuals]
-        task_residuals.sort(key=lambda x: x[1])
-
-        # 5 lowest (easiest, negative residual) + 5 highest (hardest, positive residual)
-        extreme_tasks = [t for t, _ in task_residuals[:5]] + [t for t, _ in task_residuals[-5:]]
-        d_train_tasks = extreme_tasks
-        print(f"Testing on {len(extreme_tasks)} extreme-residual tasks:")
-        for t, r in task_residuals[:5]:
-            print(f"  LOW:  {t} (residual={r:.2f})")
-        for t, r in task_residuals[-5:]:
-            print(f"  HIGH: {t} (residual={r:.2f})")
-
-    # Select agents
-    if args.agents:
-        agents = args.agents
-    else:
-        # Default: use first M1 agent that has trajectories
-        agents = [m1_agents[0]]
-
-    print(f"\nAgents to compute for: {agents}")
-    print(f"Tasks: {len(d_train_tasks)}")
+    d_valid_tasks = results["split"]["d_valid_tasks"]
 
     # Build list of (agent, task) pairs to compute
     pairs_to_compute = []
-    for agent in agents:
+
+    # M1 agents × D_train tasks
+    for agent in m1_agents:
         for task_id in d_train_tasks:
-            pairs_to_compute.append((agent, task_id))
+            pairs_to_compute.append((agent, task_id, "train"))
+
+    # M2 agents × D_valid tasks
+    for agent in m2_agents:
+        for task_id in d_valid_tasks:
+            pairs_to_compute.append((agent, task_id, "valid"))
 
     print(f"Total pairs to compute: {len(pairs_to_compute)}")
+    print(f"  M1 agents × D_train: {len(m1_agents)} × {len(d_train_tasks)} = {len(m1_agents) * len(d_train_tasks)}")
+    print(f"  M2 agents × D_valid: {len(m2_agents)} × {len(d_valid_tasks)} = {len(m2_agents) * len(d_valid_tasks)}")
 
     if args.dry_run:
         print("\nDry run - would compute features for:")
-        for agent, task_id in pairs_to_compute[:10]:
-            traj_path = trajectories_dir / agent / f"{task_id}.json"
-            exists = "EXISTS" if traj_path.exists() else "MISSING"
-            print(f"  {agent} × {task_id} ({exists})")
-        if len(pairs_to_compute) > 10:
-            print(f"  ... and {len(pairs_to_compute) - 10} more")
+        for agent, task_id, split in pairs_to_compute[:10]:
+            print(f"  {agent} × {task_id} ({split})")
+        print(f"  ... and {len(pairs_to_compute) - 10} more")
         return
 
     # Load SWE-bench metadata
@@ -261,7 +208,7 @@ def main():
 
     # Filter to pairs that have trajectories and don't already have features
     pairs_filtered = []
-    for agent, task_id in pairs_to_compute:
+    for agent, task_id, split in pairs_to_compute:
         traj_path = trajectories_dir / agent / f"{task_id}.json"
         feat_path = output_dir / agent / f"{task_id}.json"
 
@@ -270,7 +217,7 @@ def main():
         if feat_path.exists():
             continue
 
-        pairs_filtered.append((agent, task_id))
+        pairs_filtered.append((agent, task_id, split))
 
     print(f"Pairs to compute (after filtering): {len(pairs_filtered)}")
 
@@ -278,18 +225,14 @@ def main():
         pairs_filtered = pairs_filtered[:args.limit]
         print(f"Limited to: {len(pairs_filtered)}")
 
-    # Load residuals for display
-    residuals = load_residuals()
-
     # Compute features
     computed = 0
     errors = 0
 
-    for i, (agent, task_id) in enumerate(pairs_filtered):
-        residual = residuals.get(task_id, 0)
-        print(f"\n[{i+1}/{len(pairs_filtered)}] {agent} × {task_id} (residual={residual:.2f})")
+    for i, (agent, task_id, split) in enumerate(pairs_filtered):
+        print(f"\n[{i+1}/{len(pairs_filtered)}] {agent} × {task_id}")
 
-        features = extract_v5_features(
+        features = extract_v4_features(
             task_id, agent, trajectories_dir, swebench_data, args.model
         )
 
@@ -301,25 +244,8 @@ def main():
             with open(feat_path, "w") as f:
                 json.dump(features, f, indent=2)
             computed += 1
-            print(f"  -> Saved: nav={features.get('navigation_efficiency')}, "
-                  f"repro={features.get('reproduction_success')}, "
-                  f"loc={features.get('location_vs_fix_alignment')}, "
-                  f"disc={features.get('solution_discoverability')}")
-
-            # Show expected vs actual correlation for extreme tasks
-            if args.test_extreme:
-                loc = features.get('location_vs_fix_alignment', 3)
-                disc = features.get('solution_discoverability', 3)
-
-                # Expected for hard tasks: high discoverability score (solution not discoverable)
-                # Expected for easy tasks: low discoverability score (solution was obvious)
-                if residual > 1:
-                    expected = "high disc (hard task, solution not discoverable)"
-                    match = "YES" if disc >= 3 else "NO"
-                else:
-                    expected = "low disc (easy task, solution discoverable)"
-                    match = "YES" if disc <= 3 else "NO"
-                print(f"  -> Expected: {expected}, Match: {match}")
+            print(f"  -> Saved: effort={features.get('effort_to_solution_ratio')}, "
+                  f"problem={features.get('problem_text_accuracy')}")
         else:
             errors += 1
             print(f"  -> Failed")

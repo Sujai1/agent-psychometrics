@@ -33,13 +33,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # Add parent to path for imports
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.data_splits import create_experiment_split
-from experiment_b.llm_judge_features import TRAJECTORY_GRADING_PROMPT, LLM_JUDGE_FEATURE_NAMES
+from experiment_b.llm_judge.features_v1 import TRAJECTORY_GRADING_PROMPT, LLM_JUDGE_FEATURE_NAMES
 
 
 # Try to import API clients

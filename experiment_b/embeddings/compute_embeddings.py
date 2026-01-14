@@ -6,7 +6,7 @@ Adapts Daria's prior embedding framework to work with trajectory data for
 Experiment B posterior difficulty prediction.
 
 Usage:
-    python -m experiment_b.compute_trajectory_embeddings \
+    python -m experiment_b.embeddings.compute_embeddings \
         --trajectories_dir trajectory_data/unified_trajs \
         --output_dir chris_output/experiment_b/trajectory_embeddings \
         --backbone "Qwen/Qwen3-VL-8B-Instruct" \

@@ -8,12 +8,12 @@ the Pydantic model's JSON schema in the serialized plan, forcing the Lunette
 judge to return data matching that schema.
 
 Usage:
-    python -m experiment_b.compute_lunette_features --dry_run
-    python -m experiment_b.compute_lunette_features --limit 10
-    python -m experiment_b.compute_lunette_features --agents agent1 agent2
+    python -m experiment_b.lunette.compute_features --dry_run
+    python -m experiment_b.lunette.compute_features --limit 10
+    python -m experiment_b.lunette.compute_features --agents agent1 agent2
 
     # Use legacy mode (text parsing instead of structured output)
-    python -m experiment_b.compute_lunette_features --legacy
+    python -m experiment_b.lunette.compute_features --legacy
 """
 
 import argparse
@@ -28,17 +28,17 @@ from typing import List, Optional
 from lunette import LunetteClient
 
 # Add parent to path for imports
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.data_splits import create_experiment_split
-from experiment_b.lunette_features import LUNETTE_FEATURE_NAMES
+from experiment_b.lunette.features import LUNETTE_FEATURE_NAMES
 
 # Import structured output support
 try:
-    from experiment_b.lunette_structured_output import (
+    from experiment_b.lunette.structured_output import (
         TrajectoryGradingPlan,
         TrajectoryFeatures,
         TRAJECTORY_GRADING_PROMPT,
@@ -47,7 +47,7 @@ try:
 except ImportError:
     HAS_STRUCTURED_OUTPUT = False
     # Fallback to legacy prompt
-    from experiment_b.lunette_features import TRAJECTORY_GRADING_PROMPT
+    from experiment_b.lunette.features import TRAJECTORY_GRADING_PROMPT
 
 # Legacy import for backward compatibility
 try:

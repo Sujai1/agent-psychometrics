@@ -31,7 +31,7 @@ echo "This is a quick test with only 2 agents"
 echo "=============================================="
 
 # Test with smallest model, limited agents
-python -m experiment_b.compute_trajectory_embeddings \
+python -m experiment_b.embeddings.compute_embeddings \
     --trajectories_dir "trajectory_data/unified_trajs" \
     --output_dir "chris_output/experiment_b/trajectory_embeddings_test" \
     --backbone "Qwen/Qwen3-VL-8B-Instruct" \

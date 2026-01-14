@@ -18,7 +18,7 @@ if str(ROOT) not in sys.path:
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.prior_model import PriorModel
-from experiment_b.llm_judge_features_v7 import LLM_JUDGE_V7_FEATURE_NAMES
+from experiment_b.llm_judge.features_v7 import LLM_JUDGE_V7_FEATURE_NAMES
 
 V7_FEATURES_DIR = ROOT / "chris_output" / "experiment_b" / "llm_judge_v7_features"
 

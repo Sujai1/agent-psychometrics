@@ -54,7 +54,7 @@ echo "Instruction type: $INSTRUCTION_TYPE"
 echo "Shard: $SHARD_ID / $NUM_SHARDS"
 echo "=============================================="
 
-python -m experiment_b.compute_trajectory_embeddings \
+python -m experiment_b.embeddings.compute_embeddings \
     --trajectories_dir "$TRAJECTORIES_DIR" \
     --output_dir "$OUTPUT_DIR" \
     --backbone "$BACKBONE" \

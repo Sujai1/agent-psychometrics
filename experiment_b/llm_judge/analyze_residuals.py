@@ -16,13 +16,13 @@ import pandas as pd
 from scipy import stats
 
 # Add parent to path
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.prior_model import EmbeddingPriorModel
-from experiment_b.llm_judge_features import (
+from experiment_b.llm_judge.features_v1 import (
     LLM_JUDGE_FEATURE_NAMES,
     load_llm_judge_features_for_task,
     aggregate_llm_judge_features,

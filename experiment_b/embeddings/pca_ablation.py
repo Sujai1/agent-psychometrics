@@ -4,7 +4,7 @@ Tests the effect of PCA dimensionality reduction combined with varying
 ridge alpha values on the trajectory embedding posterior model.
 
 Usage:
-    python -m experiment_b.pca_ablation \
+    python -m experiment_b.embeddings.pca_ablation \
         --embeddings_dir chris_output/experiment_b/trajectory_embeddings/full_difficulty \
         --output_dir chris_output/experiment_b/pca_ablation
 """
@@ -23,14 +23,14 @@ from scipy.special import expit
 from sklearn.metrics import roc_auc_score
 
 # Add parent to path
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.data_splits import create_experiment_split
 from experiment_b.prior_model import EmbeddingPriorModel
-from experiment_b.embedding_aggregator import AggregationType
-from experiment_b.embedding_posterior_model import EmbeddingPosteriorModel
+from experiment_b.embeddings.aggregator import AggregationType
+from experiment_b.embeddings.posterior_model import EmbeddingPosteriorModel
 
 
 def load_responses(responses_path: Path) -> Dict[str, Dict[str, int]]:

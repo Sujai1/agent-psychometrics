@@ -36,14 +36,14 @@ from typing import Dict, List, Optional
 import numpy as np
 
 # Add parent to path for imports
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.data_splits import create_experiment_split
 from experiment_b.trajectory_features_v2 import parse_gold_patch_files
-from experiment_b.llm_judge_features_v7 import (
+from experiment_b.llm_judge.features_v7 import (
     LLM_JUDGE_V7_FEATURE_NAMES,
     LLMJudgeV7Features,
     build_v7_prompt,

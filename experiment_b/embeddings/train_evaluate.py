@@ -5,7 +5,7 @@ This script evaluates trajectory embeddings for predicting IRT difficulty residu
 It supports multiple ablations over content types, instructions, and aggregation strategies.
 
 Usage:
-    python -m experiment_b.train_evaluate_embeddings \
+    python -m experiment_b.embeddings.train_evaluate \
         --embeddings_dir chris_output/experiment_b/trajectory_embeddings/full_difficulty \
         --aggregation mean_std \
         --alpha cv
@@ -25,15 +25,15 @@ from scipy.special import expit
 from sklearn.metrics import roc_auc_score
 
 # Add parent to path
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiment_b.config import ExperimentConfig
 from experiment_b.data_splits import create_experiment_split
 from experiment_b.prior_model import PriorModel, EmbeddingPriorModel
-from experiment_b.embedding_aggregator import AggregationType
-from experiment_b.embedding_posterior_model import EmbeddingPosteriorModel
+from experiment_b.embeddings.aggregator import AggregationType
+from experiment_b.embeddings.posterior_model import EmbeddingPosteriorModel
 
 
 @dataclass

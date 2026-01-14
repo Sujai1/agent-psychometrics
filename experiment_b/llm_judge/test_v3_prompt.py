@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_ANTHROPIC = False
 
-from experiment_b.llm_judge_features_v3 import (
+from experiment_b.llm_judge.features_v3 import (
     RESIDUAL_AWARE_PROMPT,
     LLMJudgeV3Features,
     LLM_JUDGE_V3_FEATURE_NAMES,

@@ -40,7 +40,7 @@ echo "Total embeddings: ${total}"
 
 echo ""
 echo "=== Running PCA Ablation ==="
-python -m experiment_b.pca_ablation \
+python -m experiment_b.embeddings.pca_ablation \
     --embeddings_dir "${EMBEDDINGS_DIR}" \
     --output_dir "${OUTPUT_DIR}"
 

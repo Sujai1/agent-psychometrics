@@ -54,7 +54,7 @@ pids=()
 for i in $(seq 0 $((NUM_GPUS - 1))); do
     echo "Launching shard $i on GPU $i..."
 
-    CUDA_VISIBLE_DEVICES=$i python -m experiment_b.compute_trajectory_embeddings \
+    CUDA_VISIBLE_DEVICES=$i python -m experiment_b.embeddings.compute_embeddings \
         --trajectories_dir "$TRAJECTORIES_DIR" \
         --output_dir "$OUTPUT_DIR" \
         --backbone "$BACKBONE" \

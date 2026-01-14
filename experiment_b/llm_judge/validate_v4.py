@@ -5,7 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -15,7 +15,7 @@ except ImportError:
     print("anthropic not installed")
     sys.exit(1)
 
-from experiment_b.llm_judge_features_v4 import V4_PROMPT
+from experiment_b.llm_judge.features_v4 import V4_PROMPT
 
 
 def load_swebench_metadata():

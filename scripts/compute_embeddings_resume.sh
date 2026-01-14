@@ -40,7 +40,7 @@ echo "Content type: $CONTENT_TYPE"
 echo "Instruction type: $INSTRUCTION_TYPE"
 echo "=============================================="
 
-python -m experiment_b.compute_trajectory_embeddings \
+python -m experiment_b.embeddings.compute_embeddings \
     --trajectories_dir "$TRAJECTORIES_DIR" \
     --output_dir "$OUTPUT_DIR" \
     --backbone "$BACKBONE" \

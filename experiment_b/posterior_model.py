@@ -13,40 +13,40 @@ from .trajectory_features import (
     load_trajectories_for_task,
     aggregate_trajectory_features,
 )
-from .lunette_features import (
+from .trajectory_features_v2 import (
+    EXECUTION_FEATURE_NAMES,
+)
+from .lunette.features import (
     LUNETTE_FEATURE_NAMES,
     load_lunette_features_for_task,
     aggregate_lunette_features,
 )
-from .llm_judge_features import (
+from .llm_judge.features_v1 import (
     LLM_JUDGE_FEATURE_NAMES,
     load_llm_judge_features_for_task,
     aggregate_llm_judge_features,
 )
-from .llm_judge_features_v4 import (
+from .llm_judge.features_v4 import (
     LLM_JUDGE_V4_FEATURE_NAMES,
     load_llm_judge_v4_features_for_task,
     aggregate_llm_judge_v4_features,
 )
-from .llm_judge_features_v5 import (
+from .llm_judge.features_v5 import (
     LLM_JUDGE_V5_FEATURE_NAMES,
     load_llm_judge_v5_features_for_task,
     aggregate_llm_judge_v5_features,
 )
-from .llm_judge_features_v5_single import (
+from .llm_judge.features_v5_single import (
     LLM_JUDGE_V5_SINGLE_FEATURE_NAMES,
     load_llm_judge_v5_single_features_for_task,
     aggregate_llm_judge_v5_single_features,
 )
-from .trajectory_features_v2 import (
-    EXECUTION_FEATURE_NAMES,
-)
-from .llm_judge_features_v6 import (
+from .llm_judge.features_v6 import (
     LLM_JUDGE_V6_FEATURE_NAMES,
     load_llm_judge_v6_features_for_task,
     aggregate_llm_judge_v6_features,
 )
-from .llm_judge_features_v7 import (
+from .llm_judge.features_v7 import (
     LLM_JUDGE_V7_FEATURE_NAMES,
     load_llm_judge_v7_features_for_task,
     aggregate_llm_judge_v7_features,
