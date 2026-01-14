@@ -14,7 +14,7 @@ set -e
 source .venv/bin/activate
 
 # Run the fix script
-python -m trajectory_upload.fix_unified_trajectories "$@"
+python trajectory_upload/fix_unified_trajectories.py "$@"
 
 echo ""
 echo "Done! You can now resume compute_trajectory_embeddings.py"
