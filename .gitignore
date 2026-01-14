@@ -110,3 +110,17 @@ chris_output/experiment_b/v3_prompt_test_results.json
 
 # Personal cluster setup notes
 MIT_ENGAGING_SETUP.md
+
+# Experiment B execution features (regenerable)
+chris_output/experiment_b/execution_features/
+
+# Experiment B LLM judge v6/v7 features (regenerable)
+chris_output/experiment_b/llm_judge_v6_features/
+chris_output/experiment_b/llm_judge_v7_features/
+
+# Trajectory embeddings (large, computed on cluster)
+chris_output/experiment_b/trajectory_embeddings/
+chris_output/experiment_b/trajectory_embeddings_test/
+
+# Sandbox features (regenerable)
+chris_output/experiment_a/sandbox_features/
