@@ -245,6 +245,7 @@ def run_experiment(config: ExperimentConfig) -> Dict:
         posterior_model = None
     else:
         test_progression_features_dir = ROOT / config.test_progression_features_dir
+        critic_features_dir = ROOT / config.critic_features_dir
         posterior_model = PosteriorModel(
             prior_model,
             alpha=config.posterior_alpha,
@@ -259,6 +260,7 @@ def run_experiment(config: ExperimentConfig) -> Dict:
             llm_judge_v6_features_dir=llm_judge_v6_features_dir,
             llm_judge_v7_features_dir=llm_judge_v7_features_dir,
             test_progression_features_dir=test_progression_features_dir,
+            critic_features_dir=critic_features_dir,
         )
         posterior_model.fit(
             task_ids=split.d_train_tasks,
@@ -494,9 +496,15 @@ def main():
     parser.add_argument(
         "--feature_source",
         type=str,
-        choices=["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7", "test_progression"],
+        choices=["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7", "test_progression", "critic_model"],
         default="simple",
-        help="Feature source: 'simple', 'execution' (mechanical), 'llm_judge_v7' (semantic), 'mechanical_v7' (both), 'test_progression', or legacy options",
+        help="Feature source: 'simple', 'execution' (mechanical), 'llm_judge_v7' (semantic), 'mechanical_v7' (both), 'test_progression', 'critic_model', or legacy options",
+    )
+    parser.add_argument(
+        "--critic_features_dir",
+        type=str,
+        default=None,
+        help="Path to critic model rewards directory (default: chris_output/experiment_b/critic_rewards)",
     )
     parser.add_argument(
         "--prior_source",
@@ -553,6 +561,8 @@ def main():
     )
     if args.items_path:
         config_kwargs["items_path"] = Path(args.items_path)
+    if args.critic_features_dir:
+        config_kwargs["critic_features_dir"] = Path(args.critic_features_dir)
     config = ExperimentConfig(**config_kwargs)
 
     if args.dry_run:

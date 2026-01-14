@@ -57,6 +57,11 @@ from .test_progression import (
     features_from_dict,
     aggregate_test_progression_features,
 )
+from .critic_model.features import (
+    CRITIC_FEATURE_NAMES_AGGREGATED,
+    load_critic_features_for_task,
+    aggregate_critic_features,
+)
 
 
 class PosteriorModel:
@@ -79,7 +84,7 @@ class PosteriorModel:
         feature_source: Literal[
             "simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5",
             "llm_judge_v5_single", "execution", "discoverability", "combined_v2",
-            "llm_judge_v7", "mechanical_v7", "test_progression"
+            "llm_judge_v7", "mechanical_v7", "test_progression", "critic_model"
         ] = "simple",
         regression_mode: RegressionMode = "residual",
         lunette_features_dir: Optional[Path] = None,
@@ -91,6 +96,7 @@ class PosteriorModel:
         llm_judge_v6_features_dir: Optional[Path] = None,
         llm_judge_v7_features_dir: Optional[Path] = None,
         test_progression_features_dir: Optional[Path] = None,
+        critic_features_dir: Optional[Path] = None,
     ):
         """Initialize posterior model.
 
@@ -121,6 +127,7 @@ class PosteriorModel:
             llm_judge_v6_features_dir: Directory for v6 discoverability features
             llm_judge_v7_features_dir: Directory for v7 unified semantic features
             test_progression_features_dir: Directory for test progression features
+            critic_features_dir: Directory for OpenHands critic model rewards
         """
         self.prior_model = prior_model
         self.alpha = alpha
@@ -135,6 +142,7 @@ class PosteriorModel:
         self.llm_judge_v6_features_dir = llm_judge_v6_features_dir
         self.llm_judge_v7_features_dir = llm_judge_v7_features_dir
         self.test_progression_features_dir = test_progression_features_dir
+        self.critic_features_dir = critic_features_dir
         self.psi_model: Optional[Union[Ridge, RidgeCV]] = None
         self.training_stats: Dict = {}
         self._prior_feature_dim: Optional[int] = None
@@ -164,6 +172,8 @@ class PosteriorModel:
             self.feature_names = EXECUTION_FEATURE_NAMES + LLM_JUDGE_V7_FEATURE_NAMES
         elif feature_source == "test_progression":
             self.feature_names = TEST_PROGRESSION_FEATURE_NAMES
+        elif feature_source == "critic_model":
+            self.feature_names = CRITIC_FEATURE_NAMES_AGGREGATED
         else:
             self.feature_names = TRAJECTORY_FEATURE_NAMES
 
@@ -273,6 +283,8 @@ class PosteriorModel:
             return np.concatenate([exec_feat, v7_agg])
         elif self.feature_source == "test_progression":
             return self._load_test_progression_features(task_id, agents)
+        elif self.feature_source == "critic_model":
+            return self._load_critic_features(task_id, agents)
         else:
             # Simple trajectory features
             traj_features = load_trajectories_for_task(task_id, agents, trajectories_dir)
@@ -340,6 +352,34 @@ class PosteriorModel:
             return None
 
         return aggregate_test_progression_features(agent_features)
+
+    def _load_critic_features(
+        self, task_id: str, agents: List[str]
+    ) -> Optional[np.ndarray]:
+        """Load OpenHands critic model features for a task.
+
+        Loads per-step reward predictions from pre-computed NPZ files,
+        featurizes them, and aggregates across agents.
+
+        Args:
+            task_id: Task instance ID
+            agents: List of agent names to load features for
+
+        Returns:
+            Aggregated feature vector (mean+std across agents) or None
+        """
+        if self.critic_features_dir is None:
+            return None
+
+        # Load and featurize for each agent
+        features = load_critic_features_for_task(
+            task_id, agents, self.critic_features_dir
+        )
+
+        if not features:
+            return None
+
+        return aggregate_critic_features(features)
 
     def fit(
         self,

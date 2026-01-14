@@ -29,6 +29,7 @@ class ExperimentConfig:
     llm_judge_v7_features_dir: Path = Path("chris_output/experiment_b/llm_judge_v7_features")
     trajectory_embeddings_dir: Path = Path("chris_output/experiment_b/trajectory_embeddings")
     test_progression_features_dir: Path = Path("chris_output/experiment_b/test_progression_features")
+    critic_features_dir: Path = Path("chris_output/experiment_b/critic_rewards")
     output_dir: Path = Path("chris_output/experiment_b")
 
     # Agent splitting
@@ -57,7 +58,8 @@ class ExperimentConfig:
     # - "discoverability": LLM judge v6 solution discoverability
     # - "combined_v2": execution + discoverability combined
     # - "test_progression": Test pass rate progression features
-    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7", "embedding", "test_progression"] = "simple"
+    # - "critic_model": OpenHands critic model per-step reward features
+    feature_source: Literal["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7", "embedding", "test_progression", "critic_model"] = "simple"
 
     # Embedding posterior configuration (when feature_source="embedding")
     # Content type: how much trajectory information to include
@@ -90,7 +92,7 @@ class ExperimentConfig:
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "ExperimentConfig":
         """Create config from dict, converting strings to Paths."""
-        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "llm_judge_v5_features_dir", "llm_judge_v5_single_features_dir", "execution_features_dir", "llm_judge_v6_features_dir", "llm_judge_v7_features_dir", "trajectory_embeddings_dir", "test_progression_features_dir", "output_dir", "embeddings_path"}
+        path_fields = {"items_path", "responses_path", "trajectories_dir", "lunette_features_dir", "llm_judge_features_dir", "llm_judge_v4_features_dir", "llm_judge_v5_features_dir", "llm_judge_v5_single_features_dir", "execution_features_dir", "llm_judge_v6_features_dir", "llm_judge_v7_features_dir", "trajectory_embeddings_dir", "test_progression_features_dir", "critic_features_dir", "output_dir", "embeddings_path"}
         converted = {}
         for k, v in d.items():
             if k in path_fields and isinstance(v, str):
