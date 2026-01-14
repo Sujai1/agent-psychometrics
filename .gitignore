@@ -124,3 +124,7 @@ chris_output/experiment_b/trajectory_embeddings_test/
 
 # Sandbox features (regenerable)
 chris_output/experiment_a/sandbox_features/
+
+# PCA ablation results (regenerable)
+chris_output/experiment_a/pca_ablation/
+chris_output/experiment_b/pca_ablation/
