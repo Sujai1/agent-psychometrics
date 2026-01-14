@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiment_b.config import ExperimentConfig
+from experiment_b.config import ExperimentConfig, RegressionMode
 from experiment_b.data_splits import create_experiment_split
 from experiment_b.prior_model import PriorModel, EmbeddingPriorModel
 from experiment_b.posterior_model import PosteriorModel
@@ -159,6 +159,7 @@ def run_experiment(config: ExperimentConfig) -> Dict:
     print("EXPERIMENT B: POSTERIOR DIFFICULTY PREDICTION")
     print("=" * 60)
     print(f"Feature source: {config.feature_source}")
+    print(f"Regression mode: {config.regression_mode}")
     print(f"Prior only: {config.prior_only}")
 
     # Resolve paths relative to ROOT
@@ -243,10 +244,13 @@ def run_experiment(config: ExperimentConfig) -> Dict:
         print("   Skipping posterior (prior_only mode)")
         posterior_model = None
     else:
+        test_progression_features_dir = ROOT / config.test_progression_features_dir
+        critic_features_dir = ROOT / config.critic_features_dir
         posterior_model = PosteriorModel(
             prior_model,
             alpha=config.posterior_alpha,
             feature_source=config.feature_source,
+            regression_mode=config.regression_mode,
             lunette_features_dir=lunette_features_dir,
             llm_judge_features_dir=llm_judge_features_dir,
             llm_judge_v4_features_dir=llm_judge_v4_features_dir,
@@ -255,6 +259,8 @@ def run_experiment(config: ExperimentConfig) -> Dict:
             execution_features_dir=execution_features_dir,
             llm_judge_v6_features_dir=llm_judge_v6_features_dir,
             llm_judge_v7_features_dir=llm_judge_v7_features_dir,
+            test_progression_features_dir=test_progression_features_dir,
+            critic_features_dir=critic_features_dir,
         )
         posterior_model.fit(
             task_ids=split.d_train_tasks,
@@ -377,6 +383,96 @@ def run_experiment(config: ExperimentConfig) -> Dict:
     return results
 
 
+def run_all_regression_modes(config: ExperimentConfig) -> Dict:
+    """Run experiment with all regression modes and compare results.
+
+    Args:
+        config: Base experiment configuration (regression_mode will be overridden)
+
+    Returns:
+        Dict with results for each mode and comparison summary
+    """
+    from dataclasses import replace
+
+    modes: List[RegressionMode] = ["residual", "direct_with_prior", "direct_with_prior_features"]
+    all_results = {}
+
+    for mode in modes:
+        print(f"\n{'='*60}")
+        print(f"RUNNING REGRESSION MODE: {mode}")
+        print(f"{'='*60}")
+
+        # Create config copy with this mode
+        mode_config = replace(config, regression_mode=mode)
+        try:
+            results = run_experiment(mode_config)
+            all_results[mode] = results
+        except Exception as e:
+            print(f"Error running mode {mode}: {e}")
+            all_results[mode] = {"error": str(e)}
+
+    # Generate comparison summary
+    comparison = {
+        "valid_auc": {},
+        "valid_rmse": {},
+        "train_auc": {},
+        "train_rmse": {},
+    }
+
+    for mode, results in all_results.items():
+        if "error" in results:
+            continue
+        comparison["valid_auc"][mode] = results.get("posterior_valid_auc", {}).get("auc")
+        comparison["valid_rmse"][mode] = results.get("posterior_valid", {}).get("rmse")
+        comparison["train_auc"][mode] = results.get("posterior_train_auc", {}).get("auc")
+        comparison["train_rmse"][mode] = results.get("posterior_train", {}).get("rmse")
+
+    # Find best mode by validation AUC
+    valid_aucs = {k: v for k, v in comparison["valid_auc"].items() if v is not None}
+    if valid_aucs:
+        comparison["best_mode_by_auc"] = max(valid_aucs, key=valid_aucs.get)
+        comparison["best_auc"] = valid_aucs[comparison["best_mode_by_auc"]]
+
+        # Compute delta vs residual baseline
+        residual_auc = comparison["valid_auc"].get("residual")
+        if residual_auc is not None:
+            comparison["delta_vs_residual"] = {
+                mode: auc - residual_auc
+                for mode, auc in valid_aucs.items()
+            }
+
+    # Print comparison table
+    print("\n" + "=" * 80)
+    print("REGRESSION MODE COMPARISON")
+    print("=" * 80)
+    print(f"{'Mode':<30} {'Train AUC':>12} {'Valid AUC':>12} {'ΔAUC vs residual':>18}")
+    print("-" * 80)
+
+    for mode in modes:
+        if mode not in all_results or "error" in all_results[mode]:
+            print(f"{mode:<30} {'ERROR':>12}")
+            continue
+
+        train_auc = comparison["train_auc"].get(mode)
+        valid_auc = comparison["valid_auc"].get(mode)
+        delta = comparison.get("delta_vs_residual", {}).get(mode)
+
+        train_str = f"{train_auc:.4f}" if train_auc else "N/A"
+        valid_str = f"{valid_auc:.4f}" if valid_auc else "N/A"
+        delta_str = f"{delta:+.4f}" if delta is not None else "N/A"
+
+        print(f"{mode:<30} {train_str:>12} {valid_str:>12} {delta_str:>18}")
+
+    if "best_mode_by_auc" in comparison:
+        print(f"\nBest mode: {comparison['best_mode_by_auc']} (AUC = {comparison['best_auc']:.4f})")
+
+    return {
+        "mode_results": all_results,
+        "comparison": comparison,
+        "config": config.to_dict(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run Experiment B")
     parser.add_argument(
@@ -400,9 +496,15 @@ def main():
     parser.add_argument(
         "--feature_source",
         type=str,
-        choices=["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7"],
+        choices=["simple", "lunette", "llm_judge", "llm_judge_v4", "llm_judge_v5", "llm_judge_v5_single", "execution", "discoverability", "combined_v2", "llm_judge_v7", "mechanical_v7", "test_progression", "critic_model"],
         default="simple",
-        help="Feature source: 'simple', 'execution' (mechanical), 'llm_judge_v7' (semantic), 'mechanical_v7' (both), or legacy options",
+        help="Feature source: 'simple', 'execution' (mechanical), 'llm_judge_v7' (semantic), 'mechanical_v7' (both), 'test_progression', 'critic_model', or legacy options",
+    )
+    parser.add_argument(
+        "--critic_features_dir",
+        type=str,
+        default=None,
+        help="Path to critic model rewards directory (default: chris_output/experiment_b/critic_rewards)",
     )
     parser.add_argument(
         "--prior_source",
@@ -423,13 +525,31 @@ def main():
         help="Run prior-only baseline (no trajectory correction)",
     )
     parser.add_argument(
+        "--items_path",
+        type=str,
+        default=None,
+        help="Path to IRT items.csv (overrides config default)",
+    )
+    parser.add_argument(
+        "--regression_mode",
+        type=str,
+        choices=["residual", "direct_with_prior", "direct_with_prior_features"],
+        default="residual",
+        help="Regression mode: 'residual' (prior + correction), 'direct_with_prior' (prior as feature), 'direct_with_prior_features' (prior input features)",
+    )
+    parser.add_argument(
+        "--compare_modes",
+        action="store_true",
+        help="Run all regression modes and compare results",
+    )
+    parser.add_argument(
         "--dry_run",
         action="store_true",
         help="Show configuration without running",
     )
     args = parser.parse_args()
 
-    config = ExperimentConfig(
+    config_kwargs = dict(
         weak_threshold=args.weak_threshold,
         strong_min_improvement=args.strong_min_improvement,
         output_dir=Path(args.output_dir),
@@ -437,19 +557,33 @@ def main():
         prior_source=args.prior_source,
         embeddings_path=Path(args.embeddings_path) if args.embeddings_path else None,
         prior_only=args.prior_only,
+        regression_mode=args.regression_mode,
     )
+    if args.items_path:
+        config_kwargs["items_path"] = Path(args.items_path)
+    if args.critic_features_dir:
+        config_kwargs["critic_features_dir"] = Path(args.critic_features_dir)
+    config = ExperimentConfig(**config_kwargs)
 
     if args.dry_run:
         print("DRY RUN - Configuration:")
         print(json.dumps(config.to_dict(), indent=2))
         return
 
-    results = run_experiment(config)
-
-    # Save results
+    # Run experiment(s)
     output_dir = ROOT / config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "experiment_b_results.json"
+
+    if args.compare_modes:
+        # Run all regression modes and compare
+        results = run_all_regression_modes(config)
+        output_path = output_dir / f"experiment_b_mode_comparison_{config.feature_source}.json"
+    else:
+        # Single mode run
+        results = run_experiment(config)
+        output_path = output_dir / "experiment_b_results.json"
+
+    # Save results
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nResults saved to: {output_path}")

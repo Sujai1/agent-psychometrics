@@ -182,10 +182,10 @@ class SemanticOnlyFeatures(BaseModel):
 
 
 class FeatureExtractionPlan(AnalysisPlanBase):
-    """Custom AnalysisPlan for extracting TaskDifficultyFeatures.
+    """AnalysisPlan for extracting TaskDifficultyFeatures with structured output.
 
-    This plan overrides model_dump() to include the result_schema JSON schema
-    in the serialized output, which gets sent to the Lunette API.
+    Uses lunette-sdk 0.2.3+ which auto-populates result_schema_json from the
+    result_schema ClassVar via model_validator. No custom model_dump() needed.
 
     The Lunette backend uses the schema to force the judge model to output
     structured data matching the schema via tool use.
@@ -194,16 +194,9 @@ class FeatureExtractionPlan(AnalysisPlanBase):
     kind: Literal["grading"] = "grading"
     result_schema: ClassVar[type[TaskDifficultyFeatures]] = TaskDifficultyFeatures
 
-    def model_dump(self, **kwargs):
-        """Override to include result_schema in serialized output."""
-        d = super().model_dump(**kwargs)
-        if self.result_schema is not None:
-            d["result_schema"] = self.result_schema.model_json_schema()
-        return d
-
 
 class SemanticFeatureExtractionPlan(AnalysisPlanBase):
-    """Custom AnalysisPlan for extracting SemanticOnlyFeatures.
+    """AnalysisPlan for extracting SemanticOnlyFeatures with structured output.
 
     Use this when you want to skip environment exploration and focus
     on semantic analysis of the problem statement and patch.
@@ -211,39 +204,6 @@ class SemanticFeatureExtractionPlan(AnalysisPlanBase):
 
     kind: Literal["grading"] = "grading"
     result_schema: ClassVar[type[SemanticOnlyFeatures]] = SemanticOnlyFeatures
-
-    def model_dump(self, **kwargs):
-        """Override to include result_schema in serialized output."""
-        d = super().model_dump(**kwargs)
-        if self.result_schema is not None:
-            d["result_schema"] = self.result_schema.model_json_schema()
-        return d
-
-
-# Helper function to create a custom plan class on the fly
-def create_custom_feature_plan(features_model: type[BaseModel]) -> type[AnalysisPlanBase]:
-    """Create a custom AnalysisPlan class for a given Pydantic model.
-
-    Example:
-        class MyFeatures(BaseModel):
-            score: int = Field(ge=1, le=5)
-
-        MyPlan = create_custom_feature_plan(MyFeatures)
-        plan = MyPlan(name="my-analysis", prompt="...")
-    """
-    class CustomPlan(AnalysisPlanBase):
-        kind: Literal["grading"] = "grading"
-        result_schema: ClassVar[type[BaseModel]] = features_model
-
-        def model_dump(self, **kwargs):
-            d = super().model_dump(**kwargs)
-            if self.result_schema is not None:
-                d["result_schema"] = self.result_schema.model_json_schema()
-            return d
-
-    CustomPlan.__name__ = f"{features_model.__name__}Plan"
-    CustomPlan.__qualname__ = f"{features_model.__name__}Plan"
-    return CustomPlan
 
 
 # Grading prompt template for feature extraction

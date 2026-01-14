@@ -147,7 +147,7 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument(
         "--thetas",
         type=str,
-        default="./out/chris_irt/swebench_verified_20251115_full/1d_1pl/abilities.csv",
+        default="./out/chris_irt/swebench_verified_20251120_full/1d_1pl/abilities.csv",
         help="Path to abilities.csv (expects columns: <index>,theta,theta_std).",
     )
     ap.add_argument(
@@ -159,7 +159,7 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument(
         "--responses",
         type=str,
-        default="./out/chris_irt/swebench_verified_20251115_full.jsonl",
+        default="./out/chris_irt/swebench_verified_20251120_full.jsonl",
         help="Path to JSONL with per-agent response dicts (expects keys: subject_id, responses).",
     )
     args = ap.parse_args(argv)

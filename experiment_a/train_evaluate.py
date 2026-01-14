@@ -595,13 +595,25 @@ def main():
         help="Number of MC samples for ability marginalization (default: 100)",
     )
     parser.add_argument(
+        "--items_path",
+        type=str,
+        default=None,
+        help="Path to IRT items.csv (overrides config default)",
+    )
+    parser.add_argument(
+        "--abilities_path",
+        type=str,
+        default=None,
+        help="Path to IRT abilities.csv (overrides config default)",
+    )
+    parser.add_argument(
         "--dry_run",
         action="store_true",
         help="Show configuration without running",
     )
     args = parser.parse_args()
 
-    config = ExperimentAConfig(
+    config_kwargs = dict(
         test_fraction=args.test_fraction,
         split_seed=args.split_seed,
         embeddings_path=Path(args.embeddings_path) if args.embeddings_path else None,
@@ -626,6 +638,11 @@ def main():
         mle_use_mc_abilities=args.mle_use_mc_abilities,
         mle_n_mc_samples=args.mle_n_mc_samples,
     )
+    if args.items_path:
+        config_kwargs["items_path"] = Path(args.items_path)
+    if args.abilities_path:
+        config_kwargs["abilities_path"] = Path(args.abilities_path)
+    config = ExperimentAConfig(**config_kwargs)
 
     if args.dry_run:
         print("DRY RUN - Configuration:")

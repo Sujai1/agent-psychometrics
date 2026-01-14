@@ -101,7 +101,7 @@ Tested trajectory embeddings with PCA dimensionality reduction and varying ridge
 | `avg_message_length` | Average characters per message |
 | `resolved_rate` | Fraction of trajectories that resolved the task |
 
-### 2. LLM Judge Features (14 total)
+### 2. LLM Judge Features
 
 Pre-compute with:
 ```bash
@@ -109,7 +109,18 @@ python -m experiment_b.llm_judge.compute_features_v1 --dry_run  # See what would
 python -m experiment_b.llm_judge.compute_features_v7 --limit 50  # Compute v7 features
 ```
 
-Features:
+**Important: Feature Version Coverage**
+
+| Version | Tasks | Agents | Notes |
+|---------|-------|--------|-------|
+| v5_single | **143** | 1 | Best coverage, single agent (location_vs_fix_alignment) |
+| v4 | 143 | 5 | Multi-agent features |
+| v1 | 126 | 3 | Original features |
+| v7 | 26 | 31 | Most agents but fewest tasks - **insufficient for D_valid** |
+
+**Recommendation:** Use `--feature_source llm_judge_v5_single` for best task coverage. v7 only has 26 tasks with features, which means D_valid tasks likely have no features and fall back to prior-only predictions.
+
+Features (v7):
 - **Primary**: `llm_judge_difficulty_score` (0-1)
 - **Competencies (1-4)**: backtracking_exploration, task_decomposition, observation_reading, self_verification
 - **Failure modes (0-1)**: localization_failure, strategy_defect, implementation_defect, incomplete_repair, verification_failure
@@ -165,14 +176,87 @@ experiment_b/
     └── structured_output.py       # Structured output utilities
 ```
 
+## Regression Modes
+
+Three approaches for combining trajectory features with the prior:
+
+```bash
+# Compare all modes
+python -m experiment_b.train_evaluate --feature_source llm_judge_v5_single --compare_modes
+
+# Run specific mode
+python -m experiment_b.train_evaluate --regression_mode direct_with_prior
+```
+
+| Mode | Formula | Features | Target |
+|------|---------|----------|--------|
+| `residual` (default) | `prior + psi * features` | trajectory only | ground_truth - prior |
+| `direct_with_prior` | `model(features, prior)` | trajectory + prior prediction | ground_truth |
+| `direct_with_prior_features` | `model(features, embeddings)` | trajectory + prior input features | ground_truth |
+
+**Results (llm_judge_v5_single, 2026-01-14, with RidgeCV alpha selection):**
+
+| Mode | Best Alpha | D_train AUC | D_valid AUC | ΔAUC vs Prior |
+|------|------------|-------------|-------------|---------------|
+| Prior only | — | 0.6823 | **0.7362** | — |
+| residual | 1e+06 | 0.6820 | **0.7362** | +0.0000 |
+| direct_with_prior | 1e+06 | 0.7350 | 0.6911 | -0.0451 |
+| direct_with_prior_features | 1e+06 | 0.7353 | 0.6880 | -0.0481 |
+
+**Key finding:** Even with RidgeCV selecting optimal regularization (alpha=1e+06), direct regression modes underperform. The residual mode perfectly preserves the prior's AUC. Direct modes fail because they try to predict absolute difficulty from scratch rather than learning a correction—with 117 training samples, they can't generalize even with strong regularization. **Use `residual` mode**.
+
+## Evaluation Baselines
+
+Always compare against these baselines when evaluating new features:
+
+| Baseline | D_train AUC | D_valid AUC | Description |
+|----------|-------------|-------------|-------------|
+| **Constant (mean)** | 0.7343 | 0.6873 | Predict mean training difficulty for all tasks |
+| **Prior (embedding)** | 0.6823 | **0.7362** | Task embeddings → difficulty (no trajectories) |
+
+**Why both baselines matter:**
+- **Constant baseline**: Lower bound. If your model doesn't beat this, it has learned nothing useful.
+- **Prior baseline**: Target to beat. The prior uses task information; trajectory features should add signal beyond this.
+
+Note: The constant baseline has higher *training* AUC but lower *validation* AUC than the prior. This is because predicting the mean overfits to the training distribution but doesn't generalize.
+
+## Interpreting Ridge Alpha
+
+RidgeCV selects regularization strength automatically. The selected alpha is diagnostic:
+
+| Alpha Selected | Interpretation |
+|----------------|----------------|
+| **Small (0.01-1)** | Features have strong signal; model can use them freely |
+| **Medium (10-1000)** | Features have some signal but need regularization |
+| **Large (1e5-1e6)** | Features have **no useful signal**; regularization zeros them out |
+
+**When alpha → 1e6:**
+- Coefficients shrink to ~0 (e.g., 1e-6)
+- Model outputs approximately the intercept (mean target) for all inputs
+- For `residual` mode: prediction ≈ `prior + mean_residual` (preserves prior ranking)
+- For `direct` modes: prediction ≈ `mean_difficulty` (constant, like baseline)
+
+**Example (llm_judge_v5_single with alpha=1e6):**
+```
+MODE: residual
+  Intercept: 0.2655, Coefficients: [4.97e-06]
+  → prediction ≈ prior + 0.27 (prior ranking preserved)
+
+MODE: direct_with_prior
+  Intercept: 1.5554, Coefficients: [4.95e-06, 1.40e-05]
+  → prediction ≈ 1.55 for all tasks (= mean difficulty)
+```
+
+This explains why direct modes with alpha=1e6 have D_valid AUC ≈ 0.69 (same as constant baseline) while residual mode has AUC ≈ 0.74 (same as prior)—the residual formulation degrades gracefully when features are uninformative.
+
 ## Configuration
 
 ```python
 @dataclass
 class ExperimentConfig:
-    # Data paths
-    items_path: Path = Path("clean_data/swebench_verified_20251115_full/1d/items.csv")
-    responses_path: Path = Path("clean_data/swebench_verified/swebench_verified_20251115_full.jsonl")
+    # Data paths (use 1PL model for consistency with evaluation formula)
+    items_path: Path = Path("clean_data/swebench_verified_20251120_full/1d_1pl/items.csv")
+    responses_path: Path = Path("clean_data/swebench_verified/swebench_verified_20251120_full.jsonl")
     trajectories_dir: Path = Path("trajectory_data/unified_trajs")
     output_dir: Path = Path("chris_output/experiment_b")
 

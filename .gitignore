@@ -30,7 +30,7 @@ out/
 # Output files
 *.out
 *.jsonl
-!clean_data/swebench_verified/swebench_verified_20251115_full.jsonl
+!clean_data/swebench_verified/swebench_verified_20251120_full.jsonl
 *.jsonlines
 *.npz
 
@@ -64,6 +64,13 @@ chris_output/experiment_b/llm_judge_features/
 # Experiment B run outputs (regenerable)
 chris_output/experiment_b/embedding_*/
 chris_output/experiment_b/heuristic_*/
+chris_output/experiment_b/llm_judge_combined_features/
+chris_output/experiment_b/llm_judge_prior_features/
+chris_output/experiment_b/llm_judge_prior_results.json
+chris_output/experiment_b/test_progression_features/
+chris_output/experiment_b/embedding_plus_*.json
+chris_output/experiment_b/experiment_b_results.json
+chris_output/experiment_b/experiment_b_mode_comparison*.json
 
 # Experiment A Lunette features (large, regenerable from API)
 chris_output/experiment_a/lunette_features/
@@ -128,3 +135,13 @@ chris_output/experiment_a/sandbox_features/
 # PCA ablation results (regenerable)
 chris_output/experiment_a/pca_ablation/
 chris_output/experiment_b/pca_ablation/
+
+# Experiment A outputs (regenerable)
+chris_output/experiment_a/logs/
+chris_output/experiment_a/batched_runs_to_delete.json
+chris_output/experiment_a/embedding_plus_llm_results.json
+chris_output/experiment_a/experiment_a_results.json
+
+# Additional experiment output directories
+chris_output/experiment_a_*/
+chris_output/experiment_b_*/
