@@ -9,8 +9,13 @@
 #SBATCH --gres=gpu:2
 #SBATCH --nodes=1
 
-# Create logs directory if it doesn't exist
+# Configuration
+OUTPUT_DIR="chris_output/sad_irt"
+EPOCHS=10
+
+# Create directories
 mkdir -p logs
+mkdir -p "$OUTPUT_DIR"
 
 # Print job info
 echo "Job ID: $SLURM_JOB_ID"
@@ -27,13 +32,22 @@ source .venv/bin/activate
 # Enable fast HF downloads
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
+# Check for existing checkpoint to resume from
+RESUME_ARG=""
+LATEST_CHECKPOINT=$(ls -t "$OUTPUT_DIR"/checkpoint_epoch_*.pt 2>/dev/null | head -1)
+if [ -n "$LATEST_CHECKPOINT" ]; then
+    echo "Found checkpoint to resume from: $LATEST_CHECKPOINT"
+    RESUME_ARG="--resume_from $LATEST_CHECKPOINT"
+else
+    echo "No checkpoint found, starting fresh"
+fi
+
 # Set up distributed training environment
 export MASTER_ADDR=localhost
 export MASTER_PORT=29500
 export WORLD_SIZE=2
 
 # Run training with accelerate for multi-GPU
-# Using accelerate launch for distributed training across 2 GPUs
 accelerate launch \
     --num_processes=2 \
     --multi_gpu \
@@ -44,8 +58,9 @@ accelerate launch \
     --max_length 8192 \
     --batch_size 4 \
     --gradient_accumulation_steps 4 \
-    --epochs 3 \
-    --output_dir chris_output/sad_irt
+    --epochs $EPOCHS \
+    --output_dir "$OUTPUT_DIR" \
+    $RESUME_ARG
 
 echo "End time: $(date)"
 echo "Exit code: $?"
