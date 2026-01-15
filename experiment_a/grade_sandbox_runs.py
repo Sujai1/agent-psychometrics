@@ -113,6 +113,7 @@ async def grade_single_task(
     semantic_only: bool = False,
     max_retries: int = 3,
     retry_delay: int = 60,
+    api_timeout: int = 600,
 ) -> tuple[Optional[Dict], dict]:
     """Grade a single task using Lunette with structured output.
 
@@ -120,7 +121,7 @@ async def grade_single_task(
     errors, so we must grade each task individually. Each investigation takes
     approximately 55 seconds.
 
-    Includes retry logic for 504 Gateway Timeout errors.
+    Includes retry logic for 504 Gateway Timeout errors and API call timeout.
 
     Args:
         client: Lunette client
@@ -131,6 +132,7 @@ async def grade_single_task(
         semantic_only: Use SemanticOnlyFeatures schema (faster)
         max_retries: Maximum number of retries on 504 timeout
         retry_delay: Seconds to wait between retries
+        api_timeout: Timeout in seconds for each API call (default 10 minutes)
 
     Returns:
         Tuple of (feature dict or None, timing dict)
@@ -177,16 +179,44 @@ async def grade_single_task(
     for attempt in range(max_retries + 1):
         timing["attempts"] = attempt + 1
         try:
-            # Run investigation
+            # Run investigation with timeout to prevent indefinite hangs
             api_start = time.perf_counter()
-            results = await client.investigate(
-                run_id=run_id,
-                plan=plan,
-                limit=1,
+            results = await asyncio.wait_for(
+                client.investigate(
+                    run_id=run_id,
+                    plan=plan,
+                    limit=1,
+                ),
+                timeout=api_timeout,
             )
             timing["api_call_s"] += time.perf_counter() - api_start
             # Success - break out of retry loop
             break
+        except asyncio.TimeoutError:
+            timing["api_call_s"] += time.perf_counter() - api_start
+            last_error = asyncio.TimeoutError(f"API call timed out after {api_timeout}s")
+            error_str = str(last_error)
+            # Log the timeout
+            timeout_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "task_id": task_id,
+                "run_id": run_id,
+                "attempt": attempt + 1,
+                "max_retries": max_retries,
+                "error": f"asyncio.TimeoutError after {api_timeout}s",
+                "plan_name": plan.name,
+                "semantic_only": semantic_only,
+            }
+            with open(timeout_log_file, "a") as log_f:
+                log_f.write(json.dumps(timeout_entry) + "\n")
+
+            if attempt < max_retries:
+                print(f"    API timeout after {api_timeout}s at {datetime.now().strftime('%H:%M:%S')}, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})...")
+                timing["retry_wait_s"] += retry_delay
+                time.sleep(retry_delay)
+                continue
+            else:
+                print(f"    API timeout after {max_retries} retries, giving up")
         except Exception as e:
             timing["api_call_s"] += time.perf_counter() - api_start
             last_error = e
@@ -364,6 +394,10 @@ async def main():
         "--semantic_only", action="store_true",
         help="Use SemanticOnlyFeatures schema (faster, no shell exploration)"
     )
+    parser.add_argument(
+        "--api_timeout", type=int, default=600,
+        help="Timeout in seconds for each API call (default: 600 = 10 minutes)"
+    )
     args = parser.parse_args()
 
     tracking_file = Path(args.tracking_file)
@@ -490,6 +524,7 @@ async def main():
                 task_metadata=task["metadata"],
                 output_dir=output_dir,
                 semantic_only=args.semantic_only,
+                api_timeout=args.api_timeout,
             )
 
             # Log timing data
