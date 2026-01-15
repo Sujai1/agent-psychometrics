@@ -1,0 +1,272 @@
+"""Training loop for SAD-IRT."""
+
+import logging
+import math
+from pathlib import Path
+from typing import Dict, Optional
+
+import torch
+import torch.nn as nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from .config import SADIRTConfig
+from .evaluate import compute_metrics
+
+logger = logging.getLogger(__name__)
+
+
+class Trainer:
+    """Trainer for SAD-IRT model."""
+
+    def __init__(
+        self,
+        model: nn.Module,
+        train_loader: DataLoader,
+        eval_loader: Optional[DataLoader],
+        config: SADIRTConfig,
+        device: torch.device,
+        is_sad_irt: bool = True,
+    ):
+        """Initialize trainer.
+
+        Args:
+            model: SAD-IRT or StandardIRT model
+            train_loader: Training data loader
+            eval_loader: Evaluation data loader (optional)
+            config: Training configuration
+            device: Device to train on
+            is_sad_irt: Whether model is SAD-IRT (affects optimizer setup)
+        """
+        self.model = model
+        self.train_loader = train_loader
+        self.eval_loader = eval_loader
+        self.config = config
+        self.device = device
+        self.is_sad_irt = is_sad_irt
+
+        # Setup optimizer with different learning rates
+        self.optimizer = self._setup_optimizer()
+
+        # Setup scheduler
+        self.scheduler = self._setup_scheduler()
+
+        # Loss function
+        self.criterion = nn.BCEWithLogitsLoss()
+
+        # Training state
+        self.global_step = 0
+        self.best_auc = 0.0
+
+        # Output directory
+        self.output_dir = Path(config.output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _setup_optimizer(self) -> AdamW:
+        """Setup optimizer with different learning rates for different parameter groups."""
+        if self.is_sad_irt:
+            # Different learning rates for encoder vs embeddings
+            encoder_params = []
+            embedding_params = []
+
+            for name, param in self.model.named_parameters():
+                if not param.requires_grad:
+                    continue
+                if "theta" in name or "beta" in name:
+                    embedding_params.append(param)
+                else:
+                    encoder_params.append(param)
+
+            param_groups = [
+                {"params": encoder_params, "lr": self.config.learning_rate_encoder},
+                {"params": embedding_params, "lr": self.config.learning_rate_embeddings},
+            ]
+        else:
+            # Standard IRT - all params same learning rate
+            param_groups = [
+                {"params": self.model.parameters(), "lr": self.config.learning_rate_embeddings}
+            ]
+
+        return AdamW(param_groups, weight_decay=self.config.weight_decay)
+
+    def _setup_scheduler(self):
+        """Setup learning rate scheduler with warmup."""
+        num_training_steps = len(self.train_loader) * self.config.epochs
+        num_warmup_steps = int(num_training_steps * self.config.warmup_ratio)
+
+        warmup_scheduler = LinearLR(
+            self.optimizer,
+            start_factor=0.1,
+            end_factor=1.0,
+            total_iters=num_warmup_steps,
+        )
+
+        cosine_scheduler = CosineAnnealingLR(
+            self.optimizer,
+            T_max=num_training_steps - num_warmup_steps,
+            eta_min=1e-6,
+        )
+
+        return SequentialLR(
+            self.optimizer,
+            schedulers=[warmup_scheduler, cosine_scheduler],
+            milestones=[num_warmup_steps],
+        )
+
+    def train_epoch(self, epoch: int) -> Dict[str, float]:
+        """Train for one epoch."""
+        self.model.train()
+        total_loss = 0.0
+        num_batches = 0
+
+        pbar = tqdm(self.train_loader, desc=f"Epoch {epoch + 1}")
+
+        self.optimizer.zero_grad()
+
+        for batch_idx, batch in enumerate(pbar):
+            # Move batch to device
+            batch = {k: v.to(self.device) for k, v in batch.items()}
+
+            # Forward pass
+            logits = self.model(
+                agent_idx=batch["agent_idx"],
+                task_idx=batch["task_idx"],
+                input_ids=batch["input_ids"],
+                attention_mask=batch["attention_mask"],
+            )
+
+            # Compute loss
+            loss = self.criterion(logits, batch["response"])
+            loss = loss / self.config.gradient_accumulation_steps
+
+            # Backward pass
+            loss.backward()
+
+            # Gradient accumulation
+            if (batch_idx + 1) % self.config.gradient_accumulation_steps == 0:
+                # Gradient clipping
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.config.max_grad_norm
+                )
+
+                # Optimizer step
+                self.optimizer.step()
+                self.scheduler.step()
+                self.optimizer.zero_grad()
+
+                self.global_step += 1
+
+                # Logging
+                if self.global_step % self.config.logging_steps == 0:
+                    lr = self.scheduler.get_last_lr()[0]
+                    pbar.set_postfix({"loss": loss.item() * self.config.gradient_accumulation_steps, "lr": lr})
+
+                    # Log ψ stats if SAD-IRT
+                    if self.is_sad_irt and hasattr(self.model, "get_psi_stats"):
+                        psi_stats = self.model.get_psi_stats()
+                        logger.debug(f"ψ stats: {psi_stats}")
+
+                # Evaluation
+                if self.eval_loader is not None and self.global_step % self.config.eval_steps == 0:
+                    metrics = self.evaluate()
+                    logger.info(f"Step {self.global_step}: {metrics}")
+
+                    # Save best model
+                    if metrics["auc"] > self.best_auc:
+                        self.best_auc = metrics["auc"]
+                        self.save_checkpoint("best")
+
+                    self.model.train()
+
+            total_loss += loss.item() * self.config.gradient_accumulation_steps
+            num_batches += 1
+
+        return {"train_loss": total_loss / num_batches}
+
+    @torch.no_grad()
+    def evaluate(self) -> Dict[str, float]:
+        """Evaluate model on eval set."""
+        if self.eval_loader is None:
+            return {}
+
+        self.model.eval()
+
+        all_logits = []
+        all_responses = []
+
+        for batch in tqdm(self.eval_loader, desc="Evaluating", leave=False):
+            batch = {k: v.to(self.device) for k, v in batch.items()}
+
+            logits = self.model(
+                agent_idx=batch["agent_idx"],
+                task_idx=batch["task_idx"],
+                input_ids=batch["input_ids"],
+                attention_mask=batch["attention_mask"],
+            )
+
+            all_logits.append(logits.cpu())
+            all_responses.append(batch["response"].cpu())
+
+        all_logits = torch.cat(all_logits)
+        all_responses = torch.cat(all_responses)
+
+        return compute_metrics(all_logits, all_responses)
+
+    def train(self) -> Dict[str, float]:
+        """Full training loop."""
+        logger.info(f"Starting training for {self.config.epochs} epochs")
+        logger.info(f"Effective batch size: {self.config.effective_batch_size}")
+
+        for epoch in range(self.config.epochs):
+            train_metrics = self.train_epoch(epoch)
+            logger.info(f"Epoch {epoch + 1} train metrics: {train_metrics}")
+
+            # End of epoch evaluation
+            if self.eval_loader is not None:
+                eval_metrics = self.evaluate()
+                logger.info(f"Epoch {epoch + 1} eval metrics: {eval_metrics}")
+
+                if eval_metrics["auc"] > self.best_auc:
+                    self.best_auc = eval_metrics["auc"]
+                    self.save_checkpoint("best")
+
+            # Save checkpoint
+            self.save_checkpoint(f"epoch_{epoch + 1}")
+
+        # Final evaluation
+        final_metrics = {}
+        if self.eval_loader is not None:
+            final_metrics = self.evaluate()
+            logger.info(f"Final eval metrics: {final_metrics}")
+
+        return final_metrics
+
+    def save_checkpoint(self, name: str):
+        """Save model checkpoint."""
+        checkpoint_path = self.output_dir / f"checkpoint_{name}.pt"
+
+        # For SAD-IRT, only save the trainable parts
+        if self.is_sad_irt:
+            # Save LoRA weights, embeddings, and MLP head
+            state_dict = {}
+            for key, value in self.model.state_dict().items():
+                # Save embeddings, MLP head, BatchNorm, and LoRA weights
+                if any(x in key for x in ["theta", "beta", "psi_head", "psi_bn", "lora"]):
+                    state_dict[key] = value
+        else:
+            state_dict = self.model.state_dict()
+
+        torch.save(
+            {
+                "model_state_dict": state_dict,
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict(),
+                "global_step": self.global_step,
+                "best_auc": self.best_auc,
+                "config": self.config,
+            },
+            checkpoint_path,
+        )
+        logger.info(f"Saved checkpoint to {checkpoint_path}")
