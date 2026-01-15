@@ -66,6 +66,10 @@ def parse_args() -> SADIRTConfig:
     # Debug
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--max_samples", type=int, default=None)
+    parser.add_argument("--smoke_test", action="store_true", help="Quick test: load model, run 1 batch, exit")
+
+    # Resumption
+    parser.add_argument("--resume_from", type=str, default=None, help="Path to checkpoint to resume from")
 
     args = parser.parse_args()
 
@@ -88,6 +92,8 @@ def parse_args() -> SADIRTConfig:
         seed=args.seed,
         dry_run=args.dry_run,
         max_samples=args.max_samples,
+        smoke_test=args.smoke_test,
+        resume_from=args.resume_from,
     )
 
     return config
@@ -99,6 +105,97 @@ def set_seed(seed: int):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+
+def run_smoke_test(config: SADIRTConfig):
+    """Quick smoke test: load everything, run 1 forward/backward pass, exit."""
+    logger.info("=" * 60)
+    logger.info("SMOKE TEST: Checking code paths")
+    logger.info("=" * 60)
+
+    set_seed(config.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Using device: {device}")
+
+    # Load tokenizer
+    logger.info(f"Loading tokenizer: {config.model_name}")
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    logger.info("Tokenizer loaded OK")
+
+    # Create minimal dataset (just 10 samples)
+    logger.info("Loading minimal dataset...")
+    full_dataset = TrajectoryIRTDataset(
+        response_matrix_path=config.response_matrix_path,
+        trajectory_dir=config.trajectory_dir,
+        tokenizer=tokenizer,
+        max_length=config.max_length,
+        swebench_dataset=config.swebench_dataset,
+    )
+    logger.info(f"Dataset: {len(full_dataset)} total samples, {full_dataset.num_agents} agents, {full_dataset.num_tasks} tasks")
+
+    # Get just 4 samples for smoke test
+    train_pairs, test_pairs = create_train_test_split(full_dataset, test_fraction=0.5, seed=config.seed)
+    train_pairs = train_pairs[:4]
+
+    mini_dataset = TrajectoryIRTDataset(
+        response_matrix_path=config.response_matrix_path,
+        trajectory_dir=config.trajectory_dir,
+        tokenizer=tokenizer,
+        max_length=config.max_length,
+        agent_ids=full_dataset.agent_ids,
+        task_ids=full_dataset.task_ids,
+        pairs=train_pairs,
+        swebench_dataset=config.swebench_dataset,
+    )
+    logger.info(f"Mini dataset: {len(mini_dataset)} samples")
+
+    # Load one batch
+    loader = DataLoader(mini_dataset, batch_size=2, shuffle=False, num_workers=0)
+    batch = next(iter(loader))
+    logger.info(f"Batch loaded: input_ids shape = {batch['input_ids'].shape}")
+
+    # Create model
+    logger.info(f"Creating SAD-IRT model with {config.model_name}...")
+    model = SADIRT(
+        num_agents=full_dataset.num_agents,
+        num_tasks=full_dataset.num_tasks,
+        model_name=config.model_name,
+        lora_r=config.lora_r,
+    ).to(device)
+    logger.info("Model created OK")
+
+    # Move batch to device
+    batch = {k: v.to(device) for k, v in batch.items()}
+
+    # Forward pass
+    logger.info("Running forward pass...")
+    model.train()
+    logits = model(
+        agent_idx=batch["agent_idx"],
+        task_idx=batch["task_idx"],
+        input_ids=batch["input_ids"],
+        attention_mask=batch["attention_mask"],
+    )
+    logger.info(f"Forward pass OK: logits shape = {logits.shape}, values = {logits.detach().cpu().numpy()}")
+
+    # Backward pass
+    logger.info("Running backward pass...")
+    loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, batch["response"])
+    loss.backward()
+    logger.info(f"Backward pass OK: loss = {loss.item():.4f}")
+
+    # Check gradients exist
+    grad_count = sum(1 for p in model.parameters() if p.grad is not None)
+    total_params = sum(1 for p in model.parameters() if p.requires_grad)
+    logger.info(f"Gradients computed for {grad_count}/{total_params} trainable parameters")
+
+    logger.info("=" * 60)
+    logger.info("SMOKE TEST PASSED")
+    logger.info("=" * 60)
+
+    return {"status": "passed"}
 
 
 def run_full_auc_evaluation(config: SADIRTConfig):
@@ -234,6 +331,10 @@ def run_full_auc_evaluation(config: SADIRTConfig):
         is_sad_irt=True,
     )
 
+    # Resume from checkpoint if specified
+    if config.resume_from:
+        sad_irt_trainer.load_checkpoint(config.resume_from)
+
     sad_irt_metrics = sad_irt_trainer.train()
     logger.info(f"SAD-IRT final metrics: {sad_irt_metrics}")
     log_parameter_stats(sad_irt_model, prefix="SAD-IRT ")
@@ -297,6 +398,11 @@ def main():
     logger.info("Configuration:")
     for key, value in vars(config).items():
         logger.info(f"  {key}: {value}")
+
+    # Smoke test mode - just check code paths
+    if config.smoke_test:
+        run_smoke_test(config)
+        return
 
     if config.mode == "full_auc":
         run_full_auc_evaluation(config)

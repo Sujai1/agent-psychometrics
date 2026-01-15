@@ -219,7 +219,13 @@ class Trainer:
         logger.info(f"Starting training for {self.config.epochs} epochs")
         logger.info(f"Effective batch size: {self.config.effective_batch_size}")
 
-        for epoch in range(self.config.epochs):
+        # Support resumption from checkpoint
+        start_epoch = getattr(self, "_resume_epoch", 0)
+        if start_epoch > 0:
+            logger.info(f"Resuming from epoch {start_epoch + 1}")
+
+        for epoch in range(start_epoch, self.config.epochs):
+            self._current_epoch = epoch
             train_metrics = self.train_epoch(epoch)
             logger.info(f"Epoch {epoch + 1} train metrics: {train_metrics}")
 
@@ -266,7 +272,27 @@ class Trainer:
                 "global_step": self.global_step,
                 "best_auc": self.best_auc,
                 "config": self.config,
+                "epoch": getattr(self, "_current_epoch", 0),
             },
             checkpoint_path,
         )
         logger.info(f"Saved checkpoint to {checkpoint_path}")
+
+    def load_checkpoint(self, checkpoint_path: str):
+        """Load model checkpoint for resumption."""
+        logger.info(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+
+        # Load model state
+        self.model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+
+        # Load optimizer and scheduler state
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        # Restore training state
+        self.global_step = checkpoint.get("global_step", 0)
+        self.best_auc = checkpoint.get("best_auc", 0.0)
+        self._resume_epoch = checkpoint.get("epoch", 0)
+
+        logger.info(f"Resumed from step {self.global_step}, epoch {self._resume_epoch}, best_auc={self.best_auc:.4f}")

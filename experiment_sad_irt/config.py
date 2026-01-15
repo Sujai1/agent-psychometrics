@@ -51,6 +51,10 @@ class SADIRTConfig:
     # Debug
     dry_run: bool = False
     max_samples: Optional[int] = None  # Limit samples for testing
+    smoke_test: bool = False  # Just check code paths, no real training
+
+    # Resumption
+    resume_from: Optional[str] = None  # Path to checkpoint to resume from
 
     def __post_init__(self):
         """Validate configuration."""
