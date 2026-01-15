@@ -99,19 +99,15 @@ class SADIRT(nn.Module):
         # Get hidden size from config
         encoder_dim = config.hidden_size
 
-        # MLP head for ψ prediction
-        self.psi_head = nn.Sequential(
-            nn.Linear(encoder_dim, 256),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(256, 1),
-        )
+        # Linear projection for ψ prediction (single layer)
+        # Simpler than MLP and sufficient for predicting a scalar correction term
+        self.psi_head = nn.Linear(encoder_dim, 1)
 
-        # Initialize final layer to output near-zero values
+        # Initialize to output near-zero values
         # This makes ψ ≈ 0 at start, so model begins as standard IRT
         # and gradually learns trajectory-based corrections
-        nn.init.zeros_(self.psi_head[-1].weight)
-        nn.init.zeros_(self.psi_head[-1].bias)
+        nn.init.zeros_(self.psi_head.weight)
+        nn.init.zeros_(self.psi_head.bias)
 
         # BatchNorm for zero-mean constraint (affine=False to not learn shift/scale)
         self.psi_bn = nn.BatchNorm1d(1, affine=False, momentum=0.1)
@@ -188,6 +184,42 @@ class SADIRT(nn.Module):
             "running_mean": self.psi_bn.running_mean.item() if self.psi_bn.running_mean is not None else None,
             "running_var": self.psi_bn.running_var.item() if self.psi_bn.running_var is not None else None,
         }
+
+    def initialize_from_pretrained_irt(
+        self,
+        agent_ids: list,
+        task_ids: list,
+        abilities_df,
+        items_df,
+    ):
+        """Initialize θ and β from pre-trained IRT parameters.
+
+        This gives the model a much better starting point than random initialization,
+        following the py_irt 'difficulty_from_accuracy' initializer approach.
+
+        Args:
+            agent_ids: List of agent IDs in order matching model indices
+            task_ids: List of task IDs in order matching model indices
+            abilities_df: DataFrame with 'theta' column, indexed by agent_id
+            items_df: DataFrame with 'b' column, indexed by task_id
+        """
+        with torch.no_grad():
+            initialized_agents = 0
+            for i, agent_id in enumerate(agent_ids):
+                if agent_id in abilities_df.index:
+                    self.theta.weight[i] = abilities_df.loc[agent_id, "theta"]
+                    initialized_agents += 1
+
+            initialized_tasks = 0
+            for i, task_id in enumerate(task_ids):
+                if task_id in items_df.index:
+                    self.beta.weight[i] = items_df.loc[task_id, "b"]
+                    initialized_tasks += 1
+
+        logger.info(
+            f"Initialized θ for {initialized_agents}/{len(agent_ids)} agents, "
+            f"β for {initialized_tasks}/{len(task_ids)} tasks from pre-trained IRT"
+        )
 
 
 class StandardIRT(nn.Module):

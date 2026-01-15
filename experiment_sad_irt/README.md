@@ -23,7 +23,9 @@ Where `ψ_ij` is predicted from the agent's trajectory on that task via a neural
 | Model | Validation AUC | Notes |
 |-------|---------------|-------|
 | Standard 1PL IRT (baseline) | **0.94** | No trajectory features |
-| SAD-IRT (in progress) | 0.885 | Training interrupted at ~3100 steps |
+| SAD-IRT v1 (interrupted) | 0.885 | Step ~3100, checkpoint lost due to overwrite |
+
+**Historical note**: The 0.885 AUC at step ~3100 was achieved with Qwen3-0.6B, r=16, 2-layer MLP head, BatchNorm constraint. Training was interrupted by job timeout, and the checkpoint was inadvertently overwritten before versioned checkpoints were implemented.
 
 The baseline is strong because θ and β can memorize agent-task pairs seen in training. SAD-IRT must demonstrate that trajectory features provide additional predictive signal.
 
@@ -51,16 +53,11 @@ logit = θ_j - (β_i + ψ_ij)
    - Gradient checkpointing enabled
    - Learning rate: 1e-4
 
-4. **ψ Head**: 2-layer MLP
+4. **ψ Head**: Single linear projection
    ```python
-   nn.Sequential(
-       nn.Linear(hidden_size, 256),
-       nn.ReLU(),
-       nn.Dropout(0.1),
-       nn.Linear(256, 1),
-   )
+   nn.Linear(hidden_size, 1)
    ```
-   - Final layer initialized to zeros (so ψ ≈ 0 at start)
+   - Initialized to zeros (so ψ ≈ 0 at start, model begins as standard IRT)
 
 5. **Zero-Mean Constraint**: `nn.BatchNorm1d(1, affine=False)`
    - Ensures identifiability by centering ψ values
@@ -90,8 +87,8 @@ Each sample combines:
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| Batch size | 4 | Memory constraint |
-| Gradient accumulation | 4-8 | Effective batch 16-32 |
+| Batch size | 16 | Stable BatchNorm stats (H200 has 141GB VRAM) |
+| Gradient accumulation | 2 | Effective batch 32 |
 | Epochs | 10 | May need more for convergence |
 | Encoder LR | 1e-4 | Standard for LoRA fine-tuning |
 | Embedding LR | 1e-3 | 10x higher for small params |
@@ -331,3 +328,39 @@ Each checkpoint contains:
 2. **If SAD-IRT < baseline**: Try ablations (larger encoder, different input format)
 3. **If SAD-IRT ≈ baseline**: ψ may not be adding signal; try harder splits
 4. **If SAD-IRT > baseline**: Great! Analyze what ψ learned
+
+---
+
+## Future Changes (TODO)
+
+Things to try in subsequent runs, based on initial experiments:
+
+### Decided to Keep (for now)
+- **Train/test split**: Random 80/20 by (agent, task) pairs
+- **Input format**: [PROBLEM] + [SOLUTION] + [TRAJECTORY]
+- **Representation**: Last non-padding token's hidden state
+- **Truncation**: Keep suffix (truncate from beginning)
+- **LR ratio**: 10x higher for embeddings vs encoder
+
+### Recently Implemented Changes
+
+| Change | Status | Notes |
+|--------|--------|-------|
+| **θ/β init from pre-trained IRT** | ✅ Done | Uses `clean_data/swebench_verified_20251120_full/1d/` |
+| **Skip baseline training** | ✅ Done | Loads pre-trained IRT instead of retraining |
+| **Versioned checkpoints** | ✅ Done | Format: `checkpoint_{type}_step{step}_{timestamp}.pt` |
+| **1-layer ψ head** | ✅ Done | Single linear projection instead of 2-layer MLP |
+| **Batch size 16** | ✅ Done | H200 has 141GB VRAM, can fit batch_size=16 |
+
+### To Try in Future Runs
+
+| Change | Current | Proposed | Rationale |
+|--------|---------|----------|-----------|
+| **Encoder size** | Qwen3-0.6B | Qwen3-4B | Better trajectory understanding |
+| **LoRA rank** | r=16 | r=8 or r=32 | Find optimal capacity |
+
+### Ablation Queue (ordered by priority)
+
+1. **Encoder size**: 0.6B → 4B (if 0.6B doesn't beat baseline)
+2. **LoRA rank**: Try r=8, r=32
+3. **Truncation strategy**: Suffix → prefix (if context seems important)

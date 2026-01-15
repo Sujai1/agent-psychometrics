@@ -56,6 +56,8 @@ export MASTER_PORT=29500
 export WORLD_SIZE=2
 
 # Run training with accelerate for multi-GPU
+# batch_size=16 per GPU for stable BatchNorm stats (H200 has 141GB VRAM each)
+# gradient_accumulation_steps=1 since 2 GPUs × 16 = 32 effective batch
 accelerate launch \
     --num_processes=2 \
     --multi_gpu \
@@ -64,8 +66,8 @@ accelerate launch \
     --mode full_auc \
     --model_name Qwen/Qwen3-0.6B \
     --max_length 8192 \
-    --batch_size 4 \
-    --gradient_accumulation_steps 4 \
+    --batch_size 16 \
+    --gradient_accumulation_steps 1 \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
     $RESUME_ARG

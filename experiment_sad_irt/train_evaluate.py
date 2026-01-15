@@ -480,27 +480,74 @@ def run_full_auc_evaluation(config: SADIRTConfig):
         pin_memory=True,
     )
 
-    # ===== Train Baseline IRT =====
+    # ===== Load Pre-trained Baseline IRT =====
+    # We use pre-computed IRT values instead of training from scratch
+    # This saves significant time since baseline IRT is deterministic given the data
     logger.info("\n" + "=" * 40)
-    logger.info("Training Baseline IRT (no trajectories)")
+    logger.info("Loading Pre-trained Baseline IRT")
     logger.info("=" * 40)
 
-    baseline_model = StandardIRT(
-        num_agents=full_dataset.num_agents,
-        num_tasks=full_dataset.num_tasks,
-    ).to(device)
+    baseline_irt_dir = Path("clean_data/swebench_verified_20251120_full/1d")
+    baseline_metrics = {}
 
-    baseline_trainer = Trainer(
-        model=baseline_model,
-        train_loader=train_loader,
-        eval_loader=test_loader,
-        config=config,
-        device=device,
-        is_sad_irt=False,
-    )
+    if baseline_irt_dir.exists():
+        import pandas as pd
+        abilities_df = pd.read_csv(baseline_irt_dir / "abilities.csv", index_col=0)
+        items_df = pd.read_csv(baseline_irt_dir / "items.csv", index_col=0)
+        logger.info(f"Loaded pre-trained IRT: {len(abilities_df)} agents, {len(items_df)} tasks")
 
-    baseline_metrics = baseline_trainer.train()
-    logger.info(f"Baseline IRT final metrics: {baseline_metrics}")
+        # Create baseline model and initialize with pre-trained values
+        baseline_model = StandardIRT(
+            num_agents=full_dataset.num_agents,
+            num_tasks=full_dataset.num_tasks,
+        ).to(device)
+
+        # Initialize with pre-trained values
+        with torch.no_grad():
+            for i, agent_id in enumerate(full_dataset.agent_ids):
+                if agent_id in abilities_df.index:
+                    baseline_model.theta.weight[i] = abilities_df.loc[agent_id, "theta"]
+            for i, task_id in enumerate(full_dataset.task_ids):
+                if task_id in items_df.index:
+                    baseline_model.beta.weight[i] = items_df.loc[task_id, "b"]
+
+        # Evaluate on test set
+        baseline_model.eval()
+        all_logits = []
+        all_responses = []
+        with torch.no_grad():
+            for batch in test_loader:
+                batch = {k: v.to(device) for k, v in batch.items()}
+                logits = baseline_model(
+                    agent_idx=batch["agent_idx"],
+                    task_idx=batch["task_idx"],
+                )
+                all_logits.append(logits.cpu())
+                all_responses.append(batch["response"].cpu())
+
+        all_logits = torch.cat(all_logits)
+        all_responses = torch.cat(all_responses)
+        baseline_metrics = compute_metrics(all_logits, all_responses)
+        logger.info(f"Baseline IRT metrics (pre-trained): {baseline_metrics}")
+    else:
+        logger.warning(f"Pre-trained IRT not found at {baseline_irt_dir}, training from scratch")
+        baseline_model = StandardIRT(
+            num_agents=full_dataset.num_agents,
+            num_tasks=full_dataset.num_tasks,
+        ).to(device)
+
+        baseline_trainer = Trainer(
+            model=baseline_model,
+            train_loader=train_loader,
+            eval_loader=test_loader,
+            config=config,
+            device=device,
+            is_sad_irt=False,
+        )
+
+        baseline_metrics = baseline_trainer.train()
+        logger.info(f"Baseline IRT final metrics: {baseline_metrics}")
+
     log_parameter_stats(baseline_model, prefix="Baseline ")
 
     # ===== Train SAD-IRT =====
@@ -517,6 +564,15 @@ def run_full_auc_evaluation(config: SADIRTConfig):
         lora_dropout=config.lora_dropout,
     ).to(device)
 
+    # Initialize θ/β from pre-trained IRT (much better than random init)
+    if baseline_irt_dir.exists():
+        sad_irt_model.initialize_from_pretrained_irt(
+            agent_ids=full_dataset.agent_ids,
+            task_ids=full_dataset.task_ids,
+            abilities_df=abilities_df,
+            items_df=items_df,
+        )
+
     sad_irt_trainer = Trainer(
         model=sad_irt_model,
         train_loader=train_loader,
@@ -526,7 +582,7 @@ def run_full_auc_evaluation(config: SADIRTConfig):
         is_sad_irt=True,
     )
 
-    # Resume from checkpoint if specified
+    # Resume from checkpoint if specified (overrides initialization)
     if config.resume_from:
         sad_irt_trainer.load_checkpoint(config.resume_from)
 
