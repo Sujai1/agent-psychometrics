@@ -107,6 +107,12 @@ class SADIRT(nn.Module):
             nn.Linear(256, 1),
         )
 
+        # Initialize final layer to output near-zero values
+        # This makes ψ ≈ 0 at start, so model begins as standard IRT
+        # and gradually learns trajectory-based corrections
+        nn.init.zeros_(self.psi_head[-1].weight)
+        nn.init.zeros_(self.psi_head[-1].bias)
+
         # BatchNorm for zero-mean constraint (affine=False to not learn shift/scale)
         self.psi_bn = nn.BatchNorm1d(1, affine=False, momentum=0.1)
 
