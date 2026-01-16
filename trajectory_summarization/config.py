@@ -16,10 +16,12 @@ class SummarizationConfig:
     quantization: str = "fp8"  # FP8 for H200
     tensor_parallel_size: int = 1  # Single GPU per instance (data parallelism)
     gpu_memory_utilization: float = 0.90
-    max_num_seqs: int = 40  # Concurrent sequences for continuous batching (limited by KV cache at 128K)
+    max_num_seqs: int = 16  # Concurrent sequences for continuous batching
 
     # Context limits
-    max_model_len: int = 131072  # Qwen3-Coder supports 256K; 128K captures 95% of trajectories fully
+    # 32K context fits in H200 memory with model weights + KV cache
+    # Longer trajectories will be truncated (keeping start + end)
+    max_model_len: int = 32768
     max_output_tokens: int = 700  # Target ~500 tokens, buffer for safety
 
     # Data paths
@@ -31,7 +33,7 @@ class SummarizationConfig:
     num_shards: int = 1
 
     # Processing settings
-    batch_size: int = 40  # Requests to submit at once (should match max_num_seqs)
+    batch_size: int = 16  # Requests to submit at once (should match max_num_seqs)
     skip_existing: bool = True  # Resume capability
 
     # Logging
