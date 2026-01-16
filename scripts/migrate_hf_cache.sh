@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Configuration
 OLD_CACHE="$HOME/.cache/huggingface"
-NEW_CACHE="/orcd/scratch/cge7/.cache/huggingface"
+NEW_CACHE="$HOME/orcd/scratch/.cache/huggingface"
 
 echo "=== HuggingFace Cache Migration ==="
 echo "From: $OLD_CACHE"
