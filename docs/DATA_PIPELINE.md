@@ -25,7 +25,7 @@ clean_data/swebench_verified_20251115_full/{1d,1d_1pl}/
 - **130 agents** (cutoff: 2025-11-15)
 - **500 tasks** (SWE-bench Verified)
 - **65,000 observations** (complete matrix, missing → 0)
-- **78 agents** with unified trajectories (for Experiment B)
+- **76 agents** with unified trajectories (for Experiment B)
 
 ## Step 1: Prepare Response Matrix
 

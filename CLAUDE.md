@@ -25,7 +25,7 @@ model_irt/
 ├── py_irt/                 # IRT library (local fork)
 ├── clean_data/             # Trained IRT models
 ├── chris_output/           # Outputs and results
-├── trajectory_data/        # Downloaded trajectories (78 agents)
+├── trajectory_data/        # Downloaded trajectories (76 agents)
 ├── experiments/            # SWE-bench experiments repo (gitignored)
 └── docs/                   # Detailed documentation
 ```
@@ -55,7 +55,7 @@ pytest tests/test_irt_pipeline.py -v
 
 - **130 agents** (cutoff: 2025-11-15)
 - **500 tasks** (SWE-bench Verified)
-- **78 agents** with unified trajectories
+- **76 agents** with unified trajectories
 
 **Default data files:**
 - Response matrix: `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl`

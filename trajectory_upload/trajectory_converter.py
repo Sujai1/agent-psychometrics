@@ -817,8 +817,11 @@ def convert_trajectory(
 
     if task_id is None:
         task_id = file_path.stem
-        # Clean up task_id (remove _traj suffix, etc.)
+        # Clean up task_id (remove _traj suffix, instance_ prefix, etc.)
         task_id = re.sub(r'_traj$', '', task_id)
+        # Handle instance_ prefix (seen in blackboxai agent)
+        if task_id.startswith('instance_'):
+            task_id = task_id[9:]  # Strip "instance_" prefix
 
     try:
         data, fmt = load_file(file_path)
@@ -1116,8 +1119,15 @@ def convert_nested_directory(
 def convert_agent_trajectories(
     agent_dir: Path,
     output_dir: Path,
+    verified_task_ids: set | None = None,
 ) -> dict:
-    """Convert all trajectories for an agent."""
+    """Convert all trajectories for an agent.
+
+    Args:
+        agent_dir: Path to agent directory containing trajs/
+        output_dir: Path to output directory
+        verified_task_ids: Optional set of task IDs to include (filters to Verified only)
+    """
     agent_name = agent_dir.name
     trajs_dir = agent_dir / 'trajs'
 
@@ -1134,6 +1144,7 @@ def convert_agent_trajectories(
         'converted': 0,
         'errors': 0,
         'skipped': 0,
+        'filtered': 0,  # Filtered out by verified_task_ids
         'formats': {},
     }
 
@@ -1165,6 +1176,12 @@ def convert_agent_trajectories(
 
             summary['total'] += 1
             task_id = task_dir.name
+
+            # Filter by verified task IDs if specified
+            if verified_task_ids is not None and task_id not in verified_task_ids:
+                summary['filtered'] += 1
+                continue
+
             resolved = results.get(task_id, False)
 
             converted = convert_nested_directory(task_dir, agent_name, task_id, resolved)
@@ -1238,6 +1255,12 @@ def convert_agent_trajectories(
 
         for task_id, category_contents in task_data.items():
             summary['total'] += 1
+
+            # Filter by verified task IDs if specified
+            if verified_task_ids is not None and task_id not in verified_task_ids:
+                summary['filtered'] += 1
+                continue
+
             resolved = results.get(task_id, False)
 
             # Combine all content for this task
@@ -1285,6 +1308,12 @@ def convert_agent_trajectories(
 
             task_id = traj_path.stem
             task_id = re.sub(r'_traj$', '', task_id)
+
+            # Filter by verified task IDs if specified
+            if verified_task_ids is not None and task_id not in verified_task_ids:
+                summary['filtered'] += 1
+                continue
+
             resolved = results.get(task_id, False)
 
             converted = convert_trajectory(traj_path, agent_name, task_id, resolved)
@@ -1367,14 +1396,34 @@ def move_to_blob_style(output_dir: Path, blob_dir: Path, reason: str):
 def convert_all_agents(
     experiments_dir: Path,
     output_base_dir: Path,
+    verified_only: bool = False,
 ) -> dict:
-    """Convert trajectories for ALL agents."""
+    """Convert trajectories for ALL agents.
+
+    Args:
+        experiments_dir: Path to experiments directory
+        output_base_dir: Base directory for output
+        verified_only: If True, only convert trajectories for SWE-bench Verified tasks
+    """
     verified_dir = experiments_dir / 'evaluation' / 'verified'
+
+    # Load verified task IDs if filtering
+    verified_task_ids = None
+    if verified_only:
+        try:
+            from datasets import load_dataset
+            ds = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+            verified_task_ids = set(ex["instance_id"] for ex in ds)
+            print(f"Filtering to {len(verified_task_ids)} SWE-bench Verified tasks")
+        except Exception as e:
+            print(f"Warning: Could not load SWE-bench Verified dataset: {e}")
+            print("Proceeding without filtering")
 
     all_summary = {
         'agents_processed': 0,
         'total_trajectories': 0,
         'total_converted': 0,
+        'total_filtered': 0,
         'total_errors': 0,
         'formats': {},
         'agents': {},
@@ -1404,11 +1453,12 @@ def convert_all_agents(
         output_dir = output_base_dir / agent_name
 
         try:
-            summary = convert_agent_trajectories(agent_dir, output_dir)
+            summary = convert_agent_trajectories(agent_dir, output_dir, verified_task_ids)
 
             all_summary['agents_processed'] += 1
             all_summary['total_trajectories'] += summary['total']
             all_summary['total_converted'] += summary['converted']
+            all_summary['total_filtered'] += summary.get('filtered', 0)
             all_summary['total_errors'] += summary['errors']
 
             # Merge format counts
@@ -1469,6 +1519,8 @@ def main():
     parser.add_argument('--output', type=str, help='Output path (single file)')
     parser.add_argument('--output_dir', type=str, help='Output directory')
     parser.add_argument('--preview', action='store_true', help='Preview without saving')
+    parser.add_argument('--verified_only', action='store_true',
+                        help='Only convert trajectories for SWE-bench Verified tasks (500 tasks)')
 
     args = parser.parse_args()
     experiments_dir = Path(__file__).resolve().parents[1] / 'experiments'
@@ -1477,10 +1529,12 @@ def main():
         output_dir = Path(args.output_dir) if args.output_dir else Path('chris_output/unified_trajs')
 
         print("Converting ALL agent trajectories...")
+        if args.verified_only:
+            print("Filtering to SWE-bench Verified tasks only")
         print(f"Output directory: {output_dir}")
         print("=" * 60)
 
-        summary = convert_all_agents(experiments_dir, output_dir)
+        summary = convert_all_agents(experiments_dir, output_dir, verified_only=args.verified_only)
 
         print("\n" + "=" * 60)
         print("SUMMARY")
@@ -1488,6 +1542,8 @@ def main():
         print(f"Agents processed: {summary['agents_processed']}")
         print(f"Total trajectories: {summary['total_trajectories']}")
         print(f"Total converted: {summary['total_converted']}")
+        if summary.get('total_filtered', 0) > 0:
+            print(f"Total filtered (non-Verified): {summary['total_filtered']}")
         print(f"Total errors: {summary['total_errors']}")
         print(f"Formats: {summary['formats']}")
         print(f"Output: {output_dir}")
