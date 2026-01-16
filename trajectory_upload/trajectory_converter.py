@@ -1374,6 +1374,84 @@ def check_trajectory_quality(output_dir: Path) -> dict:
     return {'is_blob': False, 'reason': None, 'sample_messages': max_messages}
 
 
+def cleanup_trajectories(output_dir: Path) -> dict:
+    """Clean up converted trajectories by removing invalid ones.
+
+    Removes:
+    - Single-message trajectories (incomplete/failed runs with only server logs)
+
+    Returns cleanup summary.
+    """
+    summary = {
+        'deleted_single_message': 0,
+        'total_checked': 0,
+        'remaining': 0,
+    }
+
+    traj_files = list(output_dir.glob('*.json'))
+    summary['total_checked'] = len(traj_files)
+
+    for f in traj_files:
+        if f.name.startswith('_'):
+            continue
+        try:
+            with open(f) as fh:
+                data = json.load(fh)
+            num_messages = len(data.get('messages', []))
+
+            # Delete single-message trajectories
+            if num_messages <= 1:
+                f.unlink()
+                summary['deleted_single_message'] += 1
+        except Exception:
+            pass
+
+    summary['remaining'] = summary['total_checked'] - summary['deleted_single_message']
+    return summary
+
+
+def check_agent_role_quality(output_dir: Path) -> dict:
+    """Check if an agent's trajectories have proper assistant messages.
+
+    Some agents (devlo, artemis) have non-standard formats where all content
+    is in 'user' role messages with no proper 'assistant' turns.
+
+    Returns:
+    - has_assistant_messages: True if >50% of trajectories have assistant messages
+    - no_assistant_count: Number of trajectories without assistant messages
+    - total_checked: Total trajectories checked
+    """
+    traj_files = list(output_dir.glob('*.json'))
+    traj_files = [f for f in traj_files if not f.name.startswith('_')]
+
+    if not traj_files:
+        return {'has_assistant_messages': True, 'no_assistant_count': 0, 'total_checked': 0}
+
+    no_assistant_count = 0
+    total_checked = len(traj_files)
+
+    for f in traj_files:
+        try:
+            with open(f) as fh:
+                data = json.load(fh)
+            messages = data.get('messages', [])
+            roles = [m.get('role') for m in messages if isinstance(m, dict)]
+
+            if 'assistant' not in roles:
+                no_assistant_count += 1
+        except Exception:
+            pass
+
+    # Agent is invalid if >50% of trajectories have no assistant messages
+    has_assistant_messages = no_assistant_count <= total_checked * 0.5
+
+    return {
+        'has_assistant_messages': has_assistant_messages,
+        'no_assistant_count': no_assistant_count,
+        'total_checked': total_checked,
+    }
+
+
 def move_to_blob_style(output_dir: Path, blob_dir: Path, reason: str):
     """Move an agent's output to the blob_style directory."""
     import shutil
@@ -1472,6 +1550,29 @@ def convert_all_agents(
             }
 
             print(f"  -> Converted {summary['converted']}/{summary['total']}, errors: {summary['errors']}, format: {list(summary['formats'].keys())}")
+
+            # Clean up single-message trajectories
+            if summary['converted'] > 0:
+                cleanup = cleanup_trajectories(output_dir)
+                if cleanup['deleted_single_message'] > 0:
+                    print(f"  -> Cleaned up {cleanup['deleted_single_message']} single-message trajectories")
+                    summary['converted'] = cleanup['remaining']
+                    all_summary['total_converted'] -= cleanup['deleted_single_message']
+
+            # Check role quality - remove agents with mostly non-standard role assignments
+            if summary['converted'] > 0:
+                role_quality = check_agent_role_quality(output_dir)
+                if not role_quality['has_assistant_messages']:
+                    import shutil
+                    shutil.rmtree(output_dir)
+                    all_summary['agents'][agent_name]['removed'] = True
+                    all_summary['agents'][agent_name]['removal_reason'] = (
+                        f"Non-standard role format: {role_quality['no_assistant_count']}/{role_quality['total_checked']} "
+                        "trajectories have no assistant messages"
+                    )
+                    all_summary['total_converted'] -= summary['converted']
+                    print(f"  -> REMOVED: {role_quality['no_assistant_count']}/{role_quality['total_checked']} trajectories have no assistant messages")
+                    continue
 
             # Check trajectory quality and move blob-style agents
             if summary['converted'] > 0:
