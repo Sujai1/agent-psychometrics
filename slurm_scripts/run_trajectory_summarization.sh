@@ -24,8 +24,8 @@ cd ~/model_irt
 # Activate virtual environment
 source .venv/bin/activate
 
-# Set HuggingFace cache (avoids filling home quota)
-export HF_HOME="${PWD}/.cache/huggingface"
+# Set HuggingFace cache to scratch (home quota is limited)
+export HF_HOME="/orcd/scratch/cge7/.cache/huggingface"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 mkdir -p "${HF_HOME}"
 
