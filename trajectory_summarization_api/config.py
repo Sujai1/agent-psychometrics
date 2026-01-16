@@ -11,8 +11,8 @@ class SummarizationConfig:
 
     # Model settings
     model: str = "gpt-5-mini"
-    max_output_tokens: int = 1000  # ~500 words ≈ 650-750 tokens, buffer for safety
-    temperature: float = 0.3  # Low for consistent summaries
+    max_output_tokens: int = 2000  # Buffer to avoid 'incomplete' status
+    # Note: temperature is not supported for gpt-5-mini
 
     # Parallelization - Tier 5 has 180M TPM for gpt-5-mini
     max_concurrent_requests: int = 200  # High concurrency for Tier 5

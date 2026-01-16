@@ -1,9 +1,6 @@
-"""Load and format trajectories for API-based summarization.
+"""Shared trajectory loading and formatting utilities."""
 
-This module re-exports from the shared trajectory_utils for backward compatibility.
-"""
-
-from trajectory_utils import (
+from .data_loader import (
     TrajectoryData,
     discover_trajectories,
     load_trajectory,

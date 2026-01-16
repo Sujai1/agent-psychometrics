@@ -107,17 +107,18 @@ class AsyncOpenAIClient:
         self,
         prompt: str,
         max_tokens: int = 1000,
-        temperature: float = 0.3,
     ) -> Optional[str]:
         """Make API call using Responses API with retry logic and rate limiting.
 
         Args:
             prompt: The prompt to send
             max_tokens: Maximum output tokens
-            temperature: Sampling temperature
 
         Returns:
             Response text or None if all retries failed
+
+        Note:
+            Temperature parameter is not supported with gpt-5-mini model.
         """
         async with self.semaphore:
             await self.rate_limiter.acquire()
@@ -126,11 +127,11 @@ class AsyncOpenAIClient:
             for attempt in range(self.max_retries):
                 try:
                     # Use the new Responses API instead of chat.completions
+                    # Note: temperature is not supported for gpt-5-mini
                     response = await self.client.responses.create(
                         model=self.model,
                         input=prompt,
                         max_output_tokens=max_tokens,
-                        temperature=temperature,
                     )
 
                     # Track usage
@@ -138,6 +139,20 @@ class AsyncOpenAIClient:
                         response.usage.input_tokens,
                         response.usage.output_tokens,
                     )
+
+                    # Check response status - retry if incomplete
+                    status = getattr(response, 'status', 'completed')
+                    if status == 'incomplete':
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        incomplete_reason = getattr(response, 'incomplete_details', {})
+                        logger.warning(
+                            f"Incomplete response (attempt {attempt + 1}), "
+                            f"reason: {incomplete_reason}. Retrying..."
+                        )
+                        # Treat as retryable error
+                        await asyncio.sleep(self.base_retry_delay * (2 ** attempt))
+                        continue
 
                     # Responses API uses output_text instead of choices[0].message.content
                     return response.output_text
