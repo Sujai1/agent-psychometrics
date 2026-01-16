@@ -1455,25 +1455,6 @@ def check_agent_role_quality(output_dir: Path) -> dict:
     }
 
 
-def move_to_blob_style(output_dir: Path, blob_dir: Path, reason: str):
-    """Move an agent's output to the blob_style directory."""
-    import shutil
-
-    agent_name = output_dir.name
-    target_dir = blob_dir / agent_name
-
-    # Remove target if exists
-    if target_dir.exists():
-        shutil.rmtree(target_dir)
-
-    # Move
-    shutil.move(str(output_dir), str(target_dir))
-
-    # Write reason file
-    reason_file = target_dir / '_blob_reason.txt'
-    reason_file.write_text(reason)
-
-
 def convert_all_agents(
     experiments_dir: Path,
     output_base_dir: Path,
@@ -1487,6 +1468,20 @@ def convert_all_agents(
         verified_only: If True, only convert trajectories for SWE-bench Verified tasks
     """
     verified_dir = experiments_dir / 'evaluation' / 'verified'
+
+    # Agents to skip - these have non-meaningful trajectories:
+    # - solver agents: only infrastructure logs (Request received, Solver finished)
+    # - tools agents: problem statements misattributed as assistant messages
+    # - SWE-Fixer agents: only 1-2 trajectories survive quality checks
+    SKIP_AGENTS = {
+        '20240920_solver',
+        '20240924_solver',
+        '20241028_solver',
+        '20241022_tools_claude-3-5-haiku',
+        '20241022_tools_claude-3-5-sonnet-updated',
+        '20241128_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor_20241128',
+        '20250306_SWE-Fixer_Qwen2.5-7b-retriever_Qwen2.5-72b-editor',
+    }
 
     # Load verified task IDs if filtering
     verified_task_ids = None
@@ -1521,6 +1516,11 @@ def convert_all_agents(
     for i, agent_dir in enumerate(agent_dirs):
         agent_name = agent_dir.name
         trajs_dir = agent_dir / 'trajs'
+
+        # Skip agents with non-meaningful trajectories
+        if agent_name in SKIP_AGENTS:
+            print(f"\n[{i+1}/{len(agent_dirs)}] {agent_name} - SKIPPED (non-meaningful trajectories)")
+            continue
 
         # Check if has files or directories (nested formats have subdirs, not files)
         traj_items = list(trajs_dir.iterdir()) if trajs_dir.exists() else []
@@ -1562,12 +1562,23 @@ def convert_all_agents(
                     summary['converted'] = cleanup['remaining']
                     all_summary['total_converted'] -= cleanup['deleted_single_message']
 
+                # If all trajectories were cleaned up, remove the directory
+                if cleanup['remaining'] == 0:
+                    import shutil
+                    if output_dir.exists():
+                        shutil.rmtree(output_dir)
+                    all_summary['agents'][agent_name]['skipped_blob'] = True
+                    all_summary['agents'][agent_name]['blob_reason'] = 'All trajectories were single-message'
+                    print(f"  -> SKIPPED (blob-style): All trajectories were single-message")
+                    continue
+
             # Check role quality - remove agents with mostly non-standard role assignments
-            if summary['converted'] > 0:
+            if summary['converted'] > 0 and output_dir.exists():
                 role_quality = check_agent_role_quality(output_dir)
                 if not role_quality['has_assistant_messages']:
                     import shutil
-                    shutil.rmtree(output_dir)
+                    if output_dir.exists():
+                        shutil.rmtree(output_dir)
                     all_summary['agents'][agent_name]['removed'] = True
                     all_summary['agents'][agent_name]['removal_reason'] = (
                         f"Non-standard role format: {role_quality['no_assistant_count']}/{role_quality['total_checked']} "
@@ -1577,16 +1588,17 @@ def convert_all_agents(
                     print(f"  -> REMOVED: {role_quality['no_assistant_count']}/{role_quality['total_checked']} trajectories have no assistant messages")
                     continue
 
-            # Check trajectory quality and move blob-style agents
-            if summary['converted'] > 0:
+            # Check trajectory quality and skip blob-style agents
+            if summary['converted'] > 0 and output_dir.exists():
                 quality = check_trajectory_quality(output_dir)
                 if quality['is_blob']:
-                    blob_dir = output_base_dir / '_blob_style'
-                    blob_dir.mkdir(parents=True, exist_ok=True)
-                    move_to_blob_style(output_dir, blob_dir, quality['reason'])
-                    all_summary['agents'][agent_name]['moved_to_blob'] = True
+                    import shutil
+                    if output_dir.exists():
+                        shutil.rmtree(output_dir)
+                    all_summary['agents'][agent_name]['skipped_blob'] = True
                     all_summary['agents'][agent_name]['blob_reason'] = quality['reason']
-                    print(f"  -> Moved to _blob_style: {quality['reason']}")
+                    all_summary['total_converted'] -= summary['converted']
+                    print(f"  -> SKIPPED (blob-style): {quality['reason']}")
 
         except Exception as e:
             print(f"  -> Error: {e}")
