@@ -29,6 +29,12 @@ export HF_HOME="$HOME/orcd/scratch/.cache/huggingface"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 mkdir -p "${HF_HOME}"
 
+# vLLM settings for multi-GPU data parallelism
+# PCI_BUS_ID ensures consistent GPU ordering across processes
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+# spawn method helps with subprocess GPU visibility for MoE models
+export VLLM_WORKER_MULTIPROC_METHOD=spawn
+
 # Create directories
 mkdir -p logs
 mkdir -p chris_output/trajectory_summaries
@@ -71,6 +77,7 @@ CUDA_VISIBLE_DEVICES=0 python -m trajectory_summarization.run_summarization \
     --shard_id 0 \
     --num_shards 2 \
     --batch_size ${BATCH_SIZE} \
+    --max_num_seqs 16 \
     > logs/traj_summarize_shard0_${SLURM_JOB_ID}.log 2>&1 &
 PID0=$!
 
@@ -83,6 +90,7 @@ CUDA_VISIBLE_DEVICES=1 python -m trajectory_summarization.run_summarization \
     --shard_id 1 \
     --num_shards 2 \
     --batch_size ${BATCH_SIZE} \
+    --max_num_seqs 16 \
     > logs/traj_summarize_shard1_${SLURM_JOB_ID}.log 2>&1 &
 PID1=$!
 
