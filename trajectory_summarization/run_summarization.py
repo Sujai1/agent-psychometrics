@@ -84,8 +84,8 @@ def parse_args():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=16,
-        help="Batch size for vLLM inference",
+        default=40,
+        help="Batch size for vLLM inference (should match max_num_seqs)",
     )
     parser.add_argument(
         "--no_skip_existing",
@@ -109,8 +109,8 @@ def parse_args():
     parser.add_argument(
         "--max_num_seqs",
         type=int,
-        default=16,
-        help="Maximum number of sequences for continuous batching",
+        default=40,
+        help="Maximum number of sequences for continuous batching (limited by KV cache at 128K)",
     )
 
     # Debug arguments

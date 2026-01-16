@@ -31,7 +31,7 @@ class SummarizationConfig:
     num_shards: int = 1
 
     # Processing settings
-    batch_size: int = 16  # Requests to submit at once
+    batch_size: int = 40  # Requests to submit at once (should match max_num_seqs)
     skip_existing: bool = True  # Resume capability
 
     # Logging
