@@ -221,9 +221,11 @@ async def grade_single_task(
             timing["api_call_s"] += time.perf_counter() - api_start
             last_error = e
             error_str = str(e)
-            # Check if it's a retryable server error (504 timeout, server disconnect, etc.)
+            # Check if it's a retryable server error (502/504 gateway errors, server disconnect, etc.)
             is_retryable = (
+                "502" in error_str or
                 "504" in error_str or
+                "Bad Gateway" in error_str or
                 "Gateway Time-out" in error_str or
                 "Server disconnected" in error_str or
                 "RemoteProtocolError" in error_str
