@@ -47,7 +47,7 @@ echo ""
 TRAJECTORY_DIR="trajectory_data/unified_trajs"
 OUTPUT_DIR="chris_output/trajectory_summaries"
 MODEL="Qwen/Qwen3-Coder-30B-A3B-Instruct"
-BATCH_SIZE=32
+BATCH_SIZE=16
 
 echo "=== Configuration ==="
 echo "Trajectories: ${TRAJECTORY_DIR}"
