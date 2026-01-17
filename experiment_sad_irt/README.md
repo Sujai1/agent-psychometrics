@@ -74,11 +74,13 @@ Each sample combines:
 {gold_patch from SWE-bench}
 
 [TRAJECTORY]
-{agent conversation: [SYSTEM]...[USER]...[ASSISTANT]...}
+{trajectory summary from LLM summarization}
 ```
 
-- Max length: 8192 tokens
-- If too long, trajectory is truncated from the **beginning** (keeps suffix)
+- **Trajectory source**: LLM-generated summaries (`chris_output/trajectory_summaries_api/`)
+  - 35,907 summaries available (10 API failures skipped)
+  - Average summary: ~400-600 tokens
+- Max length: 4096 tokens (summaries fit easily, no truncation needed)
 - Representation: last non-padding token's hidden state
 
 ## Training Configuration
