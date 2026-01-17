@@ -33,7 +33,7 @@ class SADIRT(nn.Module):
         lora_alpha: int = 32,
         lora_dropout: float = 0.1,
         lora_target_modules: Optional[list] = None,
-        use_gradient_checkpointing: bool = True,  # Required for memory efficiency
+        use_gradient_checkpointing: bool = False,  # Disable: breaks LoRA gradients
         psi_normalization: str = "batchnorm",
     ):
         """Initialize SAD-IRT model.

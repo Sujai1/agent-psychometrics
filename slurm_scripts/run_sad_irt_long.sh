@@ -86,13 +86,14 @@ else
 fi
 
 # Run training (single GPU)
-# With 1024 token context (summary-only), can fit batch_size=64 on H200
+# Without gradient checkpointing, use smaller batch with accumulation
+# Effective batch = 32 * 2 = 64
 python -m experiment_sad_irt.train_evaluate \
     --frontier_cutoff_date 20250807 \
     --model_name Qwen/Qwen3-0.6B \
     --max_length 1024 \
-    --batch_size 64 \
-    --gradient_accumulation_steps 1 \
+    --batch_size 32 \
+    --gradient_accumulation_steps 2 \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
     $DEBUG_GRADIENTS \
