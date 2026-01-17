@@ -53,7 +53,7 @@ fi
 # Run training (single GPU)
 # With 1024 token context (summary-only), can fit batch_size=64 on H200
 python -m experiment_sad_irt.train_evaluate \
-    --mode full_auc \
+    --frontier_cutoff_date 20250807 \
     --model_name Qwen/Qwen3-0.6B \
     --max_length 1024 \
     --batch_size 64 \

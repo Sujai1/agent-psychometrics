@@ -158,6 +158,55 @@ def compute_calibration(
     }
 
 
+def compute_frontier_difficulty_metrics(
+    predicted_beta: Dict[str, float],
+    oracle_beta: Dict[str, float],
+    frontier_task_ids: list,
+) -> Dict[str, float]:
+    """Compute Spearman correlation for frontier task difficulties.
+
+    Args:
+        predicted_beta: Dict mapping task_id -> predicted difficulty
+        oracle_beta: Dict mapping task_id -> oracle difficulty (from full IRT)
+        frontier_task_ids: List of task IDs that are frontier tasks
+
+    Returns:
+        Dictionary with Spearman rho and p-value for frontier tasks
+    """
+    # Get matched pairs
+    predicted_values = []
+    oracle_values = []
+
+    for task_id in frontier_task_ids:
+        if task_id in predicted_beta and task_id in oracle_beta:
+            predicted_values.append(predicted_beta[task_id])
+            oracle_values.append(oracle_beta[task_id])
+
+    if len(predicted_values) < 3:
+        logger.warning(f"Only {len(predicted_values)} frontier tasks with both predictions, skipping correlation")
+        return {
+            "frontier_spearman_rho": float("nan"),
+            "frontier_spearman_p": float("nan"),
+            "num_frontier_tasks": len(predicted_values),
+        }
+
+    predicted_arr = np.array(predicted_values)
+    oracle_arr = np.array(oracle_values)
+
+    spearman_rho, spearman_p = stats.spearmanr(predicted_arr, oracle_arr)
+    pearson_r, pearson_p = stats.pearsonr(predicted_arr, oracle_arr)
+
+    logger.info(f"Frontier tasks ({len(predicted_values)}): Spearman ρ = {spearman_rho:.4f} (p={spearman_p:.4f})")
+
+    return {
+        "frontier_spearman_rho": float(spearman_rho),
+        "frontier_spearman_p": float(spearman_p),
+        "frontier_pearson_r": float(pearson_r),
+        "frontier_pearson_p": float(pearson_p),
+        "num_frontier_tasks": len(predicted_values),
+    }
+
+
 def log_parameter_stats(model, prefix: str = ""):
     """Log statistics about model parameters."""
     if hasattr(model, "get_abilities"):

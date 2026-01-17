@@ -106,13 +106,8 @@ class SADIRT(nn.Module):
 
         # Linear projection for ψ prediction (single layer)
         # Simpler than MLP and sufficient for predicting a scalar correction term
+        # Uses PyTorch default Kaiming uniform initialization
         self.psi_head = nn.Linear(encoder_dim, 1)
-
-        # Initialize to output near-zero values
-        # This makes ψ ≈ 0 at start, so model begins as standard IRT
-        # and gradually learns trajectory-based corrections
-        nn.init.zeros_(self.psi_head.weight)
-        nn.init.zeros_(self.psi_head.bias)
 
         # Normalization for ψ to enforce zero-mean constraint
         self.psi_normalization = psi_normalization

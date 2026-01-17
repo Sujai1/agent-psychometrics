@@ -9,8 +9,10 @@ from pathlib import Path
 class SADIRTConfig:
     """Configuration for SAD-IRT training and evaluation."""
 
-    # Mode
-    mode: str = "full_auc"  # "full_auc" (Part 2) or "calibration" (Part 1)
+    # Frontier difficulty evaluation settings
+    frontier_cutoff_date: str = "20250807"  # gpt-5-mini release date
+    pre_frontier_threshold: float = 0.1  # Max pass rate for pre-frontier (10%)
+    post_frontier_threshold: float = 0.1  # Min pass rate for post-frontier (10%)
 
     # Model
     model_name: str = "Qwen/Qwen3-0.6B"
@@ -26,8 +28,8 @@ class SADIRTConfig:
     trajectory_dir: str = "chris_output/trajectory_summaries_api"
     swebench_dataset: str = "princeton-nlp/SWE-bench_Verified"
     max_length: int = 1024  # Summary-only input; avg ~445 tokens, max 771
-    test_fraction: float = 0.2
-    hard_threshold: float = 0.2  # Tasks with pass rate <= this are "hard"
+    # Oracle IRT path (pre-trained on all agents)
+    oracle_irt_dir: str = "clean_data/swebench_verified_20251120_full/1d"
 
     # Training
     batch_size: int = 4
@@ -64,9 +66,8 @@ class SADIRTConfig:
 
     def __post_init__(self):
         """Validate configuration."""
-        assert self.mode in ["full_auc", "calibration"], f"Invalid mode: {self.mode}"
-        assert 0 < self.test_fraction < 1, "test_fraction must be between 0 and 1"
-        assert 0 < self.hard_threshold <= 1, "hard_threshold must be between 0 and 1"
+        assert 0 <= self.pre_frontier_threshold <= 1, "pre_frontier_threshold must be between 0 and 1"
+        assert 0 <= self.post_frontier_threshold <= 1, "post_frontier_threshold must be between 0 and 1"
 
     @property
     def effective_batch_size(self) -> int:
