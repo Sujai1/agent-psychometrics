@@ -102,6 +102,48 @@ def load_task_data_from_repo(
     return tasks
 
 
+def load_task_list_from_items(
+    items_path: Path,
+    repo_path: Path,
+) -> List[Dict[str, Any]]:
+    """Load TerminalBench tasks as a list of dicts.
+
+    Convenience function for scripts that need task data in list format
+    (e.g., compute_llm_judge_features.py, generate_embeddings.py).
+
+    Args:
+        items_path: Path to 1PL items.csv (for task IDs)
+        repo_path: Path to cloned terminal-bench repo
+
+    Returns:
+        List of task dicts with task_id, instruction, solution, category, tags, difficulty
+    """
+    # Load task IDs from items.csv
+    items_df = pd.read_csv(items_path, index_col=0)
+    task_ids = list(items_df.index)
+
+    # Load task data from repo
+    task_data = load_task_data_from_repo(task_ids, repo_path)
+
+    # Convert to list of dicts
+    tasks = []
+    for task_id in task_ids:
+        if task_id not in task_data:
+            continue
+
+        data = task_data[task_id]
+        tasks.append({
+            "task_id": task_id,
+            "instruction": data["instruction"],
+            "solution": data["solution"],
+            "category": data.get("category", ""),
+            "tags": data.get("tags", []),
+            "claimed_difficulty": data.get("difficulty", ""),
+        })
+
+    return tasks
+
+
 @dataclass
 class TerminalBenchData:
     """Container for all loaded TerminalBench data."""

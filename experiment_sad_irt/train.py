@@ -508,7 +508,25 @@ class Trainer:
         self.save_history()
         self.plot_training_curves()
 
+        # Log to experiment tracker
+        self.log_to_tracker(final_metrics)
+
         return final_metrics
+
+    def log_to_tracker(self, final_metrics: Dict[str, float]):
+        """Log experiment to central tracker for ablation comparisons."""
+        try:
+            from .experiment_tracker import ExperimentTracker
+            tracker = ExperimentTracker()
+            tracker.log_experiment(
+                config=self.config,
+                history=self.history,
+                final_metrics=final_metrics,
+                output_dir=str(self.output_dir),
+            )
+            logger.info(f"Logged experiment to {tracker.csv_path}")
+        except Exception as e:
+            logger.warning(f"Failed to log to experiment tracker: {e}")
 
     def save_history(self):
         """Save training history to JSON file."""
