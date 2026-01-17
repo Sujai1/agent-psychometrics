@@ -30,44 +30,49 @@ def load_results(output_dir: Path) -> dict:
         return json.load(f)
 
 
-def parse_loss_from_logs(output_dir: Path) -> tuple:
+def parse_loss_from_logs(output_dir: Path, log_file: Path = None) -> tuple:
     """Parse loss values from training logs.
 
     Returns:
-        Tuple of (steps, losses) arrays
+        Tuple of (epochs, losses) arrays
     """
-    # Try to find log files
-    log_patterns = [
-        Path("logs") / "sad_irt_long_*.out",
-        output_dir.parent.parent / "logs" / "sad_irt_long_*.out",
-    ]
-
-    steps = []
+    epochs = []
     losses = []
 
-    for pattern in log_patterns:
-        if not pattern.parent.exists():
-            continue
-        log_files = sorted(pattern.parent.glob(pattern.name))
-        if not log_files:
-            continue
+    # If log file provided directly, use it
+    if log_file and log_file.exists():
+        log_files = [log_file]
+    else:
+        # Try to find log files
+        log_patterns = [
+            Path("logs") / "sad_irt_long_*.out",
+            output_dir.parent.parent / "logs" / "sad_irt_long_*.out",
+        ]
+        log_files = []
+        for pattern in log_patterns:
+            if not pattern.parent.exists():
+                continue
+            found = sorted(pattern.parent.glob(pattern.name))
+            if found:
+                log_files = found
+                break
 
-        # Use the most recent log file
-        log_file = log_files[-1]
+    if not log_files:
+        return np.array(epochs), np.array(losses)
 
-        with open(log_file, "r") as f:
-            content = f.read()
+    # Use the most recent log file
+    log_file = log_files[-1]
 
-        # Pattern: "Step 123/456 | Loss: 0.6789"
-        pattern_re = r"Step\s+(\d+)/\d+.*?Loss:\s*([\d.]+)"
-        for match in re.finditer(pattern_re, content):
-            steps.append(int(match.group(1)))
-            losses.append(float(match.group(2)))
+    with open(log_file, "r") as f:
+        content = f.read()
 
-        if steps:
-            break
+    # Pattern: "Epoch 1 train metrics: {'train_loss': 0.341017}"
+    pattern_re = r"Epoch\s+(\d+)\s+train metrics:.*?'train_loss':\s*([\d.]+)"
+    for match in re.finditer(pattern_re, content):
+        epochs.append(int(match.group(1)))
+        losses.append(float(match.group(2)))
 
-    return np.array(steps), np.array(losses)
+    return np.array(epochs), np.array(losses)
 
 
 def compute_param_changes(checkpoint1: dict, checkpoint2: dict) -> dict:
@@ -107,7 +112,7 @@ def compute_param_changes(checkpoint1: dict, checkpoint2: dict) -> dict:
     return changes
 
 
-def analyze_experiment(output_dir: Path) -> dict:
+def analyze_experiment(output_dir: Path, log_file: Path = None) -> dict:
     """Analyze a single experiment directory."""
     output_dir = Path(output_dir)
 
@@ -132,13 +137,13 @@ def analyze_experiment(output_dir: Path) -> dict:
         }
 
     # Parse loss curve
-    steps, losses = parse_loss_from_logs(output_dir)
+    epochs, losses = parse_loss_from_logs(output_dir, log_file)
 
     return {
         "dir": output_dir,
         "results": results,
         "param_changes": param_changes,
-        "loss_steps": steps,
+        "loss_epochs": epochs,
         "loss_values": losses,
         "num_checkpoints": len(checkpoints),
     }
@@ -223,16 +228,16 @@ def plot_loss_curves(experiments: list, output_path: Path) -> None:
 
     has_data = False
     for exp in experiments:
-        steps = exp["loss_steps"]
+        epochs = exp["loss_epochs"]
         losses = exp["loss_values"]
 
-        if len(steps) > 0:
+        if len(epochs) > 0:
             has_data = True
             label = exp["dir"].name
-            ax.plot(steps, losses, label=label, alpha=0.8)
+            ax.plot(epochs, losses, 'o-', label=label, alpha=0.8, markersize=6)
 
     if has_data:
-        ax.set_xlabel("Step")
+        ax.set_xlabel("Epoch")
         ax.set_ylabel("Loss")
         ax.set_title("SAD-IRT Training Loss")
         ax.legend()
@@ -249,12 +254,15 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze SAD-IRT experiment results")
     parser.add_argument("output_dirs", nargs="+", help="Output directories to analyze")
     parser.add_argument("--plot", type=str, default="loss_curve.png", help="Output path for loss curve plot")
+    parser.add_argument("--log", type=str, default=None, help="Log file to parse for loss curve")
     args = parser.parse_args()
+
+    log_file = Path(args.log) if args.log else None
 
     # Analyze all experiments
     experiments = []
     for d in args.output_dirs:
-        exp = analyze_experiment(Path(d))
+        exp = analyze_experiment(Path(d), log_file)
         experiments.append(exp)
 
     # Print summary
