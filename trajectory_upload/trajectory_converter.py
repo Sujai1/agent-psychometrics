@@ -852,17 +852,12 @@ def convert_trajectory(
         'source_format': fmt,
         'source_file': str(file_path),
         'total_steps': len(messages),
-        'has_patch': False,
     }
 
     # Try to extract environment info
     if isinstance(data, dict):
         if 'environment' in data:
             metadata['environment'] = data['environment']
-        if 'info' in data:
-            info = data['info']
-            if isinstance(info, dict):
-                metadata['has_patch'] = bool(info.get('submission') or info.get('model_patch'))
 
     return UnifiedTrajectory(
         task_id=task_id,
