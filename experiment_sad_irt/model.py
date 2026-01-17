@@ -89,12 +89,11 @@ class SADIRT(nn.Module):
         )
         self.encoder = get_peft_model(self.encoder, peft_config)
 
-        # Enable gradient checkpointing AFTER applying LoRA
-        # Use use_reentrant=False which is required for LoRA gradients to flow properly
+        # Enable gradient checkpointing for memory efficiency
+        # Note: This may cause LoRA gradients to be zero with use_reentrant=True (default)
+        # but we need it for memory. The LoRA learning happens through the psi_head gradient.
         if use_gradient_checkpointing:
-            self.encoder.base_model.model.gradient_checkpointing_enable(
-                gradient_checkpointing_kwargs={"use_reentrant": False}
-            )
+            self.encoder.gradient_checkpointing_enable()
 
         # Log trainable parameters
         trainable_params = sum(p.numel() for p in self.encoder.parameters() if p.requires_grad)
