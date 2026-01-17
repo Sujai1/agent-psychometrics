@@ -13,7 +13,16 @@
 # Configuration
 OUTPUT_DIR="chris_output/sad_irt"
 EPOCHS=3
-NO_RESUME=${1:-""}  # Pass --no_resume as first arg to skip checkpoint loading
+
+# Parse command line flags
+DEBUG_GRADIENTS=""
+NO_RESUME=""
+for arg in "$@"; do
+    case $arg in
+        --no_resume) NO_RESUME="--no_resume" ;;
+        --debug_gradients) DEBUG_GRADIENTS="--debug_gradients" ;;
+    esac
+done
 
 # Create directories
 mkdir -p logs
@@ -66,6 +75,7 @@ python -m experiment_sad_irt.train_evaluate \
     --gradient_accumulation_steps 1 \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
+    $DEBUG_GRADIENTS \
     $RESUME_ARG
 
 echo "End time: $(date)"
