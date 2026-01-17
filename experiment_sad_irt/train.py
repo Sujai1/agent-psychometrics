@@ -306,9 +306,22 @@ class Trainer:
 
         # Get last hidden state
         hidden_states = outputs.last_hidden_state
-        seq_lengths = batch["attention_mask"].sum(dim=1) - 1
-        batch_indices = torch.arange(hidden_states.size(0), device=hidden_states.device)
-        last_token_hidden = hidden_states[batch_indices, seq_lengths]
+
+        # IMPORTANT: Dataset uses LEFT padding (pad tokens at beginning, real tokens at end)
+        # So attention_mask looks like [0, 0, 0, 1, 1, 1, 1] for left-padded sequences
+        # We need the index of the LAST 1 in the mask, not mask.sum() - 1
+        batch_size = hidden_states.size(0)
+        seq_len = hidden_states.size(1)
+
+        # Find index of last non-padding token for each sequence
+        positions = torch.arange(seq_len, device=hidden_states.device).unsqueeze(0).expand(batch_size, -1)
+        # Set padding positions to -1 so they don't win the argmax
+        attention_mask = batch["attention_mask"]
+        masked_positions = positions * attention_mask.long() - (1 - attention_mask.long())
+        last_token_positions = masked_positions.argmax(dim=1)  # (batch_size,)
+
+        batch_indices = torch.arange(batch_size, device=hidden_states.device)
+        last_token_hidden = hidden_states[batch_indices, last_token_positions]
 
         # Predict ψ (raw, before normalization)
         psi_raw = model.psi_head(last_token_hidden.float())
