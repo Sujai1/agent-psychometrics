@@ -25,7 +25,7 @@ class SADIRTConfig:
     response_matrix_path: str = "clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"
     trajectory_dir: str = "chris_output/trajectory_summaries_api"
     swebench_dataset: str = "princeton-nlp/SWE-bench_Verified"
-    max_length: int = 4096
+    max_length: int = 1024  # Summary-only input; avg ~445 tokens, max 771
     test_fraction: float = 0.2
     hard_threshold: float = 0.2  # Tasks with pass rate <= this are "hard"
 

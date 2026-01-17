@@ -51,14 +51,13 @@ else
 fi
 
 # Run training (single GPU)
-# batch_size=16 for stable BatchNorm stats (H200 has 141GB VRAM)
-# gradient_accumulation_steps=2 keeps effective batch at 32
+# With 1024 token context (summary-only), can fit batch_size=64 on H200
 python -m experiment_sad_irt.train_evaluate \
     --mode full_auc \
     --model_name Qwen/Qwen3-0.6B \
-    --max_length 4096 \
-    --batch_size 16 \
-    --gradient_accumulation_steps 2 \
+    --max_length 1024 \
+    --batch_size 64 \
+    --gradient_accumulation_steps 1 \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
     $RESUME_ARG

@@ -201,19 +201,12 @@ class TrajectoryIRTDataset(Dataset):
             return "\n\n".join(trajectory_parts)
 
     def _format_input(self, task_id: str, trajectory_text: str) -> str:
-        """Format input text with problem, solution, and trajectory.
+        """Format input text for encoding.
 
-        Format: [PROBLEM]\n{problem}\n[SOLUTION]\n{patch}\n[TRAJECTORY]\n{trajectory}
+        Uses trajectory summary only (no problem statement or solution).
+        This keeps inputs short (~400-600 tokens) for efficient training.
         """
-        problem = ""
-        patch = ""
-
-        if task_id in self.task_data:
-            task = self.task_data[task_id]
-            problem = task.get("problem_statement", "")
-            patch = task.get("patch", "")
-
-        return f"[PROBLEM]\n{problem}\n\n[SOLUTION]\n{patch}\n\n[TRAJECTORY]\n{trajectory_text}"
+        return trajectory_text
 
     def __len__(self) -> int:
         return len(self.samples)

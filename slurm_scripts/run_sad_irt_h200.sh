@@ -56,8 +56,8 @@ export MASTER_PORT=29500
 export WORLD_SIZE=2
 
 # Run training with accelerate for multi-GPU
-# batch_size=16 per GPU for stable BatchNorm stats (H200 has 141GB VRAM each)
-# gradient_accumulation_steps=1 since 2 GPUs × 16 = 32 effective batch
+# With 1024 token context (summary-only), can fit large batches on H200
+# 2 GPUs × 64 = 128 effective batch
 accelerate launch \
     --num_processes=2 \
     --multi_gpu \
@@ -65,8 +65,8 @@ accelerate launch \
     -m experiment_sad_irt.train_evaluate \
     --mode full_auc \
     --model_name Qwen/Qwen3-0.6B \
-    --max_length 4096 \
-    --batch_size 16 \
+    --max_length 1024 \
+    --batch_size 64 \
     --gradient_accumulation_steps 1 \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
