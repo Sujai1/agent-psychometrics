@@ -63,6 +63,9 @@ def parse_args() -> SADIRTConfig:
     parser.add_argument("--output_dir", type=str, default="chris_output/sad_irt")
     parser.add_argument("--seed", type=int, default=42)
 
+    # Ablations
+    parser.add_argument("--freeze_irt", action="store_true", help="Freeze θ/β and only train ψ predictor")
+
     # Debug
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--max_samples", type=int, default=None)
@@ -92,6 +95,7 @@ def parse_args() -> SADIRTConfig:
         learning_rate_embeddings=args.learning_rate_embeddings,
         output_dir=args.output_dir,
         seed=args.seed,
+        freeze_irt=args.freeze_irt,
         dry_run=args.dry_run,
         max_samples=args.max_samples,
         smoke_test=args.smoke_test,
