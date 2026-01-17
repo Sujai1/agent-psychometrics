@@ -48,6 +48,9 @@ class SADIRTConfig:
     output_dir: str = "chris_output/sad_irt"
     seed: int = 42
 
+    # Ablations
+    freeze_irt: bool = False  # If True, freeze θ/β and only train ψ predictor
+
     # Debug
     dry_run: bool = False
     max_samples: Optional[int] = None  # Limit samples for testing

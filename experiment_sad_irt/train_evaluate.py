@@ -573,6 +573,12 @@ def run_full_auc_evaluation(config: SADIRTConfig):
             items_df=items_df,
         )
 
+    # Optionally freeze θ/β (ablation: only train ψ predictor)
+    if config.freeze_irt:
+        logger.info("Freezing θ and β (only training ψ predictor)")
+        sad_irt_model.theta.weight.requires_grad = False
+        sad_irt_model.beta.weight.requires_grad = False
+
     sad_irt_trainer = Trainer(
         model=sad_irt_model,
         train_loader=train_loader,
