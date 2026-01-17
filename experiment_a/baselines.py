@@ -10,17 +10,19 @@ from sklearn.metrics import roc_auc_score
 def agent_only_baseline(
     abilities: pd.DataFrame,
     responses: Dict[str, Dict[str, int]],
-    task_ids: List[str],
+    train_tasks: List[str],
+    test_tasks: List[str],
 ) -> Dict[str, Any]:
-    """Baseline: P(success) = agent's overall success rate.
+    """Baseline: P(success) = agent's success rate on TRAINING tasks only.
 
-    This baseline ignores task difficulty entirely and just uses each agent's
-    average performance across ALL tasks as the prediction.
+    This baseline ignores task difficulty entirely and uses each agent's
+    average performance on training tasks as the prediction for test tasks.
 
     Args:
         abilities: DataFrame with index=agent_id (used for agent list)
         responses: Dict mapping agent_id -> {task_id -> 0|1}
-        task_ids: List of task identifiers to evaluate
+        train_tasks: List of training task identifiers (used for computing rates)
+        test_tasks: List of test task identifiers (used for evaluation)
 
     Returns:
         Dict with 'auc', 'n_pairs', 'method'
@@ -28,19 +30,20 @@ def agent_only_baseline(
     y_true: List[int] = []
     y_scores: List[float] = []
 
-    # Pre-compute agent success rates across ALL tasks
+    # Pre-compute agent success rates using ONLY training tasks
+    train_tasks_set = set(train_tasks)
     agent_success_rates: Dict[str, float] = {}
     for agent_id in abilities.index:
         if agent_id not in responses:
             continue
-        outcomes = list(responses[agent_id].values())
+        outcomes = [responses[agent_id][t] for t in responses[agent_id] if t in train_tasks_set]
         if outcomes:
             agent_success_rates[agent_id] = float(np.mean(outcomes))
         else:
             agent_success_rates[agent_id] = 0.5  # Default
 
     # Compute baseline predictions for test tasks
-    for task_id in task_ids:
+    for task_id in test_tasks:
         for agent_id in abilities.index:
             if agent_id not in responses:
                 continue

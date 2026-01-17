@@ -274,28 +274,32 @@ def get_or_train_split_irt(
 
     if is_binomial:
         # Import and run binomial IRT training
-        from swebench_irt.train_binomial import train_binomial_irt
-        train_binomial_irt(
-            data_path=train_responses_path,
-            output_dir=cache_dir.parent,
-            model_type=model_type,
-            epochs=epochs,
-            dims=1,
+        from swebench_irt.train_binomial import (
+            load_count_data,
+            fit_1d_binomial_1pl,
+            fit_1d_binomial,
         )
-    else:
-        # Import and run standard IRT training
-        from py_irt.dataset import Dataset
-        from py_irt.config import IrtConfig
-        from py_irt.training import IrtModelTrainer
+
+        subjects, items, counts, trials, subject_ids, item_ids = load_count_data(
+            str(train_responses_path)
+        )
+        print(f"   Dataset: {len(subject_ids)} subjects, {len(item_ids)} items")
+        print(f"   Observations: {len(counts)}")
 
         if model_type == "1pl":
-            from py_irt.models import OneParamLog as IrtModel
+            fit_1d_binomial_1pl(
+                subjects, items, counts, trials, subject_ids, item_ids,
+                epochs=epochs, output_dir=cache_dir.parent
+            )
         else:
-            from py_irt.models import TwoParamLog as IrtModel
-
-        # Load dataset
-        dataset = Dataset.from_jsonlines(str(train_responses_path))
-        print(f"   Dataset: {dataset.num_subjects} subjects, {dataset.num_items} items")
+            fit_1d_binomial(
+                subjects, items, counts, trials, subject_ids, item_ids,
+                epochs=epochs, output_dir=cache_dir.parent
+            )
+    else:
+        # Import and run standard IRT training
+        from py_irt.config import IrtConfig
+        from py_irt.training import IrtModelTrainer
 
         # Configure and train
         config = IrtConfig(
@@ -306,37 +310,35 @@ def get_or_train_split_irt(
         )
 
         trainer = IrtModelTrainer(
+            data_path=train_responses_path,
             config=config,
-            data=dataset,
-            model=IrtModel(
-                priors=config.priors,
-                device=config.device,
-                num_items=dataset.num_items,
-                num_subjects=dataset.num_subjects,
-                dims=1,
-            ),
         )
+        n_subjects = len(trainer._dataset.subject_ids)
+        n_items = len(trainer._dataset.item_ids)
+        print(f"   Dataset: {n_subjects} subjects, {n_items} items")
 
         trainer.train(device="cpu")
 
         # Save results
         print("\n7. Saving IRT parameters...")
 
-        # Get parameters
-        abilities = trainer.model.export("ability")
-        difficulties = trainer.model.export("diff")
+        # Get parameters from best_params
+        abilities = trainer.best_params["ability"]
+        difficulties = trainer.best_params["diff"]
+        item_ids = trainer.best_params["item_ids"]
+        subject_ids = trainer.best_params["subject_ids"]
 
-        # Map to original IDs
+        # Map to original IDs - item_ids and subject_ids are dicts {idx: id}
         abilities_df = pd.DataFrame({
-            "subject_id": dataset.subject_ids,
-            "theta": abilities.flatten(),
-        }).set_index("subject_id")
+            "theta": [abilities[i] for i in range(len(subject_ids))],
+        }, index=[subject_ids[i] for i in range(len(subject_ids))])
+        abilities_df.index.name = "subject_id"
         abilities_df.to_csv(cache_dir / "abilities.csv")
 
         items_df = pd.DataFrame({
-            "item_id": dataset.item_ids,
-            "b": difficulties.flatten(),
-        }).set_index("item_id")
+            "b": [difficulties[i] for i in range(len(item_ids))],
+        }, index=[item_ids[i] for i in range(len(item_ids))])
+        items_df.index.name = "item_id"
         items_df.to_csv(cache_dir / "items.csv")
 
     # Save split info for cache validation

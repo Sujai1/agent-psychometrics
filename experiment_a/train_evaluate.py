@@ -99,7 +99,7 @@ def run_experiment_a(config: ExperimentAConfig) -> Dict[str, Any]:
     # 6. Agent-only baseline
     print("\n4. Computing agent-only baseline...")
     agent_baseline = agent_only_baseline(
-        data.abilities, data.responses, data.test_tasks
+        data.abilities, data.responses, data.train_tasks, data.test_tasks
     )
     print(f"   Agent-only AUC: {agent_baseline.get('auc', 'N/A'):.4f}")
     results["agent_only_baseline"] = agent_baseline
