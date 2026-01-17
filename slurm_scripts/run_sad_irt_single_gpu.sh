@@ -17,10 +17,12 @@ EPOCHS=3
 # Parse command line flags
 DEBUG_GRADIENTS=""
 NO_RESUME=""
+PSI_NORM=""
 for arg in "$@"; do
     case $arg in
         --no_resume) NO_RESUME="--no_resume" ;;
         --debug_gradients) DEBUG_GRADIENTS="--debug_gradients" ;;
+        --psi_normalization=*) PSI_NORM="--psi_normalization ${arg#*=}" ;;
     esac
 done
 
@@ -76,6 +78,7 @@ python -m experiment_sad_irt.train_evaluate \
     --epochs $EPOCHS \
     --output_dir "$OUTPUT_DIR" \
     $DEBUG_GRADIENTS \
+    $PSI_NORM \
     $RESUME_ARG
 
 echo "End time: $(date)"
