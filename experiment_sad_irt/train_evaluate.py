@@ -714,10 +714,12 @@ def run_frontier_difficulty_evaluation(config: SADIRTConfig):
     logger.info("=" * 40)
 
     # Determine ψ normalization strategy
+    # Default to "center" (zero-mean only) instead of "batchnorm" (zero-mean + unit variance)
+    # BatchNorm causes variance collapse when psi_head outputs are similar, killing LoRA gradients
     if hasattr(config, 'psi_normalization') and config.psi_normalization is not None:
         psi_normalization = config.psi_normalization
     else:
-        psi_normalization = "center" if config.freeze_irt else "batchnorm"
+        psi_normalization = "center"
     logger.info(f"Using psi_normalization={psi_normalization}")
 
     sad_irt_model = SADIRT(
