@@ -1,9 +1,10 @@
 """Training loop for SAD-IRT."""
 
+import json
 import logging
 import math
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -125,6 +126,19 @@ class Trainer:
         self.global_step = 0
         self.best_auc = 0.0
         self.best_spearman = -1.0  # For frontier evaluation
+
+        # Training history for plotting
+        self.history: Dict[str, List] = {
+            "step": [],
+            "loss": [],
+            "lr": [],
+            "grad_norm_total": [],
+            "grad_norm_encoder": [],
+            "grad_norm_head": [],
+            "grad_norm_embedding": [],
+            "epoch": [],
+            "frontier_spearman_rho": [],
+        }
 
         # Output directory
         self.output_dir = Path(config.output_dir)
@@ -253,6 +267,15 @@ class Trainer:
                     # Log gradient norms (after clipping now, for comparison)
                     grad_norms = compute_gradient_norms(self.model)
                     logger.debug(f"Step {self.global_step} gradients (post-clip): {grad_norms}")
+
+                    # Track history for plotting
+                    self.history["step"].append(self.global_step)
+                    self.history["loss"].append(current_loss)
+                    self.history["lr"].append(lr)
+                    self.history["grad_norm_total"].append(grad_norms.get("total_norm", 0))
+                    self.history["grad_norm_encoder"].append(grad_norms.get("encoder_norm", 0))
+                    self.history["grad_norm_head"].append(grad_norms.get("head_norm", 0))
+                    self.history["grad_norm_embedding"].append(grad_norms.get("embedding_norm", 0))
 
                     # Log ψ stats if SAD-IRT
                     if self.is_sad_irt and hasattr(self.model, "get_psi_stats"):
@@ -463,6 +486,11 @@ class Trainer:
                 logger.info(f"Epoch {epoch + 1} frontier metrics: {frontier_metrics}")
 
                 spearman = frontier_metrics.get("frontier_spearman_rho", -1.0)
+
+                # Track history for plotting
+                self.history["epoch"].append(epoch + 1)
+                self.history["frontier_spearman_rho"].append(spearman if not math.isnan(spearman) else None)
+
                 if not math.isnan(spearman) and spearman > self.best_spearman:
                     self.best_spearman = spearman
                     self.save_checkpoint("best", metrics=frontier_metrics)
@@ -476,7 +504,94 @@ class Trainer:
         if final_metrics:
             logger.info(f"Final frontier metrics: {final_metrics}")
 
+        # Save training history and plot
+        self.save_history()
+        self.plot_training_curves()
+
         return final_metrics
+
+    def save_history(self):
+        """Save training history to JSON file."""
+        history_path = self.output_dir / "training_history.json"
+        with open(history_path, "w") as f:
+            json.dump(self.history, f, indent=2)
+        logger.info(f"Saved training history to {history_path}")
+
+    def plot_training_curves(self):
+        """Plot and save training curves."""
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Non-interactive backend for cluster
+            import matplotlib.pyplot as plt
+            import numpy as np
+        except ImportError:
+            logger.warning("matplotlib not available, skipping plot generation")
+            return
+
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig.suptitle(f"SAD-IRT Training: {self.output_dir.name}", fontsize=14)
+
+        # 1. Loss curve
+        ax = axes[0, 0]
+        if self.history["loss"]:
+            steps = self.history["step"]
+            losses = self.history["loss"]
+            ax.plot(steps, losses, alpha=0.7, linewidth=0.5)
+            # Smoothed version
+            if len(losses) > 20:
+                window = min(50, len(losses) // 10)
+                smoothed = np.convolve(losses, np.ones(window)/window, mode='valid')
+                ax.plot(steps[window-1:], smoothed, 'r-', linewidth=2, label=f'Smoothed (w={window})')
+                ax.legend()
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Loss")
+        ax.set_title("Training Loss")
+        ax.grid(True, alpha=0.3)
+
+        # 2. Learning rate
+        ax = axes[0, 1]
+        if self.history["lr"]:
+            ax.plot(self.history["step"], self.history["lr"])
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Learning Rate")
+        ax.set_title("Learning Rate Schedule")
+        ax.set_yscale('log')
+        ax.grid(True, alpha=0.3)
+
+        # 3. Gradient norms
+        ax = axes[1, 0]
+        if self.history["grad_norm_encoder"]:
+            steps = self.history["step"]
+            ax.plot(steps, self.history["grad_norm_encoder"], label="Encoder (LoRA)", alpha=0.8)
+            ax.plot(steps, self.history["grad_norm_head"], label="Head (psi)", alpha=0.8)
+            ax.plot(steps, self.history["grad_norm_embedding"], label="Embedding (θ/β)", alpha=0.8)
+            ax.legend()
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Gradient Norm")
+        ax.set_title("Gradient Norms by Component")
+        ax.grid(True, alpha=0.3)
+
+        # 4. Frontier Spearman ρ
+        ax = axes[1, 1]
+        if self.history["frontier_spearman_rho"]:
+            epochs = self.history["epoch"]
+            rhos = [r for r in self.history["frontier_spearman_rho"] if r is not None]
+            valid_epochs = [e for e, r in zip(epochs, self.history["frontier_spearman_rho"]) if r is not None]
+            if rhos:
+                ax.plot(valid_epochs, rhos, 'bo-', linewidth=2, markersize=8)
+                ax.axhline(y=max(rhos), color='g', linestyle='--', alpha=0.5, label=f'Best: {max(rhos):.4f}')
+                ax.legend()
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Spearman ρ")
+        ax.set_title("Frontier Task Difficulty Correlation")
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        plot_path = self.output_dir / "training_curves.png"
+        plt.savefig(plot_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        logger.info(f"Saved training curves to {plot_path}")
 
     def save_checkpoint(self, name: str, metrics: Optional[Dict[str, float]] = None):
         """Save model checkpoint with versioned filename.

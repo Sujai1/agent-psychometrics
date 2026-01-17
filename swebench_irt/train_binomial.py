@@ -188,6 +188,74 @@ class Binomial2PL:
             pyro.sample("a", dist.Normal(loc_slope, scale_slope))
 
 
+# ============== 1D Binomial 1PL Model ==============
+
+class Binomial1PL:
+    """1D 1PL IRT model with Binomial likelihood.
+
+    Unlike 2PL, this model has no discrimination parameter (a).
+    The probability of success is: P = sigmoid(theta - b)
+    """
+
+    def __init__(self, num_items, num_subjects, device='cpu'):
+        self.num_items = num_items
+        self.num_subjects = num_subjects
+        self.device = device
+
+    def model(self, subjects, items, counts, trials):
+        """Hierarchical 1PL model with Binomial likelihood."""
+        # Hyperpriors
+        mu_b = pyro.sample("mu_b", dist.Normal(0.0, 1e6))
+        u_b = pyro.sample("u_b", dist.Gamma(1.0, 1.0))
+        mu_theta = pyro.sample("mu_theta", dist.Normal(0.0, 1e6))
+        u_theta = pyro.sample("u_theta", dist.Gamma(1.0, 1.0))
+
+        # Subject abilities
+        with pyro.plate("thetas", self.num_subjects):
+            ability = pyro.sample("theta", dist.Normal(mu_theta, 1.0 / u_theta))
+
+        # Item parameters (difficulty only, no discrimination)
+        with pyro.plate("items", self.num_items):
+            diff = pyro.sample("b", dist.Normal(mu_b, 1.0 / u_b))
+
+        # Observations: Binomial with 1PL formula (no slope)
+        with pyro.plate("obs", counts.size(0)):
+            logits = ability[subjects] - diff[items]  # 1PL: no discrimination parameter
+            pyro.sample("y", dist.Binomial(total_count=trials, logits=logits), obs=counts)
+
+    def guide(self, subjects, items, counts, trials):
+        """Variational guide."""
+        # Hyperparameter guides
+        loc_mu_b = pyro.param("loc_mu_b", torch.tensor(0.0))
+        scale_mu_b = pyro.param("scale_mu_b", torch.tensor(10.0), constraint=constraints.positive)
+        loc_mu_theta = pyro.param("loc_mu_theta", torch.tensor(0.0))
+        scale_mu_theta = pyro.param("scale_mu_theta", torch.tensor(10.0), constraint=constraints.positive)
+
+        alpha_b = pyro.param("alpha_b", torch.tensor(1.0), constraint=constraints.positive)
+        beta_b = pyro.param("beta_b", torch.tensor(1.0), constraint=constraints.positive)
+        alpha_theta = pyro.param("alpha_theta", torch.tensor(1.0), constraint=constraints.positive)
+        beta_theta = pyro.param("beta_theta", torch.tensor(1.0), constraint=constraints.positive)
+
+        # Per-parameter guides
+        loc_ability = pyro.param("loc_ability", torch.zeros(self.num_subjects))
+        scale_ability = pyro.param("scale_ability", torch.ones(self.num_subjects), constraint=constraints.positive)
+        loc_diff = pyro.param("loc_diff", torch.zeros(self.num_items))
+        scale_diff = pyro.param("scale_diff", torch.ones(self.num_items), constraint=constraints.positive)
+
+        # Sample hyperparameters
+        pyro.sample("mu_b", dist.Normal(loc_mu_b, scale_mu_b))
+        pyro.sample("u_b", dist.Gamma(alpha_b, beta_b))
+        pyro.sample("mu_theta", dist.Normal(loc_mu_theta, scale_mu_theta))
+        pyro.sample("u_theta", dist.Gamma(alpha_theta, beta_theta))
+
+        # Sample latent variables
+        with pyro.plate("thetas", self.num_subjects):
+            pyro.sample("theta", dist.Normal(loc_ability, scale_ability))
+
+        with pyro.plate("items", self.num_items):
+            pyro.sample("b", dist.Normal(loc_diff, scale_diff))
+
+
 # ============== Multidim Binomial 2PL Model ==============
 
 class BinomialMIRT:
@@ -388,6 +456,65 @@ def fit_1d_binomial(subjects, items, counts, trials, subject_ids, item_ids,
     return best_loss, num_items + num_subjects + num_items  # approx n_params
 
 
+def fit_1d_binomial_1pl(subjects, items, counts, trials, subject_ids, item_ids,
+                        epochs=5000, output_dir=None):
+    """Fit 1D Binomial 1PL model (no discrimination parameter)."""
+    num_subjects = len(subject_ids)
+    num_items = len(item_ids)
+
+    # Initialize difficulty from accuracy
+    accuracy = compute_item_accuracy(items, counts, trials, num_items)
+    init_diff = init_difficulty_from_accuracy(accuracy)
+
+    console.print(f"[bold]Fitting 1D Binomial 1PL[/bold]")
+    console.print(f"  Subjects: {num_subjects}, Items: {num_items}")
+    console.print(f"  Observations: {len(counts)}")
+
+    # Initialize model
+    model_obj = Binomial1PL(num_items, num_subjects)
+
+    # Set initial difficulty values
+    pyro.clear_param_store()
+    pyro.param("loc_diff", init_diff)
+
+    # Train
+    best_loss = train_model(
+        model_obj.model, model_obj.guide,
+        subjects, items, counts, trials,
+        epochs=epochs
+    )
+
+    # Extract results
+    abilities = pyro.param("loc_ability").detach().numpy()
+    difficulties = pyro.param("loc_diff").detach().numpy()
+
+    ability_std = pyro.param("scale_ability").detach().numpy()
+    diff_std = pyro.param("scale_diff").detach().numpy()
+
+    # Save results
+    if output_dir:
+        out_path = Path(output_dir) / "1d"
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        # For 1PL, we don't have discrimination, but keep consistent format
+        items_df = pd.DataFrame({
+            "b": difficulties,
+            "b_std": diff_std,
+        }, index=item_ids)
+        items_df.to_csv(out_path / "items.csv")
+
+        abilities_df = pd.DataFrame({
+            "theta": abilities,
+            "theta_std": ability_std,
+        }, index=subject_ids)
+        abilities_df.sort_values("theta", ascending=False).to_csv(out_path / "abilities.csv")
+
+        console.print(f"[green]Saved results to {out_path}[/green]")
+
+    # n_params: num_items (b) + num_subjects (theta)
+    return best_loss, num_items + num_subjects
+
+
 def fit_mirt_binomial(subjects, items, counts, trials, subject_ids, item_ids,
                       dims=2, epochs=5000, output_dir=None):
     """Fit multidimensional Binomial 2PL model."""
@@ -474,6 +601,8 @@ def main():
                        help='Directory to save results')
     parser.add_argument('--epochs', type=int, default=5000,
                        help='Number of training epochs')
+    parser.add_argument('--model_type', type=str, default='1pl', choices=['1pl', '2pl'],
+                       help='Model type: 1pl (no discrimination, default) or 2pl')
     args = parser.parse_args()
 
     # Load data
@@ -484,6 +613,7 @@ def main():
     console.print(f"  Total observations: {len(counts)}")
     console.print(f"  Mean trials per obs: {trials.mean():.1f}")
     console.print(f"  Overall success rate: {counts.sum() / trials.sum():.1%}")
+    console.print(f"  Model type: {args.model_type.upper()}")
 
     results = []
 
@@ -491,11 +621,19 @@ def main():
         pyro.clear_param_store()
 
         if dim == 1:
-            loss, n_params = fit_1d_binomial(
-                subjects, items, counts, trials, subject_ids, item_ids,
-                epochs=args.epochs, output_dir=args.output_dir
-            )
+            if args.model_type == '1pl':
+                loss, n_params = fit_1d_binomial_1pl(
+                    subjects, items, counts, trials, subject_ids, item_ids,
+                    epochs=args.epochs, output_dir=args.output_dir
+                )
+            else:
+                loss, n_params = fit_1d_binomial(
+                    subjects, items, counts, trials, subject_ids, item_ids,
+                    epochs=args.epochs, output_dir=args.output_dir
+                )
         else:
+            if args.model_type == '1pl':
+                console.print(f"[yellow]Warning: 1PL not implemented for {dim}D, using 2PL[/yellow]")
             loss, n_params = fit_mirt_binomial(
                 subjects, items, counts, trials, subject_ids, item_ids,
                 dims=dim, epochs=args.epochs, output_dir=args.output_dir
