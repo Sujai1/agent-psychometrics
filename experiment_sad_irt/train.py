@@ -120,7 +120,6 @@ class Trainer:
 
         # Training state
         self.global_step = 0
-        self.best_auc = 0.0
         self.best_spearman = -1.0  # For frontier evaluation
 
         # Training history for plotting
@@ -594,7 +593,7 @@ class Trainer:
 
         Args:
             name: Checkpoint type (e.g., "best", "epoch_1")
-            metrics: Optional metrics dict to include (e.g., {"auc": 0.85})
+            metrics: Optional metrics dict to include (e.g., {"spearman_rho": 0.45})
         """
         import time
         timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -620,7 +619,7 @@ class Trainer:
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "global_step": self.global_step,
-            "best_auc": self.best_auc,
+            "best_spearman": self.best_spearman,
             "config": config_dict,  # Save as dict, not object
             "epoch": getattr(self, "_current_epoch", 0),
             "timestamp": timestamp,
@@ -637,7 +636,7 @@ class Trainer:
         Args:
             checkpoint_path: Path to checkpoint file. The checkpoint contains
                 model weights, optimizer state, scheduler state, and training
-                progress (global_step, epoch, best_auc).
+                progress (global_step, epoch, best_spearman).
         """
         logger.info(f"Loading checkpoint from {checkpoint_path}")
         # Use weights_only=False since we save config as dict (safe for our own checkpoints)
@@ -652,13 +651,14 @@ class Trainer:
 
         # Restore training state
         self.global_step = checkpoint.get("global_step", 0)
-        self.best_auc = checkpoint.get("best_auc", 0.0)
+        # Support both old (best_auc) and new (best_spearman) checkpoint formats
+        self.best_spearman = checkpoint.get("best_spearman", checkpoint.get("best_auc", -1.0))
         self._resume_epoch = checkpoint.get("epoch", 0)
 
         # Log checkpoint info
         timestamp = checkpoint.get("timestamp", "unknown")
         metrics = checkpoint.get("metrics", {})
-        logger.info(f"Resumed from step {self.global_step}, epoch {self._resume_epoch}, best_auc={self.best_auc:.4f}")
+        logger.info(f"Resumed from step {self.global_step}, epoch {self._resume_epoch}, best_spearman={self.best_spearman:.4f}")
         logger.info(f"Checkpoint timestamp: {timestamp}")
         if metrics:
             logger.info(f"Checkpoint metrics: {metrics}")

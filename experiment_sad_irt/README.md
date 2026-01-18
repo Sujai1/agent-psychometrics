@@ -131,7 +131,7 @@ python -m experiment_sad_irt.train_evaluate \
 | `dataset.py` | TrajectoryIRTDataset with input formatting |
 | `data_splits.py` | Agent/task splitting by date cutoff |
 | `train.py` | Trainer class with gradient accumulation, scheduling |
-| `evaluate.py` | Metrics computation (Spearman ρ, AUC, etc.) |
+| `evaluate.py` | Metrics computation (Spearman ρ, accuracy, etc.) |
 | `train_evaluate.py` | Main entry point |
 
 ## Key Configuration
@@ -188,3 +188,78 @@ sbatch slurm_scripts/run_baseline_variance.sh --num_seeds 100 --start_seed 0
 ```
 
 Results are saved to `chris_output/baseline_variance/summary.json`.
+
+## Output Directory Structure
+
+Training runs are saved to `chris_output/sad_irt_long/` with timestamped subdirectories:
+
+```
+chris_output/sad_irt_long/
+├── full_20260118_024625_psi_batchnorm_lora_r64/    # Full training run
+│   ├── checkpoint_best_step472_20260118_030026.pt  # Best checkpoint (by Spearman ρ)
+│   ├── checkpoint_epoch_1_step472_20260118_030027.pt
+│   ├── checkpoint_epoch_2_step944_20260118_031401.pt
+│   ├── ...
+│   ├── checkpoint_epoch_10_step4720_20260118_050301.pt
+│   ├── results.json                                 # Final metrics
+│   ├── training_history.json                        # Per-epoch metrics
+│   ├── training_curves.png                          # Loss/LR/gradient/Spearman plots
+│   ├── baseline_irt/                                # Baseline IRT model (no trajectories)
+│   └── diagnosis/                                   # Output from diagnose_training.py
+├── freeze_irt/                                      # Ablation: frozen θ/β
+├── freeze_encoder_20260117_173918/                  # Ablation: frozen encoder
+└── ...
+```
+
+### Checkpoint Naming Convention
+
+Checkpoints use versioned filenames to avoid overwrites:
+```
+checkpoint_{type}_step{step}_{timestamp}.pt
+```
+
+Where `type` is:
+- `best`: Best Spearman ρ on frontier tasks
+- `epoch_N`: End of epoch N
+
+## Analysis Scripts
+
+### Analyze Results
+
+Compare metrics across runs:
+```bash
+# Single run
+python -m experiment_sad_irt.analyze_results chris_output/sad_irt_long/full_20260118_024625_psi_batchnorm_lora_r64
+
+# Compare multiple runs
+python -m experiment_sad_irt.analyze_results \
+    chris_output/sad_irt_long/full_20260118_024625_psi_batchnorm_lora_r64 \
+    chris_output/sad_irt_long/freeze_irt
+```
+
+### Diagnose Training
+
+Analyze why loss decreases but Spearman ρ doesn't improve:
+```bash
+# Quick analysis (no GPU needed) - checks learned β vs oracle β correlation
+python -m experiment_sad_irt.diagnose_training \
+    --checkpoint chris_output/sad_irt_long/full_20260118_024625_psi_batchnorm_lora_r64/checkpoint_best_step472_20260118_030026.pt \
+    --quick
+
+# Full analysis with logit decomposition (requires GPU)
+python -m experiment_sad_irt.diagnose_training \
+    --checkpoint chris_output/sad_irt_long/full_20260118_024625_psi_batchnorm_lora_r64/checkpoint_best_step472_20260118_030026.pt \
+    --analyze_logits
+```
+
+Key diagnostics:
+- **Spearman ρ (learned β vs oracle β)**: Should be positive if β is meaningful
+- **Learned β std**: If near zero, β has collapsed
+- **Std ratio (learned/oracle)**: Should be ~1.0 for healthy training
+
+### Plot Training Logs
+
+Plot loss curves from SLURM logs:
+```bash
+python -m experiment_sad_irt.plot_training_logs logs/sad_irt_JOBID.out
+```
