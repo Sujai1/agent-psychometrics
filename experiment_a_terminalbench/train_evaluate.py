@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -13,24 +13,65 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiment_a_terminalbench.baselines import (
-    agent_only_baseline_binomial,
-    constant_baseline_binomial,
-    random_baseline_binomial,
-    task_only_baseline_binomial,
-    verify_random_baseline_sanity,
-)
 from experiment_a_terminalbench.config import TerminalBenchConfig
-from experiment_a_terminalbench.data_loader import load_terminalbench_data
-from experiment_a_terminalbench.irt_evaluation import compute_binomial_auc
-
-# Reuse difficulty predictors from experiment_a
+from experiment_a_terminalbench.data_loader import load_task_data_from_repo
 from experiment_a.difficulty_predictor import (
-    ConstantPredictor,
     EmbeddingPredictor,
+    ConstantPredictor,
     GroundTruthPredictor,
     LLMJudgePredictor,
 )
+from experiment_a_common import (
+    load_dataset,
+    compute_auc,
+    run_evaluation_pipeline,
+    PredictorConfig,
+    agent_only_baseline,
+    convert_numpy,
+)
+
+
+def build_predictor_configs(config: TerminalBenchConfig) -> List[PredictorConfig]:
+    """Build list of predictor configurations from experiment config."""
+    configs = []
+
+    # Constant baseline (mean difficulty)
+    configs.append(PredictorConfig(
+        predictor_class=ConstantPredictor,
+        name="constant_baseline",
+        display_name="Constant (mean b)",
+    ))
+
+    # Embedding predictor
+    if config.embeddings_path is not None:
+        embeddings_path = ROOT / config.embeddings_path
+        if embeddings_path.exists():
+            configs.append(PredictorConfig(
+                predictor_class=EmbeddingPredictor,
+                name="embedding_predictor",
+                display_name="Embedding",
+                kwargs={
+                    "embeddings_path": embeddings_path,
+                    "ridge_alpha": config.ridge_alphas[3],  # Default to 100.0
+                },
+            ))
+
+    # LLM Judge predictor
+    if config.llm_judge_features_path is not None:
+        llm_judge_path = ROOT / config.llm_judge_features_path
+        if llm_judge_path.exists():
+            configs.append(PredictorConfig(
+                predictor_class=LLMJudgePredictor,
+                name="llm_judge_predictor",
+                display_name="LLM Judge",
+                kwargs={
+                    "features_path": llm_judge_path,
+                    "ridge_alpha": config.llm_judge_ridge_alphas[2],  # Default to 1.0
+                    "max_features": config.llm_judge_max_features,
+                },
+            ))
+
+    return configs
 
 
 def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any]:
@@ -43,7 +84,7 @@ def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any
         Dict with all results
     """
     print("=" * 60)
-    print("EXPERIMENT A: PRIOR VALIDATION (IRT AUC) - TERMINALBENCH")
+    print("EXPERIMENT A: PRIOR VALIDATION (IRT AUC) - TerminalBench")
     print("=" * 60)
 
     # Resolve paths relative to ROOT
@@ -52,27 +93,31 @@ def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any
     responses_path = ROOT / config.responses_path
     repo_path = ROOT / config.repo_path
     output_dir = ROOT / config.output_dir
+    irt_cache_dir = ROOT / "chris_output" / "experiment_a_terminalbench" / "irt_splits"
 
-    # 1. Load data
+    # Define metadata loader for task data
+    def metadata_loader(task_ids: List[str]) -> Dict[str, Any]:
+        return {"task_data": load_task_data_from_repo(task_ids, repo_path)}
+
+    # 1. Load data using common loader
     print("\n1. Loading data...")
-    data = load_terminalbench_data(
+    data = load_dataset(
         abilities_path=abilities_path,
         items_path=items_path,
         responses_path=responses_path,
-        repo_path=repo_path,
         test_fraction=config.test_fraction,
         split_seed=config.split_seed,
+        is_binomial=True,  # TerminalBench uses binomial responses
+        irt_cache_dir=irt_cache_dir,
+        metadata_loader=metadata_loader,
     )
     print(f"   Agents: {data.n_agents}")
     print(f"   Tasks: {data.n_tasks}")
     print(f"   Train tasks: {data.n_train_tasks}")
     print(f"   Test tasks: {data.n_test_tasks}")
-    print(f"   Tasks with data loaded: {len(data.task_data)}")
+    print(f"   Tasks with metadata: {len(data.metadata.get('task_data', {}))}")
 
-    # 2. Get ground truth difficulties for training (from train-only IRT, no leakage)
-    train_b = data.train_items.loc[data.train_tasks, "b"].values
-
-    # 3. Initialize results dict
+    # 2. Initialize results dict
     results: Dict[str, Any] = {
         "config": config.to_dict(),
         "data_summary": {
@@ -83,244 +128,26 @@ def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any
         },
     }
 
-    # 4. Oracle baseline (ground truth difficulties from FULL IRT - reference only)
-    # NOTE: Oracle uses full IRT (trained on all tasks) as a reference point.
-    # This is NOT a valid method - it's just to show theoretical best performance.
+    # 3. Oracle baseline (handled specially - needs full_items)
     print("\n2. Computing oracle baseline (ground truth b from full IRT)...")
     oracle_predictor = GroundTruthPredictor(data.full_items)
     oracle_preds = oracle_predictor.predict(data.test_tasks)
-    oracle_result = compute_binomial_auc(
-        oracle_preds, data.full_abilities, data.responses, data.test_tasks
-    )
+    oracle_result = compute_auc(data, oracle_preds, use_full_abilities=True)
     print(f"   Oracle AUC: {oracle_result.get('auc', 'N/A'):.4f}")
     results["oracle"] = oracle_result
 
-    # 5. Constant baseline (mean difficulty from training)
-    # Uses train_abilities to avoid data leakage
-    print("\n3. Computing constant baseline (mean b from training)...")
-    const_result = constant_baseline_binomial(
-        data.train_items, data.train_abilities, data.responses,
-        data.train_tasks, data.test_tasks
-    )
-    print(f"   Constant AUC: {const_result.get('auc', 'N/A'):.4f}")
-    print(f"   Mean train difficulty: {const_result.get('mean_train_difficulty', 'N/A'):.4f}")
-    results["constant_baseline"] = const_result
+    # 4. Build predictor configs and run evaluation pipeline
+    predictor_configs = build_predictor_configs(config)
+    pipeline_results = run_evaluation_pipeline(data, predictor_configs, verbose=True)
+    results.update(pipeline_results)
 
-    # 6. Agent-only baseline
-    # Note: This baseline uses raw success rates from training tasks, not IRT abilities
-    print("\n4. Computing agent-only baseline...")
-    agent_result = agent_only_baseline_binomial(
-        data.train_abilities, data.responses, data.train_tasks, data.test_tasks
-    )
+    # 5. Agent-only baseline (uses common implementation)
+    print("\nComputing agent-only baseline...")
+    agent_result = agent_only_baseline(data)
     print(f"   Agent-only AUC: {agent_result.get('auc', 'N/A'):.4f}")
     results["agent_only_baseline"] = agent_result
 
-    # 7. Task-only baseline
-    print("\n5. Computing task-only baseline...")
-    task_result = task_only_baseline_binomial(
-        data.responses, data.train_tasks, data.test_tasks
-    )
-    print(f"   Task-only AUC: {task_result.get('auc', 'N/A'):.4f}")
-    print(f"   Mean train rate: {task_result.get('mean_train_rate', 'N/A'):.4f}")
-    results["task_only_baseline"] = task_result
-
-    # 8. Random baseline sanity check
-    print("\n6. Verifying random baseline (sanity check)...")
-    random_sanity = verify_random_baseline_sanity(
-        data.responses, data.test_tasks, n_trials=100
-    )
-    print(f"   Random AUC (mean over 100 trials): {random_sanity.get('mean_auc', 'N/A'):.4f}")
-    print(f"   Sanity check passed: {random_sanity.get('passed', False)}")
-    results["random_baseline_sanity"] = random_sanity
-
-    # 9. Embedding predictor (if embeddings provided)
-    if config.embeddings_path is not None:
-        embeddings_path = ROOT / config.embeddings_path
-        if embeddings_path.exists():
-            print(f"\n7. Training embedding predictor...")
-            print(f"   Loading embeddings from: {embeddings_path}")
-            print(f"   Ridge alphas for CV: {config.ridge_alphas}")
-
-            try:
-                from sklearn.linear_model import RidgeCV
-                from sklearn.preprocessing import StandardScaler
-                from sklearn.pipeline import Pipeline
-
-                # Load embeddings
-                emb_data = np.load(embeddings_path, allow_pickle=True)
-                task_ids_emb = [str(x) for x in emb_data["task_ids"].tolist()]
-                X_emb = emb_data["X"].astype(np.float32)
-                embeddings = {tid: X_emb[i] for i, tid in enumerate(task_ids_emb)}
-
-                print(f"   Embeddings loaded: {len(embeddings)} tasks")
-                print(f"   Embedding dim: {X_emb.shape[1]}")
-
-                # Get train embeddings and targets
-                train_available = [t for t in data.train_tasks if t in embeddings]
-                X_train = np.stack([embeddings[t] for t in train_available])
-                y_train = np.array([train_b[data.train_tasks.index(t)] for t in train_available])
-
-                # Fit RidgeCV to find best alpha
-                model = Pipeline([
-                    ("scaler", StandardScaler()),
-                    ("ridge", RidgeCV(alphas=config.ridge_alphas, cv=5)),
-                ])
-                model.fit(X_train, y_train)
-                best_alpha = model.named_steps["ridge"].alpha_
-                print(f"   Best alpha (CV): {best_alpha}")
-
-                # Predict on test tasks
-                test_available = [t for t in data.test_tasks if t in embeddings]
-                X_test = np.stack([embeddings[t] for t in test_available])
-                preds = model.predict(X_test)
-                embedding_preds = dict(zip(test_available, preds.tolist()))
-
-                # IRT-based AUC (using train_abilities to avoid leakage)
-                embedding_result = compute_binomial_auc(
-                    embedding_preds, data.train_abilities, data.responses, data.test_tasks
-                )
-                print(f"   Embedding AUC: {embedding_result.get('auc', 'N/A'):.4f}")
-
-                results["embedding_predictor"] = {
-                    "auc_result": embedding_result,
-                    "embeddings_path": str(embeddings_path),
-                    "best_alpha": float(best_alpha),
-                    "n_embeddings": len(embeddings),
-                    "embedding_dim": int(X_emb.shape[1]),
-                    "n_train_available": len(train_available),
-                    "n_test_available": len(test_available),
-                }
-
-                # Store predictions for analysis
-                results["difficulty_predictions"] = {
-                    "embedding": embedding_preds,
-                }
-
-            except Exception as e:
-                print(f"   Error with embedding predictor: {e}")
-                import traceback
-                traceback.print_exc()
-                results["embedding_predictor"] = {"error": str(e)}
-        else:
-            print(f"\n7. Embeddings file not found: {embeddings_path}")
-            results["embedding_predictor"] = {"error": f"File not found: {embeddings_path}"}
-    else:
-        print("\n7. No embeddings path provided, skipping embedding predictor")
-        results["embedding_predictor"] = {"error": "No embeddings_path provided"}
-
-    # 10. LLM Judge predictor (if features provided)
-    if config.llm_judge_features_path is not None:
-        llm_judge_path = ROOT / config.llm_judge_features_path
-        if llm_judge_path.exists():
-            print(f"\n8. Training LLM Judge predictor...")
-            print(f"   Loading features from: {llm_judge_path}")
-            print(f"   Ridge alphas for CV: {config.llm_judge_ridge_alphas}")
-
-            try:
-                from sklearn.linear_model import RidgeCV, LassoCV
-                from sklearn.preprocessing import StandardScaler
-                import pandas as pd
-
-                # Load features
-                features_df = pd.read_csv(llm_judge_path)
-                if "task_id" in features_df.columns:
-                    features_df = features_df.set_index("task_id")
-                elif "instance_id" in features_df.columns:
-                    features_df = features_df.set_index("instance_id")
-
-                # Get feature columns (only numeric semantic features)
-                from experiment_a_terminalbench.llm_judge_prompt import LLM_JUDGE_SEMANTIC_FEATURES
-                feature_cols = [c for c in LLM_JUDGE_SEMANTIC_FEATURES if c in features_df.columns]
-                print(f"   Features loaded: {len(features_df)} tasks")
-                print(f"   Feature count: {len(feature_cols)}")
-
-                # Get train features and targets
-                train_available = [t for t in data.train_tasks if t in features_df.index]
-                X_train = features_df.loc[train_available, feature_cols].values.astype(np.float32)
-                X_train = np.nan_to_num(X_train, nan=0.0)
-                y_train = np.array([train_b[data.train_tasks.index(t)] for t in train_available])
-
-                # Scale features
-                scaler = StandardScaler()
-                X_train_scaled = scaler.fit_transform(X_train)
-
-                # Lasso for feature selection
-                lasso = LassoCV(cv=5, max_iter=10000, random_state=42)
-                lasso.fit(X_train_scaled, y_train)
-
-                # Get selected features
-                coef_abs = np.abs(lasso.coef_)
-                if config.llm_judge_max_features:
-                    top_k_idx = np.argsort(coef_abs)[-config.llm_judge_max_features:]
-                    selected_mask = np.zeros(len(feature_cols), dtype=bool)
-                    selected_mask[top_k_idx] = True
-                else:
-                    selected_mask = coef_abs > 1e-6
-                    if selected_mask.sum() == 0:
-                        selected_mask = np.ones(len(feature_cols), dtype=bool)
-
-                selected_features = [feature_cols[i] for i in range(len(feature_cols)) if selected_mask[i]]
-                print(f"   Selected features: {selected_features}")
-
-                # Fit RidgeCV on selected features
-                X_train_selected = X_train_scaled[:, selected_mask]
-                ridge = RidgeCV(alphas=config.llm_judge_ridge_alphas, cv=5)
-                ridge.fit(X_train_selected, y_train)
-                best_alpha = ridge.alpha_
-                print(f"   Best alpha (CV): {best_alpha}")
-
-                # Predict on test tasks
-                test_available = [t for t in data.test_tasks if t in features_df.index]
-                X_test = features_df.loc[test_available, feature_cols].values.astype(np.float32)
-                X_test = np.nan_to_num(X_test, nan=0.0)
-                X_test_scaled = scaler.transform(X_test)
-                X_test_selected = X_test_scaled[:, selected_mask]
-                preds = ridge.predict(X_test_selected)
-                llm_judge_preds = dict(zip(test_available, preds.tolist()))
-
-                # IRT-based AUC (using train_abilities to avoid leakage)
-                llm_judge_result = compute_binomial_auc(
-                    llm_judge_preds, data.train_abilities, data.responses, data.test_tasks
-                )
-                print(f"   LLM Judge AUC: {llm_judge_result.get('auc', 'N/A'):.4f}")
-
-                # Feature coefficients
-                feature_coefficients = dict(zip(selected_features, ridge.coef_.tolist()))
-                print(f"\n   Feature coefficients:")
-                for name, coef in sorted(feature_coefficients.items(), key=lambda x: abs(x[1]), reverse=True):
-                    sign = "+" if coef >= 0 else ""
-                    print(f"     {name:30s}: {sign}{coef:.4f}")
-
-                results["llm_judge_predictor"] = {
-                    "auc_result": llm_judge_result,
-                    "features_path": str(llm_judge_path),
-                    "best_alpha": float(best_alpha),
-                    "n_tasks": len(features_df),
-                    "n_features": len(feature_cols),
-                    "selected_features": selected_features,
-                    "feature_coefficients": feature_coefficients,
-                    "n_train_available": len(train_available),
-                    "n_test_available": len(test_available),
-                }
-
-                # Store predictions for analysis
-                if "difficulty_predictions" not in results:
-                    results["difficulty_predictions"] = {}
-                results["difficulty_predictions"]["llm_judge"] = llm_judge_preds
-
-            except Exception as e:
-                print(f"   Error with LLM Judge predictor: {e}")
-                import traceback
-                traceback.print_exc()
-                results["llm_judge_predictor"] = {"error": str(e)}
-        else:
-            print(f"\n8. LLM Judge features file not found: {llm_judge_path}")
-            results["llm_judge_predictor"] = {"error": f"File not found: {llm_judge_path}"}
-    else:
-        print("\n8. No LLM Judge features path provided, skipping LLM Judge predictor")
-        results["llm_judge_predictor"] = {"error": "No llm_judge_features_path provided"}
-
-    # Print summary
+    # 6. Print summary
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
@@ -328,18 +155,19 @@ def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any
     print(f"\n{'Method':<30} {'AUC':>10}")
     print("-" * 42)
 
-    predictors_with_auc_result = {"embedding_predictor", "llm_judge_predictor"}
-
-    for name, key in [
+    # Define display order
+    display_order = [
         ("Oracle (true b)", "oracle"),
-        ("Embedding predictor", "embedding_predictor"),
-        ("LLM Judge predictor", "llm_judge_predictor"),
+        ("Embedding", "embedding_predictor"),
+        ("LLM Judge", "llm_judge_predictor"),
         ("Constant (mean b)", "constant_baseline"),
         ("Agent-only", "agent_only_baseline"),
-        ("Task-only", "task_only_baseline"),
-    ]:
+    ]
+
+    for name, key in display_order:
         result = results.get(key, {})
-        if key in predictors_with_auc_result and "auc_result" in result:
+        # Handle nested auc_result structure
+        if "auc_result" in result:
             auc = result["auc_result"].get("auc")
         else:
             auc = result.get("auc")
@@ -348,6 +176,10 @@ def run_experiment_a_terminalbench(config: TerminalBenchConfig) -> Dict[str, Any
             print(f"{name:<30} {auc:>10.4f}")
         elif "error" in result:
             print(f"{name:<30} {'ERROR':>10}")
+        elif "skipped" in result:
+            continue
+        elif key not in results:
+            continue
         else:
             print(f"{name:<30} {'N/A':>10}")
 
@@ -414,20 +246,6 @@ def main():
     output_dir = ROOT / config.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "experiment_a_results.json"
-
-    # Convert numpy types for JSON serialization
-    def convert_numpy(obj):
-        if isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, dict):
-            return {k: convert_numpy(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_numpy(v) for v in obj]
-        return obj
 
     results = convert_numpy(results)
 

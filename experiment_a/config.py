@@ -18,10 +18,6 @@ class ExperimentAConfig:
         split_seed: Random seed for deterministic train/test splits
         embeddings_path: Path to pre-computed embeddings .npz file
         ridge_alpha: Ridge regression regularization parameter
-        lunette_features_path: Path to Lunette features CSV file
-        lunette_ridge_alpha: Ridge alpha for Lunette predictor
-        lunette_feature_selection: Feature selection method ("lasso_cv" or "select_k_best")
-        lunette_max_features: Maximum number of features to select
         llm_judge_features_path: Path to LLM judge features CSV file
         llm_judge_ridge_alpha: Ridge alpha for LLM judge predictor
         llm_judge_max_features: Maximum number of features to select (None = no limit)
@@ -41,27 +37,10 @@ class ExperimentAConfig:
     embeddings_path: Optional[Path] = None  # Required for EmbeddingPredictor
     ridge_alpha: float = 10000.0
 
-    # Lunette predictor config
-    lunette_features_path: Optional[Path] = None  # Required for LunettePredictor
-    lunette_ridge_alpha: float = 1.0
-    lunette_feature_selection: str = "lasso_cv"  # "lasso_cv" or "select_k_best"
-    lunette_max_features: int = 10
-
     # LLM Judge predictor config
     llm_judge_features_path: Optional[Path] = None  # Required for LLMJudgePredictor
     llm_judge_ridge_alpha: float = 1.0
-    llm_judge_max_features: Optional[int] = None  # None = use all 9 features
-
-    # Embedding Similarity predictor config
-    embedding_similarity_ridge_alpha: float = 1.0
-
-    # MLE Embedding predictor config (Truong et al. 2025 approach)
-    use_mle_embedding: bool = False  # Whether to run MLE embedding predictor
-    mle_lr: float = 0.1  # L-BFGS learning rate
-    mle_max_iter: int = 100  # Max L-BFGS iterations
-    mle_l2_lambda: float = 0.15  # L2 regularization strength (tuned)
-    mle_use_mc_abilities: bool = False  # MC marginalization over abilities
-    mle_n_mc_samples: int = 100  # Number of MC samples for ability marginalization
+    llm_judge_max_features: Optional[int] = None  # None = use all features
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -76,8 +55,7 @@ class ExperimentAConfig:
         """Create config from dict, converting strings to Paths."""
         path_fields = {
             "abilities_path", "items_path", "responses_path",
-            "output_dir", "embeddings_path", "lunette_features_path",
-            "llm_judge_features_path"
+            "output_dir", "embeddings_path", "llm_judge_features_path"
         }
         converted = {}
         for k, v in d.items():

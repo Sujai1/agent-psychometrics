@@ -78,7 +78,6 @@ python -m experiment_a.train_irt_split --force    # Force retrain even if cached
 | **Lunette v2** | **0.7522** | 24 features with Lasso selection |
 | Constant baseline | 0.7176 | Predict mean difficulty for all tasks |
 | Agent-only | 0.7178 | Use agent's overall success rate |
-| Task-only | 0.5000 | Use mean pass rate (no discrimination) |
 
 ### MLE vs Plug-in Training
 
@@ -190,15 +189,19 @@ This uses Claude directly with structured output but cannot run shell commands i
 ## Module Structure
 
 ```
-experiment_a/
+experiment_a_common/               # Shared framework (used by both SWE-bench and TerminalBench)
+├── __init__.py                    # Module exports
+├── dataset.py                     # ExperimentData ABC, Binary/Binomial implementations, load_dataset()
+├── evaluator.py                   # compute_auc(), PredictorConfig, run_evaluation_pipeline()
+└── baselines.py                   # Generic baselines (agent_only, random)
+
+experiment_a/                      # SWE-bench specific
 ├── __init__.py                    # Module exports
 ├── config.py                      # ExperimentAConfig dataclass
 ├── data_loader.py                 # Load IRT params, responses; create splits
 ├── train_irt_split.py             # Train IRT on train tasks only (avoids leakage)
 ├── difficulty_predictor.py        # DifficultyPredictor protocol + implementations
-├── irt_evaluation.py              # AUC computation using 1PL IRT formula
-├── baselines.py                   # Agent-only, task-only baselines
-├── train_evaluate.py              # Main evaluation pipeline
+├── train_evaluate.py              # Main evaluation pipeline (uses common framework)
 ├── run_dummy_sandbox.py           # Step 1: Create sandbox runs via Inspect
 ├── grade_sandbox_runs.py          # Step 2: Grade runs with Lunette investigate()
 ├── lunette_structured_output.py   # Pydantic schemas for structured output
@@ -217,8 +220,7 @@ Results saved to `chris_output/experiment_a/experiment_a_results.json`:
   "oracle": {"auc": 0.9447},
   "embedding_predictor": {"auc_result": {"auc": 0.XX}},
   "constant_baseline": {"auc": 0.7176},
-  "agent_only_baseline": {"auc": 0.7178},
-  "task_only_baseline": {"auc": 0.5000}
+  "agent_only_baseline": {"auc": 0.7178}
 }
 ```
 

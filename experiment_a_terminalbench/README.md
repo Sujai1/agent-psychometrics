@@ -59,7 +59,6 @@ python -m experiment_a_terminalbench.train_evaluate --dry_run
 | **Embedding** (Qwen3-VL-8B) | **0.7824** | +0.0797 |
 | Constant baseline | 0.7027 | — |
 | Agent-only baseline | 0.6989 | -0.0038 |
-| Task-only baseline | 0.5000 | -0.2027 |
 
 **Note**: Oracle uses full IRT (reference only). All other methods use IRT^train abilities.
 
@@ -214,20 +213,25 @@ chris_output/experiment_a_terminalbench/llm_judge_features/
 ## Module Structure
 
 ```
-experiment_a_terminalbench/
+experiment_a_common/               # Shared framework (used by both SWE-bench and TerminalBench)
+├── __init__.py                    # Module exports
+├── dataset.py                     # ExperimentData ABC, Binary/Binomial implementations, load_dataset()
+├── evaluator.py                   # compute_auc(), PredictorConfig, run_evaluation_pipeline()
+└── baselines.py                   # Generic baselines (agent_only, random)
+
+experiment_a_terminalbench/        # TerminalBench specific
 ├── __init__.py                    # Module exports
 ├── config.py                      # TerminalBenchConfig dataclass
-├── data_loader.py                 # Load IRT params, binomial responses, task data
-├── irt_evaluation.py              # Binomial AUC with per-trial expansion
-├── baselines.py                   # Agent-only, task-only, constant baselines
-├── train_evaluate.py              # Main evaluation pipeline
+├── data_loader.py                 # Load binomial responses, task data from repo
+├── train_evaluate.py              # Main evaluation pipeline (uses common framework)
 ├── generate_embeddings.py         # Generate VLM embeddings for tasks
 ├── compute_llm_judge_features.py  # Extract LLM judge semantic features
 └── llm_judge_prompt.py            # Prompt template for feature extraction
 
 # Shared with experiment_a (reused via import):
-# - experiment_a/train_irt_split.py  # Train IRT on train tasks only (--binomial flag)
-# - experiment_a/data_loader.py      # stable_split_tasks()
+# - experiment_a/train_irt_split.py    # Train IRT on train tasks only (--binomial flag)
+# - experiment_a/data_loader.py        # stable_split_tasks()
+# - experiment_a/difficulty_predictor.py  # Predictor implementations
 ```
 
 ## Output
@@ -254,8 +258,7 @@ Results saved to `chris_output/experiment_a_terminalbench/experiment_a_results.j
     "feature_coefficients": {...}
   },
   "constant_baseline": {"auc": 0.7027},
-  "agent_only_baseline": {"auc": 0.6989},
-  "task_only_baseline": {"auc": 0.5000}
+  "agent_only_baseline": {"auc": 0.6989}
 }
 ```
 
