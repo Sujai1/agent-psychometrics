@@ -200,12 +200,19 @@ def analyze_logits(
     # Create model
     print("Creating model...")
     config = checkpoint.get("config", {})
+    # Handle None values in config (use defaults)
+    psi_norm = config.get("psi_normalization")
+    if psi_norm is None:
+        psi_norm = "batchnorm"
+    freeze_enc = config.get("freeze_encoder")
+    if freeze_enc is None:
+        freeze_enc = False
     model = SADIRT(
         num_agents=len(dataset.dataset.agent_ids) if hasattr(dataset, 'dataset') else dataset.num_agents,
         num_tasks=len(dataset.dataset.task_ids) if hasattr(dataset, 'dataset') else dataset.num_tasks,
         model_name=model_name,
-        psi_normalization=config.get("psi_normalization", "batchnorm"),
-        freeze_encoder=config.get("freeze_encoder", False),
+        psi_normalization=psi_norm,
+        freeze_encoder=freeze_enc,
     )
 
     # Load weights
