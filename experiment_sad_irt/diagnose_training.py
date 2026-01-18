@@ -190,12 +190,32 @@ def analyze_logits(
         use_summaries=True,
     )
 
-    # Subsample if needed
-    if len(dataset) > num_samples:
-        rng = np.random.RandomState(42)
-        indices = rng.choice(len(dataset), size=num_samples, replace=False)
-        dataset = Subset(dataset, indices)
-        print(f"Subsampled to {num_samples} samples")
+    # Get num_agents/num_tasks from checkpoint weights (model may have been trained on subset)
+    num_agents_ckpt = checkpoint["model_state_dict"]["theta.weight"].shape[0]
+    num_tasks_ckpt = checkpoint["model_state_dict"]["beta.weight"].shape[0]
+
+    # Filter dataset samples to only include those with valid agent/task indices
+    # The checkpoint may have been trained on a subset of agents/tasks
+    valid_indices = []
+    for i, sample in enumerate(dataset.samples):
+        agent_idx, task_idx, _ = sample
+        if agent_idx < num_agents_ckpt and task_idx < num_tasks_ckpt:
+            valid_indices.append(i)
+
+    print(f"  Checkpoint has {num_agents_ckpt} agents, {num_tasks_ckpt} tasks")
+    print(f"  Dataset has {len(dataset.samples)} samples, {len(valid_indices)} have valid indices")
+
+    if len(valid_indices) == 0:
+        raise ValueError("No valid samples found - checkpoint indices don't match dataset")
+
+    # Subsample from valid indices
+    rng = np.random.RandomState(42)
+    if len(valid_indices) > num_samples:
+        selected_indices = rng.choice(valid_indices, size=num_samples, replace=False)
+    else:
+        selected_indices = valid_indices
+    dataset = Subset(dataset, selected_indices)
+    print(f"  Selected {len(dataset)} samples for analysis")
 
     # Create model
     print("Creating model...")
@@ -213,8 +233,8 @@ def analyze_logits(
     lora_dropout = config.get("lora_dropout", 0.1)
     print(f"  psi_normalization: {psi_norm}, freeze_encoder: {freeze_enc}, lora_r: {lora_r}")
     model = SADIRT(
-        num_agents=len(dataset.dataset.agent_ids) if hasattr(dataset, 'dataset') else dataset.num_agents,
-        num_tasks=len(dataset.dataset.task_ids) if hasattr(dataset, 'dataset') else dataset.num_tasks,
+        num_agents=num_agents_ckpt,
+        num_tasks=num_tasks_ckpt,
         model_name=model_name,
         psi_normalization=psi_norm,
         freeze_encoder=freeze_enc,
