@@ -207,12 +207,20 @@ def analyze_logits(
     freeze_enc = config.get("freeze_encoder")
     if freeze_enc is None:
         freeze_enc = False
+    # Get LoRA config from checkpoint
+    lora_r = config.get("lora_r", 16)
+    lora_alpha = config.get("lora_alpha", 32)
+    lora_dropout = config.get("lora_dropout", 0.1)
+    print(f"  psi_normalization: {psi_norm}, freeze_encoder: {freeze_enc}, lora_r: {lora_r}")
     model = SADIRT(
         num_agents=len(dataset.dataset.agent_ids) if hasattr(dataset, 'dataset') else dataset.num_agents,
         num_tasks=len(dataset.dataset.task_ids) if hasattr(dataset, 'dataset') else dataset.num_tasks,
         model_name=model_name,
         psi_normalization=psi_norm,
         freeze_encoder=freeze_enc,
+        lora_r=lora_r,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
     )
 
     # Load weights
