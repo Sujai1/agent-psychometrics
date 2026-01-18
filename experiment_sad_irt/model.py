@@ -1,7 +1,7 @@
 """SAD-IRT model with Qwen3 trajectory encoder."""
 
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -218,6 +218,76 @@ class SADIRT(nn.Module):
         logits = theta - (beta + psi)
 
         return logits.squeeze(-1)
+
+    def forward_with_components(
+        self,
+        agent_idx: torch.Tensor,
+        task_idx: torch.Tensor,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Forward pass returning all components for diagnosis.
+
+        Args:
+            agent_idx: Agent indices (batch_size,)
+            task_idx: Task indices (batch_size,)
+            input_ids: Tokenized input (batch_size, seq_len)
+            attention_mask: Attention mask (batch_size, seq_len)
+
+        Returns:
+            Tuple of (logits, theta, beta, psi) all as (batch_size,) tensors
+        """
+        # Get IRT parameters
+        theta = self.theta(agent_idx)  # (batch_size, 1)
+        beta = self.beta(task_idx)  # (batch_size, 1)
+
+        # Encode trajectory
+        outputs = self.encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+        )
+
+        # Get last hidden state
+        hidden_states = outputs.last_hidden_state  # (batch_size, seq_len, hidden_dim)
+
+        # Get representation from last non-padding token
+        batch_size = hidden_states.size(0)
+        seq_len = hidden_states.size(1)
+
+        positions = torch.arange(seq_len, device=hidden_states.device).unsqueeze(0).expand(batch_size, -1)
+        masked_positions = positions * attention_mask.long() - (1 - attention_mask.long())
+        last_token_positions = masked_positions.argmax(dim=1)
+
+        batch_indices = torch.arange(batch_size, device=hidden_states.device)
+        last_token_hidden = hidden_states[batch_indices, last_token_positions]
+
+        # Predict ψ
+        psi_raw = self.psi_head(last_token_hidden.float())  # (batch_size, 1)
+
+        # Apply normalization for zero-mean constraint
+        if self.psi_normalization == "batchnorm" and self.psi_bn is not None:
+            if self.training and psi_raw.size(0) > 1:
+                psi = self.psi_bn(psi_raw)
+            else:
+                self.psi_bn.eval()
+                psi = self.psi_bn(psi_raw)
+                if self.training:
+                    self.psi_bn.train()
+        elif self.psi_normalization == "center":
+            psi = psi_raw - psi_raw.mean()
+        else:
+            psi = psi_raw
+
+        # IRT formula: logit = θ - (β + ψ)
+        logits = theta - (beta + psi)
+
+        return (
+            logits.squeeze(-1),
+            theta.squeeze(-1),
+            beta.squeeze(-1),
+            psi.squeeze(-1),
+        )
 
     def get_abilities(self) -> torch.Tensor:
         """Get agent ability parameters."""
