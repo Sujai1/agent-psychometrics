@@ -854,11 +854,13 @@ class LunettePredictor(DifficultyPredictorBase):
 
         self._features_df = pd.read_csv(self.features_path)
 
-        # Set index to instance_id
+        # Set index to task/instance ID column
         if "_instance_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("_instance_id")
         elif "instance_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("instance_id")
+        elif "task_id" in self._features_df.columns:
+            self._features_df = self._features_df.set_index("task_id")
 
         # Filter to available feature columns
         available_cols = [c for c in self.feature_cols if c in self._features_df.columns]
@@ -1118,11 +1120,13 @@ class LLMJudgePredictor(DifficultyPredictorBase):
 
         self._features_df = pd.read_csv(self.features_path)
 
-        # Set index to instance_id
+        # Set index to task/instance ID column
         if "_instance_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("_instance_id")
         elif "instance_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("instance_id")
+        elif "task_id" in self._features_df.columns:
+            self._features_df = self._features_df.set_index("task_id")
 
         # Filter to available feature columns
         available_cols = [c for c in self.feature_cols if c in self._features_df.columns]

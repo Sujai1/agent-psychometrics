@@ -57,6 +57,17 @@ def build_predictor_configs(config: TerminalBenchConfig) -> List[PredictorConfig
             ))
 
     # LLM Judge predictor
+    # TerminalBench uses different feature columns than SWE-bench
+    TERMINALBENCH_LLM_JUDGE_FEATURES = [
+        "solution_in_instruction",
+        "task_clarity",
+        "solution_size",
+        "domain_knowledge_required",
+        "task_complexity",
+        "logical_reasoning_required",
+        "atypicality",
+        "tooling_complexity",
+    ]
     if config.llm_judge_features_path is not None:
         llm_judge_path = ROOT / config.llm_judge_features_path
         if llm_judge_path.exists():
@@ -68,6 +79,7 @@ def build_predictor_configs(config: TerminalBenchConfig) -> List[PredictorConfig
                     "features_path": llm_judge_path,
                     "ridge_alpha": config.llm_judge_ridge_alphas[2],  # Default to 1.0
                     "max_features": config.llm_judge_max_features,
+                    "feature_cols": TERMINALBENCH_LLM_JUDGE_FEATURES,
                 },
             ))
 
