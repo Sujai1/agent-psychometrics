@@ -3,8 +3,9 @@
 
 Computes:
 1. Per-agent mean(psi_ij) across all tasks
-2. Distribution statistics on per-agent means
-3. Overall mean and std across all psi_ij values
+2. Per-task mean(psi_ij) across all agents
+3. Distribution statistics on per-agent and per-task means
+4. Overall mean and std across all psi_ij values
 
 Usage:
     python -m experiment_sad_irt.analyze_psi_distribution \
@@ -51,8 +52,9 @@ def analyze_psi_distribution(
     ckpt = load_checkpoint_for_inference(str(checkpoint_path))
     dataloader = ckpt.create_dataloader(batch_size=batch_size)
 
-    # Collect psi values per agent
+    # Collect psi values per agent and per task
     agent_psi_values: Dict[int, List[float]] = defaultdict(list)
+    task_psi_values: Dict[int, List[float]] = defaultdict(list)
     all_psi_values: List[float] = []
 
     logger.info(f"Computing psi for {len(ckpt.dataset)} samples...")
@@ -69,9 +71,11 @@ def analyze_psi_distribution(
 
             psi_np = psi.cpu().numpy()
             agent_idx_np = batch["agent_idx"].cpu().numpy()
+            task_idx_np = batch["task_idx"].cpu().numpy()
 
-            for a_idx, p in zip(agent_idx_np, psi_np):
+            for a_idx, t_idx, p in zip(agent_idx_np, task_idx_np, psi_np):
                 agent_psi_values[int(a_idx)].append(float(p))
+                task_psi_values[int(t_idx)].append(float(p))
                 all_psi_values.append(float(p))
 
     # Compute statistics
@@ -114,9 +118,53 @@ def analyze_psi_distribution(
     logger.info(f"      Max mean:      {np.max(per_agent_means_arr):.4f}")
     logger.info(f"      Median mean:   {np.median(per_agent_means_arr):.4f}")
 
-    # 2. Overall psi statistics
+    # 2. Per-task mean(psi_ij) statistics
+    per_task_means = []
+    task_stats = []
+
+    for task_idx in sorted(task_psi_values.keys()):
+        psi_vals = task_psi_values[task_idx]
+        mean_psi = np.mean(psi_vals)
+        std_psi = np.std(psi_vals)
+        per_task_means.append(mean_psi)
+
+        task_name = ckpt.task_ids[task_idx] if task_idx < len(ckpt.task_ids) else f"task_{task_idx}"
+        task_stats.append({
+            "task_idx": task_idx,
+            "task_name": task_name,
+            "mean_psi": mean_psi,
+            "std_psi": std_psi,
+            "n_samples": len(psi_vals),
+        })
+
+    logger.info(f"\n2. Per-task mean(psi_ij) across all agents ({len(task_stats)} tasks):")
+    # Only show top/bottom 10 tasks by mean psi
+    sorted_task_stats = sorted(task_stats, key=lambda x: x["mean_psi"])
+    logger.info("   Top 10 tasks with highest mean psi:")
+    for stat in sorted_task_stats[-10:][::-1]:
+        logger.info(
+            f"      Task {stat['task_idx']:3d} ({stat['task_name'][:40]:40s}): "
+            f"mean={stat['mean_psi']:+.4f}, std={stat['std_psi']:.4f}, n={stat['n_samples']}"
+        )
+    logger.info("   Bottom 10 tasks with lowest mean psi:")
+    for stat in sorted_task_stats[:10]:
+        logger.info(
+            f"      Task {stat['task_idx']:3d} ({stat['task_name'][:40]:40s}): "
+            f"mean={stat['mean_psi']:+.4f}, std={stat['std_psi']:.4f}, n={stat['n_samples']}"
+        )
+
+    # Distribution of per-task means
+    per_task_means_arr = np.array(per_task_means)
+    logger.info("\n   Distribution of per-task means:")
+    logger.info(f"      Mean of means: {np.mean(per_task_means_arr):.4f}")
+    logger.info(f"      Std of means:  {np.std(per_task_means_arr):.4f}")
+    logger.info(f"      Min mean:      {np.min(per_task_means_arr):.4f}")
+    logger.info(f"      Max mean:      {np.max(per_task_means_arr):.4f}")
+    logger.info(f"      Median mean:   {np.median(per_task_means_arr):.4f}")
+
+    # 3. Overall psi statistics
     all_psi_arr = np.array(all_psi_values)
-    logger.info("\n2. Overall psi_ij statistics (all agent-task pairs):")
+    logger.info("\n3. Overall psi_ij statistics (all agent-task pairs):")
     logger.info(f"   N samples:  {len(all_psi_arr)}")
     logger.info(f"   Mean:       {np.mean(all_psi_arr):.4f}")
     logger.info(f"   Std:        {np.std(all_psi_arr):.4f}")
@@ -128,12 +176,12 @@ def analyze_psi_distribution(
     logger.info(f"   P75:        {np.percentile(all_psi_arr, 75):.4f}")
     logger.info(f"   P95:        {np.percentile(all_psi_arr, 95):.4f}")
 
-    # 3. BatchNorm running stats (for comparison)
+    # 4. BatchNorm running stats (for comparison)
     raw_ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     bn_mean = raw_ckpt["model_state_dict"].get("psi_bn.running_mean")
     bn_var = raw_ckpt["model_state_dict"].get("psi_bn.running_var")
     if bn_mean is not None and bn_var is not None:
-        logger.info("\n3. BatchNorm running statistics (from training):")
+        logger.info("\n4. BatchNorm running statistics (from training):")
         logger.info(f"   Running mean:  {bn_mean.item():.4f}")
         logger.info(f"   Running var:   {bn_var.item():.4f}")
         logger.info(f"   Running std:   {np.sqrt(bn_var.item()):.4f}")
@@ -143,6 +191,7 @@ def analyze_psi_distribution(
         "checkpoint": str(checkpoint_path),
         "config": {k: str(v) if isinstance(v, Path) else v for k, v in ckpt.config.items()},
         "n_agents": len(agent_stats),
+        "n_tasks": len(task_stats),
         "n_samples": len(all_psi_arr),
         "per_agent_stats": agent_stats,
         "per_agent_mean_distribution": {
@@ -151,6 +200,14 @@ def analyze_psi_distribution(
             "min_mean": float(np.min(per_agent_means_arr)),
             "max_mean": float(np.max(per_agent_means_arr)),
             "median_mean": float(np.median(per_agent_means_arr)),
+        },
+        "per_task_stats": task_stats,
+        "per_task_mean_distribution": {
+            "mean_of_means": float(np.mean(per_task_means_arr)),
+            "std_of_means": float(np.std(per_task_means_arr)),
+            "min_mean": float(np.min(per_task_means_arr)),
+            "max_mean": float(np.max(per_task_means_arr)),
+            "median_mean": float(np.median(per_task_means_arr)),
         },
         "overall_psi_stats": {
             "mean": float(np.mean(all_psi_arr)),
