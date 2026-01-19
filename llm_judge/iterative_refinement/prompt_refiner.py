@@ -4,6 +4,7 @@ Uses an LLM to propose improved feature definitions based on:
 1. Current feature correlations and entropies
 2. High-residual tasks where predictions fail
 3. Feature coefficients showing which features matter most
+4. Coefficient direction validation (does the sign match semantic expectation?)
 """
 
 import json
@@ -20,6 +21,100 @@ from llm_judge.iterative_refinement.residual_analyzer import (
     ResidualAnalysis,
     format_residual_analysis_for_llm,
 )
+
+
+def get_expected_directions(
+    features: List[FeatureDefinition],
+    model: str = "gpt-5.2",
+) -> Dict[str, Dict[str, str]]:
+    """Use LLM to determine expected coefficient direction for each feature.
+
+    Args:
+        features: List of feature definitions
+        model: Model to use for inference
+
+    Returns:
+        Dict mapping feature_name -> {"direction": "HARDER"|"EASIER", "reason": str}
+    """
+    features_text = []
+    for f in features:
+        features_text.append(f"""
+Feature: {f.name}
+Description: {f.description}
+Scale: {f.min_value} ({f.scale_low}) to {f.max_value} ({f.scale_high})
+""")
+
+    prompt = """You are analyzing features used to predict task difficulty for AI coding agents.
+
+Higher difficulty (β) = harder task for AI agents to solve.
+
+For each feature below, determine whether HIGHER values of that feature should make tasks:
+- HARDER (positive correlation with difficulty)
+- EASIER (negative correlation with difficulty)
+
+Think about what the feature measures and how it relates to AI agent performance.
+
+Features:
+""" + "\n".join(features_text) + """
+
+Output a JSON object mapping feature_name -> {"direction": "HARDER" or "EASIER", "reason": "brief explanation"}
+"""
+
+    client = OpenAI()
+    response = client.responses.create(
+        model=model,
+        input=[{"role": "user", "content": prompt}],
+        max_output_tokens=2000,
+    )
+
+    text = response.output_text.strip()
+    if "```json" in text:
+        json_str = text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        json_str = text.split("```")[1].split("```")[0].strip()
+    else:
+        json_str = text
+
+    return json.loads(json_str)
+
+
+def validate_coefficient_directions(
+    features: List[FeatureDefinition],
+    coefficients: Dict[str, float],
+    expected_directions: Dict[str, Dict[str, str]],
+    min_coef_magnitude: float = 0.1,
+) -> List[Dict[str, Any]]:
+    """Identify features where coefficient sign doesn't match expected direction.
+
+    Args:
+        features: List of feature definitions
+        coefficients: Dict mapping feature_name -> coefficient value
+        expected_directions: Dict from get_expected_directions()
+        min_coef_magnitude: Minimum |coefficient| to flag as mismatch
+
+    Returns:
+        List of mismatched features with details
+    """
+    mismatches = []
+    for f in features:
+        coef = coefficients.get(f.name, 0)
+        actual_direction = "HARDER" if coef > 0 else "EASIER"
+
+        expected_info = expected_directions.get(f.name, {})
+        expected_direction = expected_info.get("direction", "UNKNOWN")
+        reason = expected_info.get("reason", "")
+
+        if expected_direction != actual_direction and abs(coef) >= min_coef_magnitude:
+            mismatches.append({
+                "name": f.name,
+                "coefficient": coef,
+                "expected_direction": expected_direction,
+                "actual_direction": actual_direction,
+                "reason": reason,
+                "severity": "HIGH" if abs(coef) > 0.5 else "MEDIUM",
+            })
+
+    return mismatches
 
 
 @dataclass
@@ -68,6 +163,7 @@ Based on the prediction failures shown, propose improvements:
 2. MODIFY features that have poor scale anchors or unclear definitions
 3. REMOVE only features that are redundant (r > 0.9 with another) or have very low entropy
 4. ADD new features that would distinguish the failure cases shown
+5. FIX features with WRONG DIRECTION coefficients - if a feature that should make tasks HARDER has a negative coefficient (or vice versa), the scale may be inverted or the definition unclear
 
 Guidelines:
 - Keep total features between 6-12 (balance between coverage and noise)
@@ -86,6 +182,7 @@ def build_refinement_prompt(
     current_features: List[FeatureDefinition],
     analysis: ResidualAnalysis,
     quick_eval_metrics: Dict[str, Any],
+    direction_mismatches: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Build the prompt for the LLM refiner.
 
@@ -93,6 +190,7 @@ def build_refinement_prompt(
         current_features: Current feature definitions
         analysis: Residual analysis with high-residual tasks
         quick_eval_metrics: Metrics from quick evaluation (entropy, correlations)
+        direction_mismatches: Features where coefficient sign doesn't match expected direction
 
     Returns:
         Prompt string for refinement
@@ -167,6 +265,26 @@ def build_refinement_prompt(
             else:
                 lines.append(f"- {pair[0]} ↔ {pair[1]}: r = {pair[2]:.2f}")
 
+    # Add direction mismatch information
+    if direction_mismatches:
+        lines.extend(
+            [
+                "",
+                "### ⚠️ COEFFICIENT DIRECTION MISMATCHES",
+                "",
+                "These features have coefficients that go the WRONG direction semantically.",
+                "A feature that should make tasks HARDER has a negative coefficient (or vice versa).",
+                "This suggests the feature definition is unclear or the scale is inverted.",
+                "PRIORITY: Fix or remove these features.",
+                "",
+            ]
+        )
+        for m in direction_mismatches:
+            lines.append(f"**{m['name']}** (coef={m['coefficient']:+.3f}, severity={m['severity']})")
+            lines.append(f"  - Expected: Higher values → {m['expected_direction']} ({m['reason']})")
+            lines.append(f"  - Actual: Higher values → {m['actual_direction']}")
+            lines.append("")
+
     # Add residual analysis
     lines.append("")
     lines.append(format_residual_analysis_for_llm(analysis, current_features))
@@ -216,6 +334,7 @@ def propose_refinement(
     analysis: ResidualAnalysis,
     quick_eval_metrics: Dict[str, Any],
     model: str = "gpt-5.2",
+    validate_directions: bool = True,
 ) -> RefinementProposal:
     """Use LLM to propose refined feature definitions.
 
@@ -224,13 +343,33 @@ def propose_refinement(
         analysis: Residual analysis with failure cases
         quick_eval_metrics: Metrics from quick evaluation
         model: Model to use for refinement
+        validate_directions: Whether to check coefficient direction matches
 
     Returns:
         RefinementProposal with new feature schema
     """
     client = OpenAI()
 
-    prompt = build_refinement_prompt(current_features, analysis, quick_eval_metrics)
+    # Optionally validate coefficient directions
+    direction_mismatches = None
+    if validate_directions:
+        try:
+            expected_directions = get_expected_directions(current_features, model)
+            direction_mismatches = validate_coefficient_directions(
+                current_features,
+                analysis.feature_coefficients,
+                expected_directions,
+            )
+            if direction_mismatches:
+                print(f"   Found {len(direction_mismatches)} coefficient direction mismatches")
+                for m in direction_mismatches:
+                    print(f"     - {m['name']}: expected {m['expected_direction']}, got {m['actual_direction']}")
+        except Exception as e:
+            print(f"   Warning: Could not validate directions: {e}")
+
+    prompt = build_refinement_prompt(
+        current_features, analysis, quick_eval_metrics, direction_mismatches
+    )
 
     response = client.responses.create(
         model=model,
