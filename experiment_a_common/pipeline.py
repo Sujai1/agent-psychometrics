@@ -210,7 +210,7 @@ def run_single_holdout(
         if isinstance(data, BinomialExperimentData):
             binom_result = compute_binomial_metrics(data, oracle_preds, use_full_abilities=True)
             oracle_result["binomial_metrics"] = binom_result.to_dict()
-            print(f"   Oracle MAE: {binom_result.mae:.4f}, Accuracy: {binom_result.pass5_accuracy:.4f}")
+            print(f"   Oracle MAE: {binom_result.mae:.4f}, MSE: {binom_result.pass5_mse:.4f}")
 
     results["oracle"] = oracle_result
 
@@ -229,7 +229,7 @@ def run_single_holdout(
     print(f"   Agent-only AUC: {agent_result.get('auc', 'N/A'):.4f}")
     if compute_binomial and "binomial_metrics" in agent_result:
         bm = agent_result["binomial_metrics"]
-        print(f"   Agent-only MAE: {bm['mae']:.4f}, Accuracy: {bm['pass5_accuracy']:.4f}")
+        print(f"   Agent-only MAE: {bm['mae']:.4f}, MSE: {bm['pass5_mse']:.4f}")
     results["agent_only_baseline"] = agent_result
 
     # 6. Print summary
@@ -248,7 +248,7 @@ def run_single_holdout(
     ]
 
     if compute_binomial:
-        print(f"\n{'Method':<25} {'AUC':>10} {'MAE':>10} {'Accuracy':>10}")
+        print(f"\n{'Method':<25} {'AUC':>10} {'MAE':>10} {'MSE':>10}")
         print("-" * 60)
 
         for name, key in display_order:
@@ -260,12 +260,12 @@ def run_single_holdout(
 
             bm = result.get("binomial_metrics", {})
             mae = bm.get("mae")
-            acc = bm.get("pass5_accuracy")
+            mse = bm.get("pass5_mse")
 
             if auc is not None:
                 mae_str = f"{mae:.4f}" if mae is not None else "N/A"
-                acc_str = f"{acc:.4f}" if acc is not None else "N/A"
-                print(f"{name:<25} {auc:>10.4f} {mae_str:>10} {acc_str:>10}")
+                mse_str = f"{mse:.4f}" if mse is not None else "N/A"
+                print(f"{name:<25} {auc:>10.4f} {mae_str:>10} {mse_str:>10}")
             elif "error" in result:
                 print(f"{name:<25} {'ERROR':>10} {'N/A':>10} {'N/A':>10}")
             elif "skipped" in result:
@@ -437,7 +437,7 @@ def run_cross_validation(
     ]
 
     if compute_binomial:
-        print(f"\n{'Method':<25} {'Mean AUC':>10} {'Std':>8} {'Mean MAE':>10} {'Accuracy':>10}")
+        print(f"\n{'Method':<25} {'Mean AUC':>10} {'Std':>8} {'Mean MAE':>10} {'MSE':>10}")
         print("-" * 70)
 
         for name, key in display_order:
@@ -445,8 +445,8 @@ def run_cross_validation(
                 result = cv_results[key]
                 if result.mean_auc is not None:
                     mae_str = f"{result.mean_mae:.4f}" if result.mean_mae is not None else "N/A"
-                    acc_str = f"{result.mean_pass5_accuracy:.4f}" if result.mean_pass5_accuracy is not None else "N/A"
-                    print(f"{name:<25} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mae_str:>10} {acc_str:>10}")
+                    mse_str = f"{result.mean_pass5_mse:.4f}" if result.mean_pass5_mse is not None else "N/A"
+                    print(f"{name:<25} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mae_str:>10} {mse_str:>10}")
                 else:
                     print(f"{name:<25} {'N/A':>10} {'N/A':>8} {'N/A':>10} {'N/A':>10}")
     else:

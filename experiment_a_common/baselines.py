@@ -104,12 +104,12 @@ def _compute_agent_only_binomial_metrics(
         agent_success_rates: Mapping of agent_id -> predicted probability
 
     Returns:
-        Dict with mae, rmse, pass5_accuracy, pass5_confusion_matrix, etc.
+        Dict with mae, rmse, pass5_mse, etc.
     """
     all_predicted: List[float] = []
     all_actual: List[int] = []
-    pass5_pred_class: List[int] = []
-    pass5_actual_class: List[int] = []
+    pass5_pred_prob: List[float] = []
+    pass5_empirical_rate: List[float] = []
 
     for task_id in data.test_tasks:
         for agent_id in data.train_abilities.index:
@@ -128,10 +128,9 @@ def _compute_agent_only_binomial_metrics(
             all_actual.append(k)
 
             if n == 5:
-                predicted_class = int(round(prob * 5))
-                predicted_class = max(0, min(5, predicted_class))
-                pass5_pred_class.append(predicted_class)
-                pass5_actual_class.append(k)
+                empirical_rate = k / 5.0
+                pass5_pred_prob.append(prob)
+                pass5_empirical_rate.append(empirical_rate)
 
     if len(all_predicted) == 0:
         return {
@@ -140,8 +139,7 @@ def _compute_agent_only_binomial_metrics(
             "mean_predicted": float("nan"),
             "mean_actual": float("nan"),
             "n_pairs": 0,
-            "pass5_accuracy": float("nan"),
-            "pass5_confusion_matrix": [[0] * 6 for _ in range(6)],
+            "pass5_mse": float("nan"),
             "n_pass5_pairs": 0,
         }
 
@@ -151,17 +149,12 @@ def _compute_agent_only_binomial_metrics(
     mae = float(np.mean(np.abs(errors)))
     rmse = float(np.sqrt(np.mean(errors**2)))
 
-    if len(pass5_pred_class) > 0:
-        pass5_pred_arr = np.array(pass5_pred_class)
-        pass5_actual_arr = np.array(pass5_actual_class)
-        pass5_accuracy = float(np.mean(pass5_pred_arr == pass5_actual_arr))
-
-        confusion = [[0] * 6 for _ in range(6)]
-        for actual, pred in zip(pass5_actual_class, pass5_pred_class):
-            confusion[actual][pred] += 1
+    if len(pass5_pred_prob) > 0:
+        pass5_pred_arr = np.array(pass5_pred_prob)
+        pass5_emp_arr = np.array(pass5_empirical_rate)
+        pass5_mse = float(np.mean((pass5_pred_arr - pass5_emp_arr) ** 2))
     else:
-        pass5_accuracy = float("nan")
-        confusion = [[0] * 6 for _ in range(6)]
+        pass5_mse = float("nan")
 
     return {
         "mae": mae,
@@ -169,9 +162,8 @@ def _compute_agent_only_binomial_metrics(
         "mean_predicted": float(np.mean(pred_arr)),
         "mean_actual": float(np.mean(actual_arr)),
         "n_pairs": len(all_predicted),
-        "pass5_accuracy": pass5_accuracy,
-        "pass5_confusion_matrix": confusion,
-        "n_pass5_pairs": len(pass5_pred_class),
+        "pass5_mse": pass5_mse,
+        "n_pass5_pairs": len(pass5_pred_prob),
     }
 
 

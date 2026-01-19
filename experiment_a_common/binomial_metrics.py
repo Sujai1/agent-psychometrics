@@ -28,9 +28,8 @@ class BinomialMetricsResult:
     mean_actual: float
     n_pairs: int
 
-    # Accuracy/confusion computed only on 5-trial responses
-    pass5_accuracy: float
-    pass5_confusion_matrix: List[List[int]]  # 6x6 matrix
+    # MSE computed only on 5-trial responses (predicted prob vs empirical rate)
+    pass5_mse: float
     n_pass5_pairs: int
 
     def to_dict(self) -> Dict[str, Any]:
@@ -41,8 +40,7 @@ class BinomialMetricsResult:
             "mean_predicted": self.mean_predicted,
             "mean_actual": self.mean_actual,
             "n_pairs": self.n_pairs,
-            "pass5_accuracy": self.pass5_accuracy,
-            "pass5_confusion_matrix": self.pass5_confusion_matrix,
+            "pass5_mse": self.pass5_mse,
             "n_pass5_pairs": self.n_pass5_pairs,
         }
 
@@ -77,9 +75,9 @@ def compute_binomial_metrics(
     all_predicted: List[float] = []
     all_actual: List[int] = []
 
-    # Lists for 5-trial metrics (accuracy/confusion)
-    pass5_pred_class: List[int] = []
-    pass5_actual_class: List[int] = []
+    # Lists for 5-trial MSE (predicted prob vs empirical rate)
+    pass5_pred_prob: List[float] = []
+    pass5_empirical_rate: List[float] = []
 
     for task_id in data.test_tasks:
         beta_pred = predicted_difficulties.get(task_id)
@@ -103,14 +101,11 @@ def compute_binomial_metrics(
             all_predicted.append(expected)
             all_actual.append(k)
 
-            # For 5-trial responses, compute classification metrics
+            # For 5-trial responses, compute MSE of predicted prob vs empirical rate
             if n == 5:
-                # Round probability * 5 to get predicted class (0-5)
-                predicted_class = int(round(prob * 5))
-                # Clamp to valid range
-                predicted_class = max(0, min(5, predicted_class))
-                pass5_pred_class.append(predicted_class)
-                pass5_actual_class.append(k)
+                empirical_rate = k / 5.0  # e.g., 4/5 = 0.8
+                pass5_pred_prob.append(prob)
+                pass5_empirical_rate.append(empirical_rate)
 
     # Handle empty case
     if len(all_predicted) == 0:
@@ -120,8 +115,7 @@ def compute_binomial_metrics(
             mean_predicted=float("nan"),
             mean_actual=float("nan"),
             n_pairs=0,
-            pass5_accuracy=float("nan"),
-            pass5_confusion_matrix=[[0] * 6 for _ in range(6)],
+            pass5_mse=float("nan"),
             n_pass5_pairs=0,
         )
 
@@ -132,19 +126,13 @@ def compute_binomial_metrics(
     mae = float(np.mean(np.abs(errors)))
     rmse = float(np.sqrt(np.mean(errors**2)))
 
-    # Compute accuracy and confusion matrix for 5-trial responses
-    if len(pass5_pred_class) > 0:
-        pass5_pred_arr = np.array(pass5_pred_class)
-        pass5_actual_arr = np.array(pass5_actual_class)
-        pass5_accuracy = float(np.mean(pass5_pred_arr == pass5_actual_arr))
-
-        # Build 6x6 confusion matrix (rows=actual, cols=predicted)
-        confusion = [[0] * 6 for _ in range(6)]
-        for actual, pred in zip(pass5_actual_class, pass5_pred_class):
-            confusion[actual][pred] += 1
+    # Compute MSE for 5-trial responses (predicted prob vs empirical rate)
+    if len(pass5_pred_prob) > 0:
+        pass5_pred_arr = np.array(pass5_pred_prob)
+        pass5_emp_arr = np.array(pass5_empirical_rate)
+        pass5_mse = float(np.mean((pass5_pred_arr - pass5_emp_arr) ** 2))
     else:
-        pass5_accuracy = float("nan")
-        confusion = [[0] * 6 for _ in range(6)]
+        pass5_mse = float("nan")
 
     return BinomialMetricsResult(
         mae=mae,
@@ -152,7 +140,6 @@ def compute_binomial_metrics(
         mean_predicted=float(np.mean(pred_arr)),
         mean_actual=float(np.mean(actual_arr)),
         n_pairs=len(all_predicted),
-        pass5_accuracy=pass5_accuracy,
-        pass5_confusion_matrix=confusion,
-        n_pass5_pairs=len(pass5_pred_class),
+        pass5_mse=pass5_mse,
+        n_pass5_pairs=len(pass5_pred_prob),
     )
