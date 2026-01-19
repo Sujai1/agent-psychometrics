@@ -240,7 +240,10 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
                     quick_eval_metrics=eval_result.to_dict(),
                     model=config.model,
                 )
-                proposal = apply_refinement_constraints(proposal)
+                proposal = apply_refinement_constraints(
+                    proposal,
+                    current_features=current_version.feature_schema,
+                )
 
                 print(f"   Features added: {proposal.features_added or 'none'}")
                 print(f"   Features removed: {proposal.features_removed or 'none'}")

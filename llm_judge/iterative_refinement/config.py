@@ -33,7 +33,7 @@ class IterativeRefinementConfig:
 
     # Quality thresholds
     correlation_threshold: Optional[float] = None  # No early stopping by default
-    entropy_threshold: float = 1.0  # Min entropy for useful feature
+    entropy_threshold: float = 0.5  # Min normalized entropy for useful feature (0-1 scale)
     redundancy_threshold: float = 0.9  # Max inter-feature correlation
 
     # Stratification for quick eval (tasks per difficulty tercile)
