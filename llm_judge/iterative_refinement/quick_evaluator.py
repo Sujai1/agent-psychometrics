@@ -303,15 +303,15 @@ async def run_quick_evaluation(
     feature_instructions = generate_prompt_from_schema(feature_definitions)
     feature_names = [f.name for f in feature_definitions]
 
-    # Extract features
-    client = AsyncOpenAI()
-    results, input_tokens, output_tokens = await extract_features_batch(
-        client=client,
-        tasks=tasks,
-        feature_instructions=feature_instructions,
-        feature_names=feature_names,
-        model=config.model,
-    )
+    # Extract features - use context manager to properly close client
+    async with AsyncOpenAI() as client:
+        results, input_tokens, output_tokens = await extract_features_batch(
+            client=client,
+            tasks=tasks,
+            feature_instructions=feature_instructions,
+            feature_names=feature_names,
+            model=config.model,
+        )
 
     # Build features DataFrame
     rows = []
