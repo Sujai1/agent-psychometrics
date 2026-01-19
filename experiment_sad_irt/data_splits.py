@@ -153,6 +153,54 @@ def get_agents_with_trajectories(trajectories_dir: Path) -> Set[str]:
     return agents
 
 
+def get_pre_frontier_agents(
+    responses_path: Path,
+    trajectories_dir: Path,
+    cutoff_date: str = "20250807",
+) -> Tuple[List[str], List[str]]:
+    """Get pre-frontier and post-frontier agent lists for training/inference.
+
+    This is the canonical function for determining agent lists. It ensures
+    consistent ordering between training and inference by:
+    1. Reading agents from response matrix (preserves JSONL line order)
+    2. Filtering to agents with trajectories
+    3. Splitting by cutoff date
+
+    The order of agents in the returned lists matches what the SAD-IRT model
+    expects for theta embeddings.
+
+    Args:
+        responses_path: Path to JSONL response matrix
+        trajectories_dir: Path to trajectory directory
+        cutoff_date: Date cutoff for pre/post frontier (YYYYMMDD format)
+
+    Returns:
+        Tuple of (pre_frontier_agents, post_frontier_agents)
+
+    Example:
+        >>> pre_frontier, post_frontier = get_pre_frontier_agents(
+        ...     Path("clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"),
+        ...     Path("chris_output/trajectory_summaries_api"),
+        ... )
+        >>> print(f"Pre-frontier: {len(pre_frontier)} agents")
+    """
+    # Get all agents in response matrix order (this order is preserved!)
+    all_agents = get_all_agents_from_responses(responses_path)
+
+    # Get agents with trajectories
+    traj_agents = get_agents_with_trajectories(trajectories_dir)
+
+    # Filter to agents with both (preserving response matrix order)
+    agents_with_both = [a for a in all_agents if a in traj_agents]
+
+    # Split by cutoff date
+    pre_frontier, post_frontier = split_agents_by_cutoff(
+        agents_with_both, cutoff_date=cutoff_date
+    )
+
+    return pre_frontier, post_frontier
+
+
 if __name__ == "__main__":
     # Test the splitting logic
     responses_path = Path("clean_data/swebench_verified/swebench_verified_20251120_full.jsonl")
