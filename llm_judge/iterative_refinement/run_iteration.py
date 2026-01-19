@@ -116,7 +116,7 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
         version = store.get_latest()
         print(f"\nResuming from version {version.version_id}")
 
-    # Track results
+    # Track results and costs
     results = {
         "config": {
             "model": config.model,
@@ -126,6 +126,7 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
         "iterations": [],
         "best_version": None,
         "best_r": None,
+        "total_cost": 0.0,
     }
 
     # Main iteration loop
@@ -182,6 +183,10 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
                 results["best_version"] = current_version.version_id
                 results["best_r"] = eval_result.pearson_r
 
+        # Track iteration cost
+        iter_cost = eval_result.estimated_cost
+        results["total_cost"] += iter_cost
+
         # Record iteration results
         iter_result = {
             "iteration": iteration + 1,
@@ -193,7 +198,9 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
             "redundant_pairs": [
                 {"f1": p[0], "f2": p[1], "r": p[2]} for p in eval_result.redundant_pairs
             ],
-            "cost": eval_result.estimated_cost,
+            "eval_cost": eval_result.estimated_cost,
+            "refinement_cost": 0.0,
+            "direction_check_cost": 0.0,
         }
 
         # Skip refinement on last iteration
@@ -234,6 +241,12 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
         if analysis is not None:
             print(f"\n4. Proposing refined features using {config.model}...")
             try:
+                # Estimate refinement costs (direction check + refinement proposal)
+                # Direction check: ~2K input, ~1K output = ~$0.003
+                # Refinement: ~5K input, ~2K output = ~$0.007
+                direction_check_cost = 0.003
+                refinement_call_cost = 0.007
+
                 proposal = propose_refinement(
                     current_features=current_version.feature_schema,
                     analysis=analysis,
@@ -270,6 +283,9 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
 
                 iter_result["refinement"] = proposal.to_dict()
                 iter_result["new_version_id"] = new_version.version_id
+                iter_result["refinement_cost"] = refinement_call_cost
+                iter_result["direction_check_cost"] = direction_check_cost
+                results["total_cost"] += direction_check_cost + refinement_call_cost
 
             except Exception as e:
                 print(f"   Error during refinement: {e}")
@@ -289,6 +305,7 @@ def run_iteration_loop(config: IterativeRefinementConfig, dry_run: bool = False)
     print(store.format_summary())
     print(f"\nBest version: {results['best_version']}")
     print(f"Best Pearson r: {results['best_r']:.3f}" if results['best_r'] else "Best Pearson r: N/A")
+    print(f"Total API cost: ${results['total_cost']:.4f}")
 
     # Save results
     results_path = config.output_dir / f"refinement_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
