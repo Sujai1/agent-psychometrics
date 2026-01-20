@@ -22,6 +22,8 @@ import csv
 import json
 import math
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
@@ -138,6 +140,130 @@ def write_filtered_responses_jsonl(
             f.write(json.dumps({"subject_id": sid, "responses": complete}) + "\n")
             n_written += 1
     return n_written, len(items)
+
+
+def write_subset_responses_jsonl(
+    *,
+    input_paths: Sequence[str],
+    item_ids: Sequence[str],
+    out_path: Path,
+) -> int:
+    """
+    Write a JSONL (subject_id, responses) where each subject's responses dict is
+    restricted to keys in `item_ids` (no completion/filling).
+
+    Returns: number of subjects written.
+    """
+    ensure_dir(str(out_path.parent))
+    items = [normalize_swebench_item_id(x) for x in list(item_ids)]
+    items = [x for x in items if x]
+    item_set = set(items)
+
+    n_written = 0
+    with out_path.open("w", encoding="utf-8") as f:
+        for sid, resp in iter_subject_responses_jsonls(input_paths):
+            kept = {k: int(v) for k, v in resp.items() if k in item_set}
+            if not kept:
+                continue
+            f.write(json.dumps({"subject_id": str(sid), "responses": kept}) + "\n")
+            n_written += 1
+    return n_written
+
+
+def _model_scaffold_shared_subdir(model: str) -> str:
+    m = str(model or "").strip()
+    if m == "1pl":
+        return "1d_1pl"
+    if m == "2pl":
+        return "1d_2pl"
+    if m == "2d_1pl":
+        return "2d_1pl"
+    raise ValueError(f"Unknown IRT model-scaffold-shared model: {model!r}. Expected one of: 1pl, 2pl, 2d_1pl")
+
+
+def ensure_model_scaffold_shared_irt_for_fold(
+    *,
+    fold: int,
+    train_items: Sequence[str],
+    overwrite: bool,
+    seed: int,
+    epochs: int,
+    lr: float,
+    model: str,
+    out_root: Path,
+    verified_jsonl: str,
+    pro_jsonl: str,
+    terminal_bench_jsonl: str,
+) -> Tuple[str, str, str]:
+    """
+    Train (or reuse) the shared model+scaffold IRT model for this fold, using ONLY
+    Verified items in `train_items` (the 4 training folds). Pro/Terminal-Bench are
+    included as provided.
+
+    Returns (items_verified_csv, model_abilities_csv, scaffold_abilities_csv) for this fold.
+    """
+    fold_root = out_root / f"fold_{int(fold):02d}"
+    ensure_dir(str(fold_root))
+
+    verified_train_jsonl = fold_root / "verified_train_items.jsonl"
+    n_written = write_subset_responses_jsonl(
+        input_paths=[str(verified_jsonl)],
+        item_ids=list(train_items),
+        out_path=verified_train_jsonl,
+    )
+    if n_written == 0:
+        raise RuntimeError(f"Fold {fold}: wrote 0 subjects to verified_train_items.jsonl (check train_items filtering).")
+
+    subdir = _model_scaffold_shared_subdir(str(model))
+    out_dir = fold_root / subdir
+    items_csv = out_dir / "items_verified.csv"
+    model_thetas_csv = out_dir / "model_abilities.csv"
+    scaffold_thetas_csv = out_dir / "scaffold_abilities.csv"
+
+    if (
+        not overwrite
+        and items_csv.exists()
+        and model_thetas_csv.exists()
+        and scaffold_thetas_csv.exists()
+        and items_csv.stat().st_size > 0
+        and model_thetas_csv.stat().st_size > 0
+        and scaffold_thetas_csv.stat().st_size > 0
+    ):
+        return (str(items_csv), str(model_thetas_csv), str(scaffold_thetas_csv))
+
+    train_script = (Path(__file__).resolve().parent / "swebench_irt" / "train_model_scaffold_shared.py").resolve()
+    if not train_script.exists():
+        raise FileNotFoundError(f"Expected train script at {str(train_script)!r}")
+
+    cmd = [
+        sys.executable,
+        str(train_script),
+        "--verified_path",
+        str(verified_train_jsonl),
+        "--pro_path",
+        str(pro_jsonl),
+        "--terminal_bench_path",
+        str(terminal_bench_jsonl or ""),
+        "--output_dir",
+        str(fold_root),
+        "--epochs",
+        str(int(epochs)),
+        "--model",
+        str(model),
+        "--seed",
+        str(int(seed) + int(fold)),
+        "--lr",
+        str(float(lr)),
+    ]
+    print(f"Fold {fold}: training model-scaffold-shared IRT ({model}) on train-only Verified items... (epochs={epochs})")
+    subprocess.run(cmd, check=True)
+
+    if not (items_csv.exists() and model_thetas_csv.exists() and scaffold_thetas_csv.exists()):
+        raise RuntimeError(
+            f"Fold {fold}: expected outputs missing after training. "
+            f"items={items_csv} model_thetas={model_thetas_csv} scaffold_thetas={scaffold_thetas_csv}"
+        )
+    return (str(items_csv), str(model_thetas_csv), str(scaffold_thetas_csv))
 
 
 def _compute_binary_auroc(scores: List[float], labels: List[int]) -> float:
@@ -417,6 +543,50 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Scaffold abilities CSV (e.g., .../2d_1pl/scaffold_abilities.csv). Required with --irt_items_csv.",
     )
 
+    # If set, we will train the "model-scaffold-shared" IRT model 5 times (one per CV fold),
+    # each time ONLY on the 4 training folds of Verified items.
+    ap.add_argument("--irt_model_scaffold_shared_train_per_fold", action="store_true")
+    ap.add_argument(
+        "--irt_model_scaffold_shared_output_dir",
+        type=str,
+        default="",
+        help="Directory to store per-fold model-scaffold-shared IRT runs. Default: <out_dir>/irt_model_scaffold_shared_folds",
+    )
+    ap.add_argument(
+        "--irt_model_scaffold_shared_model",
+        type=str,
+        default="1pl",
+        choices=["1pl", "2pl", "2d_1pl"],
+        help="IRT model type for model-scaffold-shared training.",
+    )
+    ap.add_argument("--irt_model_scaffold_shared_epochs", type=int, default=5000)
+    ap.add_argument("--irt_model_scaffold_shared_lr", type=float, default=0.01)
+    ap.add_argument("--irt_model_scaffold_shared_seed", type=int, default=0)
+    ap.add_argument(
+        "--irt_model_scaffold_shared_verified_jsonl",
+        type=str,
+        default="",
+        help="Verified JSONL for model-scaffold-shared training; default uses the first --agent_results path.",
+    )
+    ap.add_argument(
+        "--irt_model_scaffold_shared_pro_jsonl",
+        type=str,
+        default="",
+        help="Pro JSONL path for model-scaffold-shared training (required with --irt_model_scaffold_shared_train_per_fold).",
+    )
+    ap.add_argument(
+        "--irt_model_scaffold_shared_terminal_bench_jsonl",
+        type=str,
+        default="",
+        help="Terminal-Bench JSONL path for model-scaffold-shared training (optional).",
+    )
+    ap.add_argument(
+        "--irt_model_scaffold_shared_agent_map_csv",
+        type=str,
+        default="",
+        help="Agent->(model,scaffold) CSV used to map subjects to model/scaffold (required with --irt_model_scaffold_shared_train_per_fold).",
+    )
+
     ap.add_argument("--regressor", type=str, default="ridge_cv", choices=["linear", "ridge", "ridge_cv"])
     ap.add_argument("--ridge_alpha", type=float, default=10000.0)
     ap.add_argument("--ridge_alphas", type=str, default="1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
@@ -585,6 +755,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     best_fold_auc_pairs = 0
     best_fold_theta_by_subject: Dict[str, float] = {}
     using_precomputed_irt = bool(str(args.irt_items_csv or "").strip())
+    using_model_scaffold_shared_per_fold = bool(args.irt_model_scaffold_shared_train_per_fold)
+    if using_precomputed_irt and using_model_scaffold_shared_per_fold:
+        raise ValueError(
+            "Do not combine --irt_items_csv with --irt_model_scaffold_shared_train_per_fold (pick one IRT mode)."
+        )
 
     precomputed_diff_by_item: Dict[str, float] = {}
     precomputed_theta_by_subject: Dict[str, float] = {}
@@ -621,6 +796,41 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "Check that --agent_results subject_ids match --irt_agent_map_csv agent names."
             )
 
+    shared_agent_map: Dict[str, Tuple[str, str]] = {}
+    shared_pro_jsonl = ""
+    shared_terminal_bench_jsonl = ""
+    shared_verified_jsonl = ""
+    shared_out_root = Path("")
+    if using_model_scaffold_shared_per_fold:
+        if not str(args.irt_model_scaffold_shared_pro_jsonl or "").strip():
+            raise ValueError(
+                "--irt_model_scaffold_shared_pro_jsonl is required with --irt_model_scaffold_shared_train_per_fold"
+            )
+        if not str(args.irt_model_scaffold_shared_agent_map_csv or "").strip():
+            raise ValueError(
+                "--irt_model_scaffold_shared_agent_map_csv is required with --irt_model_scaffold_shared_train_per_fold"
+            )
+
+        shared_pro_jsonl = str(args.irt_model_scaffold_shared_pro_jsonl)
+        shared_terminal_bench_jsonl = str(args.irt_model_scaffold_shared_terminal_bench_jsonl or "")
+
+        shared_verified_jsonl = str(args.irt_model_scaffold_shared_verified_jsonl or "").strip()
+        if not shared_verified_jsonl:
+            # Default to the first --agent_results path (commonly the filtered Verified JSONL).
+            shared_verified_jsonl = str(agent_results_paths[0])
+
+        shared_agent_map = load_agent_model_scaffold_map(str(args.irt_model_scaffold_shared_agent_map_csv))
+        if not shared_agent_map:
+            raise RuntimeError("Loaded 0 rows from --irt_model_scaffold_shared_agent_map_csv.")
+
+        out_dir_flag = str(args.irt_model_scaffold_shared_output_dir or "").strip()
+        shared_out_root = (
+            Path(out_dir_flag)
+            if out_dir_flag
+            else (Path(str(args.out_dir)) / "irt_model_scaffold_shared_folds")
+        )
+        ensure_dir(str(shared_out_root))
+
     eligible_idx = np.array([id_to_row[tid] for tid in eligible], dtype=np.int64)
     X_elig = X[eligible_idx]
 
@@ -639,7 +849,38 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         theta_by_subject: Dict[str, float] = {}
         diff_by_item: Dict[str, float] = {}
-        if using_precomputed_irt:
+        if using_model_scaffold_shared_per_fold:
+            items_csv, model_thetas_csv, scaffold_thetas_csv = ensure_model_scaffold_shared_irt_for_fold(
+                fold=int(fold),
+                train_items=list(train_items),
+                overwrite=bool(args.overwrite),
+                seed=int(args.irt_model_scaffold_shared_seed),
+                epochs=int(args.irt_model_scaffold_shared_epochs),
+                lr=float(args.irt_model_scaffold_shared_lr),
+                model=str(args.irt_model_scaffold_shared_model),
+                out_root=shared_out_root,
+                verified_jsonl=str(shared_verified_jsonl),
+                pro_jsonl=str(shared_pro_jsonl),
+                terminal_bench_jsonl=str(shared_terminal_bench_jsonl),
+            )
+            diff_by_item = load_precomputed_item_difficulties(items_csv=str(items_csv), diff_col="")
+            theta_by_model = load_precomputed_thetas(thetas_csv=str(model_thetas_csv))
+            theta_by_scaffold = load_precomputed_thetas(thetas_csv=str(scaffold_thetas_csv))
+            for sid, _ in all_responses:
+                pair = shared_agent_map.get(str(sid), None)
+                if pair is None:
+                    continue
+                model_name, scaffold_name = pair
+                tm = theta_by_model.get(model_name, None)
+                ts = theta_by_scaffold.get(scaffold_name, None)
+                if tm is None or ts is None:
+                    continue
+                theta_by_subject[str(sid)] = float(tm) + float(ts)
+            if not theta_by_subject:
+                raise RuntimeError(f"Fold {fold}: loaded 0 subject thetas from model-scaffold-shared outputs.")
+            if not diff_by_item:
+                raise RuntimeError(f"Fold {fold}: loaded 0 item difficulties from model-scaffold-shared outputs.")
+        elif using_precomputed_irt:
             # Use the full precomputed dict; we still subset to train_items below for regression supervision.
             diff_by_item = precomputed_diff_by_item
             theta_by_subject = precomputed_theta_by_subject
@@ -709,6 +950,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "test_auc": float(auc),
                 "test_pairs": int(len(labels)),
                 "using_precomputed_irt": bool(using_precomputed_irt),
+                "using_model_scaffold_shared_per_fold": bool(using_model_scaffold_shared_per_fold),
             },
         )
 
@@ -753,6 +995,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "exclude_zero_success": bool(args.exclude_zero_success),
         "zero_success_count": int(len(zero_success_ids)),
         "using_precomputed_irt": bool(using_precomputed_irt),
+        "using_model_scaffold_shared_per_fold": bool(using_model_scaffold_shared_per_fold),
         "irt_items_csv": str(args.irt_items_csv),
         "irt_items_diff_col": str(args.irt_items_diff_col),
         "irt_agent_map_csv": str(args.irt_agent_map_csv),
@@ -760,6 +1003,29 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "irt_scaffold_thetas_csv": str(args.irt_scaffold_thetas_csv),
         "irt_epochs": (None if using_precomputed_irt else int(args.irt_epochs)),
         "irt_device": (None if using_precomputed_irt else str(args.irt_device)),
+        "irt_model_scaffold_shared_output_dir": (str(shared_out_root) if using_model_scaffold_shared_per_fold else None),
+        "irt_model_scaffold_shared_model": (
+            str(args.irt_model_scaffold_shared_model) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_epochs": (
+            int(args.irt_model_scaffold_shared_epochs) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_lr": (
+            float(args.irt_model_scaffold_shared_lr) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_seed": (
+            int(args.irt_model_scaffold_shared_seed) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_verified_jsonl": (
+            str(shared_verified_jsonl) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_pro_jsonl": (str(shared_pro_jsonl) if using_model_scaffold_shared_per_fold else None),
+        "irt_model_scaffold_shared_terminal_bench_jsonl": (
+            str(shared_terminal_bench_jsonl) if using_model_scaffold_shared_per_fold else None
+        ),
+        "irt_model_scaffold_shared_agent_map_csv": (
+            str(args.irt_model_scaffold_shared_agent_map_csv) if using_model_scaffold_shared_per_fold else None
+        ),
     }
     weights_json, weights_npz = save_regression_weights(
         out_dir=str(args.out_dir),

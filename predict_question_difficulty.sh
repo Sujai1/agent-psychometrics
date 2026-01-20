@@ -164,6 +164,22 @@ if [[ "${ENABLE_IRT_MODEL_SCAFFOLD_SHARED_TRAINING:-0}" == "1" ]]; then
     --irt_model_thetas_csv "$IRT_MODEL_THETAS_CSV"
     --irt_scaffold_thetas_csv "$IRT_SCAFFOLD_THETAS_CSV"
   )
+
+  # New: train the model-scaffold-shared IRT model 5 times (once per CV fold),
+  # each time ONLY on the 4 training folds of Verified items.
+  IRT_FOLDS_OUT_DIR="$OUT_DIR/irt_model_scaffold_shared_min${MIN_DISTINCT_MODELS_PER_SCAFFOLD}models_per_scaffold"
+  IRT_SHARED_PER_FOLD_ARGS=(
+    --irt_model_scaffold_shared_train_per_fold
+    --irt_model_scaffold_shared_output_dir "$IRT_FOLDS_OUT_DIR"
+    --irt_model_scaffold_shared_model "$IRT_MODEL"
+    --irt_model_scaffold_shared_epochs "$EPOCHS"
+    --irt_model_scaffold_shared_lr "$LR"
+    --irt_model_scaffold_shared_seed "$SEED"
+    --irt_model_scaffold_shared_verified_jsonl "$VERIFIED_JSONL_FILTERED"
+    --irt_model_scaffold_shared_pro_jsonl "$PRO_JSONL"
+    --irt_model_scaffold_shared_terminal_bench_jsonl "$TERMINAL_BENCH_JSONL_FILTERED"
+    --irt_model_scaffold_shared_agent_map_csv "$IRT_AGENT_MAP_CSV"
+  )
 fi
 
 "${VENV_PY}" /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/predict_question_difficulty_irt.py \
@@ -174,6 +190,6 @@ fi
   --seed "$SEED" \
   --backbone "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B" \
   "${AGENT_RESULTS_OVERRIDE[@]}" \
-  ${PRECOMPUTED_IRT_ARGS:+${PRECOMPUTED_IRT_ARGS[@]}}
+  ${IRT_SHARED_PER_FOLD_ARGS:+${IRT_SHARED_PER_FOLD_ARGS[@]}}
 
 
