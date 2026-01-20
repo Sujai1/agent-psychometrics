@@ -120,6 +120,47 @@ def identify_frontier_tasks(
     return frontier_tasks
 
 
+def identify_nontrivial_tasks(
+    responses_path: Path,
+    pre_frontier_agents: List[str],
+    post_frontier_agents: List[str],
+    min_pass_rate: float = 0.10,
+    max_pass_rate: float = 0.90,
+) -> Tuple[List[str], Dict[str, float], Dict[str, float]]:
+    """Identify tasks with non-trivial pass rates in BOTH agent groups.
+
+    Non-trivial tasks have meaningful variation - neither too easy nor too hard
+    for both pre-frontier and post-frontier agents. These are useful as anchor
+    tasks for aligning IRT scales.
+
+    Args:
+        responses_path: Path to JSONL response matrix
+        pre_frontier_agents: List of pre-frontier agent names
+        post_frontier_agents: List of post-frontier agent names
+        min_pass_rate: Minimum pass rate threshold (default 0.10 = 10%)
+        max_pass_rate: Maximum pass rate threshold (default 0.90 = 90%)
+
+    Returns:
+        Tuple of (nontrivial_task_ids, pre_pass_rates, post_pass_rates)
+    """
+    pre_pass_rates = compute_pass_rates(responses_path, pre_frontier_agents)
+    post_pass_rates = compute_pass_rates(responses_path, post_frontier_agents)
+
+    nontrivial_tasks = []
+    for task_id in pre_pass_rates:
+        pre_rate = pre_pass_rates.get(task_id, 0.0)
+        post_rate = post_pass_rates.get(task_id, 0.0)
+
+        # Both groups must have meaningful variation
+        pre_nontrivial = min_pass_rate <= pre_rate <= max_pass_rate
+        post_nontrivial = min_pass_rate <= post_rate <= max_pass_rate
+
+        if pre_nontrivial and post_nontrivial:
+            nontrivial_tasks.append(task_id)
+
+    return nontrivial_tasks, pre_pass_rates, post_pass_rates
+
+
 def get_all_agents_from_responses(responses_path: Path) -> List[str]:
     """Get list of all agent IDs from response matrix.
 

@@ -3,23 +3,29 @@
 
 This script compares:
 1. Baseline IRT (pre-frontier agents only, no trajectories)
-2. SAD-IRT runs (from experiment tracker)
+2. SAD-IRT runs (from experiment tracker or extracted beta CSV files)
 3. Embedding + Ridge (Experiment A style predictor)
 4. LLM Judge + Ridge (Experiment A style predictor)
 
-All methods are evaluated by Spearman correlation with oracle IRT
-difficulties on frontier tasks only.
+Methods are evaluated by:
+- Spearman correlation with oracle IRT difficulties on frontier tasks
+- ROC-AUC on frontier tasks using oracle abilities and aligned difficulties
+
+The AUC metric requires aligning predicted difficulties to the oracle scale using
+an affine transformation fitted on "nontrivial" anchor tasks (10-90% pass rate in
+both agent groups). This alignment uses oracle information and is ONLY for evaluation.
 
 Usage:
     python -m experiment_sad_irt.compare_methods
     python -m experiment_sad_irt.compare_methods --sad_irt_csv chris_output/sad_irt_experiments.csv
     python -m experiment_sad_irt.compare_methods --output_csv chris_output/method_comparison.csv
+    python -m experiment_sad_irt.compare_methods --alignment_method affine
 """
 
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -28,9 +34,16 @@ import pandas as pd
 from experiment_sad_irt.data_splits import (
     get_all_agents_from_responses,
     identify_frontier_tasks,
+    identify_nontrivial_tasks,
     split_agents_by_cutoff,
 )
-from experiment_sad_irt.evaluate import compute_frontier_difficulty_metrics
+from experiment_sad_irt.evaluate import (
+    compute_frontier_difficulty_metrics,
+    compute_scale_offset,
+    shift_to_oracle_scale,
+    compute_frontier_auc,
+    load_responses_dict,
+)
 
 # Import from experiment_a
 from experiment_a.difficulty_predictor import (
@@ -40,37 +53,92 @@ from experiment_a.difficulty_predictor import (
 )
 
 
-def compute_baseline_spearman(
-    baseline_items: pd.DataFrame,
+def compute_method_metrics(
+    predicted_beta: Dict[str, float],
     oracle_items: pd.DataFrame,
+    oracle_abilities: pd.DataFrame,
+    responses: Dict[str, Dict[str, int]],
     frontier_task_ids: List[str],
-) -> Dict[str, float]:
-    """Compute Spearman rho between baseline IRT and oracle IRT for frontier tasks."""
-    baseline_dict = baseline_items["b"].to_dict()
-    oracle_dict = oracle_items["b"].to_dict()
-    return compute_frontier_difficulty_metrics(baseline_dict, oracle_dict, frontier_task_ids)
+    anchor_task_ids: List[str],
+    eval_agents: List[str],
+    alignment_method: str = "affine",
+) -> Dict[str, Any]:
+    """Compute all metrics for a difficulty prediction method.
+
+    Args:
+        predicted_beta: Dict mapping task_id -> predicted difficulty
+        oracle_items: DataFrame with 'b' column (oracle difficulties)
+        oracle_abilities: DataFrame with 'theta' column (oracle abilities)
+        responses: Response matrix as nested dict
+        frontier_task_ids: Tasks to evaluate Spearman/AUC on
+        anchor_task_ids: Tasks for fitting the alignment transformation
+        eval_agents: Agents to use for AUC computation (post-frontier)
+        alignment_method: "constant" or "affine"
+
+    Returns:
+        Dict with spearman, pearson, auc, and alignment info
+    """
+    oracle_beta = oracle_items["b"].to_dict()
+
+    # 1. Spearman correlation (no alignment needed - rank-based)
+    spearman_metrics = compute_frontier_difficulty_metrics(
+        predicted_beta, oracle_beta, frontier_task_ids
+    )
+
+    # 2. Compute alignment parameters using anchor tasks
+    alignment_params = compute_scale_offset(
+        predicted_beta, oracle_beta, anchor_task_ids, method=alignment_method
+    )
+
+    # 3. Shift predictions to oracle scale
+    shifted_beta = shift_to_oracle_scale(predicted_beta, alignment_params)
+
+    # 4. Compute AUC on frontier tasks using post-frontier agents
+    auc_metrics = compute_frontier_auc(
+        oracle_abilities, shifted_beta, responses, frontier_task_ids, eval_agents
+    )
+
+    return {
+        **spearman_metrics,
+        "auc": auc_metrics.get("auc"),
+        "auc_n_pairs": auc_metrics.get("n_pairs"),
+        "auc_n_positive": auc_metrics.get("n_positive"),
+        "auc_n_negative": auc_metrics.get("n_negative"),
+        "alignment_method": alignment_method,
+        "alignment_params": alignment_params,
+    }
 
 
 def evaluate_predictor(
     predictor: DifficultyPredictorBase,
     baseline_items: pd.DataFrame,
     oracle_items: pd.DataFrame,
+    oracle_abilities: pd.DataFrame,
+    responses: Dict[str, Dict[str, int]],
     frontier_task_ids: List[str],
     train_task_ids: List[str],
+    anchor_task_ids: List[str],
+    eval_agents: List[str],
+    alignment_method: str = "affine",
     sanity_check: bool = True,
-) -> Dict[str, float]:
-    """Train a difficulty predictor on non-frontier tasks, evaluate on frontier tasks.
+) -> Dict[str, Any]:
+    """Train a difficulty predictor on non-frontier tasks, evaluate with full metrics.
 
     Args:
         predictor: DifficultyPredictorBase instance (already initialized with data path)
         baseline_items: DataFrame with 'b' column (training targets)
-        oracle_items: DataFrame with 'b' column (evaluation targets)
+        oracle_items: DataFrame with 'b' column (oracle difficulties)
+        oracle_abilities: DataFrame with 'theta' column (oracle abilities)
+        responses: Response matrix as nested dict
         frontier_task_ids: List of frontier task IDs (evaluation)
         train_task_ids: List of training task IDs
-        sanity_check: If True, also compute correlation on training tasks
+        anchor_task_ids: List of anchor task IDs (for scale alignment)
+        eval_agents: Agents to use for AUC (post-frontier)
+        alignment_method: "constant" or "affine"
+        sanity_check: If True, print train set correlation
 
     Returns:
-        Dict with correlation metrics
+        Dict with spearman, pearson, auc metrics
     """
     # Get training data
     train_tasks_available = [t for t in train_task_ids if t in baseline_items.index]
@@ -79,7 +147,7 @@ def evaluate_predictor(
     # Fit predictor
     predictor.fit(train_tasks_available, ground_truth_b)
 
-    # Sanity check: evaluate on training tasks (should be high)
+    # Sanity check: evaluate on training tasks
     if sanity_check:
         train_predictions = predictor.predict(train_tasks_available)
         baseline_dict = baseline_items["b"].to_dict()
@@ -88,12 +156,21 @@ def evaluate_predictor(
         )
         print(f"    [Sanity check] Train set Spearman rho: {train_metrics['frontier_spearman_rho']:.4f}")
 
-    # Predict for frontier tasks
-    predictions = predictor.predict(frontier_task_ids)
+    # Predict for all relevant tasks (frontier + anchor for alignment)
+    all_tasks = list(set(frontier_task_ids + anchor_task_ids))
+    predictions = predictor.predict(all_tasks)
 
-    # Compute correlation with oracle
-    oracle_dict = oracle_items["b"].to_dict()
-    return compute_frontier_difficulty_metrics(predictions, oracle_dict, frontier_task_ids)
+    # Compute full metrics
+    return compute_method_metrics(
+        predicted_beta=predictions,
+        oracle_items=oracle_items,
+        oracle_abilities=oracle_abilities,
+        responses=responses,
+        frontier_task_ids=frontier_task_ids,
+        anchor_task_ids=anchor_task_ids,
+        eval_agents=eval_agents,
+        alignment_method=alignment_method,
+    )
 
 
 def load_sad_irt_experiments(csv_path: Path) -> pd.DataFrame:
@@ -108,11 +185,13 @@ def print_comparison_table(
     frontier_task_count: int,
     pre_frontier_count: int,
     post_frontier_count: int,
+    anchor_task_count: int = 0,
+    alignment_method: str = "affine",
 ) -> None:
     """Print formatted comparison table."""
-    print("=" * 80)
+    print("=" * 90)
     print("SAD-IRT METHOD COMPARISON")
-    print("=" * 80)
+    print("=" * 90)
     print()
     print("Frontier Task Definition:")
     print("  - Pre-frontier pass rate <= 10%")
@@ -123,31 +202,50 @@ def print_comparison_table(
     print(f"  - Pre-frontier agents: {pre_frontier_count}")
     print(f"  - Post-frontier agents: {post_frontier_count}")
     print(f"  - Frontier tasks: {frontier_task_count}")
+    print(f"  - Anchor tasks (for AUC alignment): {anchor_task_count}")
+    print(f"  - Alignment method: {alignment_method}")
     print()
-    print("=" * 80)
-    print(f"COMPARISON TABLE (Spearman rho with Oracle IRT on {frontier_task_count} Frontier Tasks)")
-    print("=" * 80)
+    print("=" * 90)
+    print(f"COMPARISON TABLE (Frontier Tasks: {frontier_task_count}, Eval Agents: {post_frontier_count})")
+    print("=" * 90)
     print()
-    print(f"{'Method':<50} {'Spearman rho':>12} {'p-value':>10} {'n':>5}")
-    print("-" * 80)
+    print(f"{'Method':<45} {'ROC-AUC':>10} {'Spearman ρ':>12} {'p-value':>10}")
+    print("-" * 90)
 
-    # Sort by Spearman rho (descending), handling NaN
+    # Sort by AUC (descending), with Spearman as tiebreaker
     def sort_key(item):
+        auc = item[1].get("auc")
         rho = item[1].get("frontier_spearman_rho", float("-inf"))
-        return float("-inf") if np.isnan(rho) else rho
+        if auc is None or (isinstance(auc, float) and np.isnan(auc)):
+            auc_val = float("-inf")
+        else:
+            auc_val = auc
+        if isinstance(rho, float) and np.isnan(rho):
+            rho = float("-inf")
+        return (auc_val, rho)
 
     sorted_methods = sorted(results.items(), key=sort_key, reverse=True)
 
     for method, metrics in sorted_methods:
+        auc = metrics.get("auc")
         rho = metrics.get("frontier_spearman_rho", float("nan"))
         p = metrics.get("frontier_spearman_p", float("nan"))
-        n = metrics.get("num_frontier_tasks", 0)
 
-        if np.isnan(rho):
-            print(f"{method:<50} {'N/A':>12} {'N/A':>10} {n:>5}")
+        # Format AUC
+        if auc is None or (isinstance(auc, float) and np.isnan(auc)):
+            auc_str = "N/A"
         else:
+            auc_str = f"{auc:.4f}"
+
+        # Format Spearman
+        if isinstance(rho, float) and np.isnan(rho):
+            rho_str = "N/A"
+            p_str = "N/A"
+        else:
+            rho_str = f"{rho:.4f}"
             p_str = f"{p:.4f}" if p >= 0.0001 else "<0.0001"
-            print(f"{method:<50} {rho:>12.4f} {p_str:>10} {n:>5}")
+
+        print(f"{method:<45} {auc_str:>10} {rho_str:>12} {p_str:>10}")
 
     print()
 
@@ -158,15 +256,20 @@ def save_results_csv(results: Dict[str, Dict], output_path: Path) -> None:
     for method, metrics in results.items():
         rows.append({
             "method": method,
+            "auc": metrics.get("auc"),
             "spearman_rho": metrics.get("frontier_spearman_rho"),
             "spearman_p": metrics.get("frontier_spearman_p"),
             "pearson_r": metrics.get("frontier_pearson_r"),
             "pearson_p": metrics.get("frontier_pearson_p"),
             "n_tasks": metrics.get("num_frontier_tasks"),
+            "auc_n_pairs": metrics.get("auc_n_pairs"),
+            "auc_n_positive": metrics.get("auc_n_positive"),
+            "auc_n_negative": metrics.get("auc_n_negative"),
         })
 
     df = pd.DataFrame(rows)
-    df = df.sort_values("spearman_rho", ascending=False)
+    # Sort by AUC descending (with NaN at bottom)
+    df = df.sort_values("auc", ascending=False, na_position="last")
     df.to_csv(output_path, index=False)
     print(f"Results saved to: {output_path}")
 
@@ -194,6 +297,12 @@ def main():
         help="Path to oracle IRT items CSV (all agents)",
     )
     parser.add_argument(
+        "--oracle_abilities_path",
+        type=Path,
+        default=Path("clean_data/swebench_verified_20251120_full/1d/abilities.csv"),
+        help="Path to oracle IRT abilities CSV (all agents)",
+    )
+    parser.add_argument(
         "--embeddings_path",
         type=Path,
         default=Path(
@@ -216,6 +325,12 @@ def main():
         help="Path to SAD-IRT experiments CSV",
     )
     parser.add_argument(
+        "--sad_irt_beta_dir",
+        type=Path,
+        default=Path("chris_output/sad_irt_beta_values"),
+        help="Directory containing extracted SAD-IRT beta CSV files",
+    )
+    parser.add_argument(
         "--cutoff_date",
         type=str,
         default="20250807",
@@ -234,6 +349,13 @@ def main():
         help="Min post-frontier pass rate for frontier tasks",
     )
     parser.add_argument(
+        "--alignment_method",
+        type=str,
+        default="affine",
+        choices=["constant", "affine"],
+        help="Method for aligning predicted difficulties to oracle scale (default: affine)",
+    )
+    parser.add_argument(
         "--output_csv",
         type=Path,
         default=None,
@@ -246,18 +368,26 @@ def main():
         (args.responses_path, "Response matrix"),
         (args.baseline_irt_path, "Baseline IRT"),
         (args.oracle_irt_path, "Oracle IRT"),
+        (args.oracle_abilities_path, "Oracle abilities"),
     ]
     for path, name in required_files:
         if not path.exists():
             print(f"Error: {name} not found: {path}")
             sys.exit(1)
 
-    # Load IRT models
+    # Load IRT models and abilities
     print("Loading IRT models...")
     baseline_items = pd.read_csv(args.baseline_irt_path, index_col=0)
     oracle_items = pd.read_csv(args.oracle_irt_path, index_col=0)
+    oracle_abilities = pd.read_csv(args.oracle_abilities_path, index_col=0)
     print(f"  Baseline IRT: {len(baseline_items)} tasks")
     print(f"  Oracle IRT: {len(oracle_items)} tasks")
+    print(f"  Oracle abilities: {len(oracle_abilities)} agents")
+
+    # Load response matrix for AUC computation
+    print("\nLoading response matrix...")
+    responses = load_responses_dict(args.responses_path)
+    print(f"  Loaded responses for {len(responses)} agents")
 
     # Identify frontier tasks
     print("\nIdentifying frontier tasks...")
@@ -275,6 +405,17 @@ def main():
     )
     print(f"  Frontier tasks: {len(frontier_task_ids)}")
 
+    # Identify nontrivial anchor tasks for scale alignment
+    print("\nIdentifying nontrivial anchor tasks...")
+    anchor_task_ids, _, _ = identify_nontrivial_tasks(
+        args.responses_path,
+        pre_frontier,
+        post_frontier,
+        min_pass_rate=0.10,
+        max_pass_rate=0.90,
+    )
+    print(f"  Anchor tasks (10-90% pass rate in both groups): {len(anchor_task_ids)}")
+
     # Non-frontier tasks for training predictors
     all_task_ids = list(baseline_items.index)
     train_task_ids = [t for t in all_task_ids if t not in frontier_task_ids]
@@ -283,50 +424,112 @@ def main():
     # Collect results
     results = {}
 
+    # 0. Oracle upper bound (uses true oracle beta - perfect alignment)
+    print("\nEvaluating Oracle (upper bound)...")
+    oracle_beta = oracle_items["b"].to_dict()
+    oracle_metrics = compute_method_metrics(
+        predicted_beta=oracle_beta,
+        oracle_items=oracle_items,
+        oracle_abilities=oracle_abilities,
+        responses=responses,
+        frontier_task_ids=frontier_task_ids,
+        anchor_task_ids=anchor_task_ids,
+        eval_agents=post_frontier,
+        alignment_method=args.alignment_method,
+    )
+    results["Oracle (upper bound)"] = oracle_metrics
+    print(f"  AUC: {oracle_metrics['auc']:.4f}")
+    print(f"  Spearman rho: {oracle_metrics['frontier_spearman_rho']:.4f}")
+
     # 1. Baseline IRT
     print("\nEvaluating Baseline IRT...")
-    results["Baseline IRT (pre-frontier only)"] = compute_baseline_spearman(
-        baseline_items, oracle_items, frontier_task_ids
+    baseline_beta = baseline_items["b"].to_dict()
+    baseline_metrics = compute_method_metrics(
+        predicted_beta=baseline_beta,
+        oracle_items=oracle_items,
+        oracle_abilities=oracle_abilities,
+        responses=responses,
+        frontier_task_ids=frontier_task_ids,
+        anchor_task_ids=anchor_task_ids,
+        eval_agents=post_frontier,
+        alignment_method=args.alignment_method,
     )
-    print(f"  Spearman rho: {results['Baseline IRT (pre-frontier only)']['frontier_spearman_rho']:.4f}")
+    results["Baseline IRT (pre-frontier only)"] = baseline_metrics
+    print(f"  AUC: {baseline_metrics['auc']:.4f}")
+    print(f"  Spearman rho: {baseline_metrics['frontier_spearman_rho']:.4f}")
 
-    # 2. SAD-IRT runs (if CSV exists)
-    if args.sad_irt_csv.exists():
-        print(f"\nLoading SAD-IRT experiments from {args.sad_irt_csv}...")
-        sad_irt_df = load_sad_irt_experiments(args.sad_irt_csv)
-        print(f"  Found {len(sad_irt_df)} SAD-IRT runs")
+    # 2. SAD-IRT runs (from extracted beta CSV files)
+    if args.sad_irt_beta_dir.exists():
+        beta_files = list(args.sad_irt_beta_dir.glob("*.csv"))
+        print(f"\nLoading SAD-IRT beta values from {args.sad_irt_beta_dir}...")
+        print(f"  Found {len(beta_files)} beta CSV files")
 
-        for _, row in sad_irt_df.iterrows():
-            output_dir = row.get("output_dir", "unknown")
-            dir_name = Path(output_dir).name if output_dir else "unknown"
-            method_name = f"SAD-IRT ({dir_name[:30]}...)" if len(dir_name) > 30 else f"SAD-IRT ({dir_name})"
+        for beta_file in beta_files:
+            # Load beta values from CSV
+            beta_df = pd.read_csv(beta_file, index_col=0)
+            if "beta" not in beta_df.columns:
+                print(f"  Skipping {beta_file.name}: no 'beta' column")
+                continue
 
-            results[method_name] = {
-                "frontier_spearman_rho": row.get("best_spearman_rho", float("nan")),
-                "frontier_spearman_p": row.get("final_spearman_p", float("nan")),
-                "frontier_pearson_r": float("nan"),
-                "frontier_pearson_p": float("nan"),
-                "num_frontier_tasks": row.get("num_frontier_tasks", len(frontier_task_ids)),
-            }
+            sad_irt_beta = beta_df["beta"].to_dict()
+
+            # Create method name from filename
+            method_name = f"SAD-IRT ({beta_file.stem})"
+            if len(method_name) > 45:
+                method_name = f"SAD-IRT ({beta_file.stem[:30]}...)"
+
+            print(f"\n  Evaluating {method_name}...")
+            sad_irt_metrics = compute_method_metrics(
+                predicted_beta=sad_irt_beta,
+                oracle_items=oracle_items,
+                oracle_abilities=oracle_abilities,
+                responses=responses,
+                frontier_task_ids=frontier_task_ids,
+                anchor_task_ids=anchor_task_ids,
+                eval_agents=post_frontier,
+                alignment_method=args.alignment_method,
+            )
+            results[method_name] = sad_irt_metrics
+            auc = sad_irt_metrics.get('auc')
+            rho = sad_irt_metrics.get('frontier_spearman_rho')
+            print(f"    AUC: {auc:.4f}" if auc else "    AUC: N/A")
+            print(f"    Spearman rho: {rho:.4f}" if rho else "    Spearman rho: N/A")
     else:
-        print(f"\nSAD-IRT experiments CSV not found: {args.sad_irt_csv}")
-        print("  To include SAD-IRT results, copy from cluster:")
-        print(f"  scp <user>@engaging-submit.mit.edu:~/model_irt/{args.sad_irt_csv} {args.sad_irt_csv}")
+        print(f"\nSAD-IRT beta directory not found: {args.sad_irt_beta_dir}")
+        print("  To include SAD-IRT results:")
+        print("  1. Run on cluster: sbatch slurm_scripts/extract_sad_irt_beta.sh")
+        print("  2. Copy results: scp -r <user>@engaging:~/model_irt/chris_output/sad_irt_beta_values chris_output/")
 
     # 3. Embedding predictor
     if args.embeddings_path.exists():
         print("\nEvaluating Embedding + Ridge predictor...")
         try:
             predictor = EmbeddingPredictor(embeddings_path=args.embeddings_path)
-            results["Embedding + Ridge"] = evaluate_predictor(
-                predictor, baseline_items, oracle_items, frontier_task_ids, train_task_ids
+            embedding_metrics = evaluate_predictor(
+                predictor=predictor,
+                baseline_items=baseline_items,
+                oracle_items=oracle_items,
+                oracle_abilities=oracle_abilities,
+                responses=responses,
+                frontier_task_ids=frontier_task_ids,
+                train_task_ids=train_task_ids,
+                anchor_task_ids=anchor_task_ids,
+                eval_agents=post_frontier,
+                alignment_method=args.alignment_method,
             )
-            print(f"  Spearman rho: {results['Embedding + Ridge']['frontier_spearman_rho']:.4f}")
+            results["Embedding + Ridge"] = embedding_metrics
+            auc = embedding_metrics.get('auc')
+            rho = embedding_metrics.get('frontier_spearman_rho')
+            print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
+            print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
         except Exception as e:
             print(f"  Error: {e}")
+            import traceback
+            traceback.print_exc()
             results["Embedding + Ridge"] = {
                 "frontier_spearman_rho": float("nan"),
                 "frontier_spearman_p": float("nan"),
+                "auc": None,
                 "num_frontier_tasks": 0,
             }
     else:
@@ -337,15 +540,31 @@ def main():
         print("\nEvaluating LLM Judge + Lasso/Ridge predictor...")
         try:
             predictor = LLMJudgePredictor(features_path=args.llm_judge_path)
-            results["LLM Judge + Lasso/Ridge"] = evaluate_predictor(
-                predictor, baseline_items, oracle_items, frontier_task_ids, train_task_ids
+            llm_judge_metrics = evaluate_predictor(
+                predictor=predictor,
+                baseline_items=baseline_items,
+                oracle_items=oracle_items,
+                oracle_abilities=oracle_abilities,
+                responses=responses,
+                frontier_task_ids=frontier_task_ids,
+                train_task_ids=train_task_ids,
+                anchor_task_ids=anchor_task_ids,
+                eval_agents=post_frontier,
+                alignment_method=args.alignment_method,
             )
-            print(f"  Spearman rho: {results['LLM Judge + Lasso/Ridge']['frontier_spearman_rho']:.4f}")
+            results["LLM Judge + Lasso/Ridge"] = llm_judge_metrics
+            auc = llm_judge_metrics.get('auc')
+            rho = llm_judge_metrics.get('frontier_spearman_rho')
+            print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
+            print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
         except Exception as e:
             print(f"  Error: {e}")
+            import traceback
+            traceback.print_exc()
             results["LLM Judge + Lasso/Ridge"] = {
                 "frontier_spearman_rho": float("nan"),
                 "frontier_spearman_p": float("nan"),
+                "auc": None,
                 "num_frontier_tasks": 0,
             }
     else:
@@ -358,6 +577,8 @@ def main():
         len(frontier_task_ids),
         len(pre_frontier),
         len(post_frontier),
+        anchor_task_count=len(anchor_task_ids),
+        alignment_method=args.alignment_method,
     )
 
     # Save to CSV if requested
