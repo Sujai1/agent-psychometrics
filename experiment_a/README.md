@@ -19,11 +19,17 @@ Then measure AUC by comparing these predicted probabilities to actual binary out
 ```bash
 source .venv/bin/activate
 
-# Run with default settings (uses pre-configured embeddings and LLM judge features)
-python -m experiment_a.train_evaluate
+# Run all 4 experiments with default embeddings
+python run_all_experiments.py
 
-# Run on TerminalBench (binomial responses)
-python -m experiment_a_terminalbench.train_evaluate
+# Run all 4 experiments with custom embeddings per dataset
+python run_all_experiments.py \
+    --swebench_embeddings path/to/swebench_embeddings.npz \
+    --terminalbench_embeddings path/to/terminalbench_embeddings.npz
+
+# Run individual experiments
+python -m experiment_a.train_evaluate                    # SWE-bench
+python -m experiment_a_terminalbench.train_evaluate      # TerminalBench
 
 # Dry run to check config
 python -m experiment_a.train_evaluate --dry_run
