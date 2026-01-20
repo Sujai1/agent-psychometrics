@@ -8,9 +8,12 @@ This module provides functions for:
 """
 
 import json
+import logging
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 def split_agents_by_dates(
@@ -31,20 +34,30 @@ def split_agents_by_dates(
 
     Returns:
         Tuple of (pre_frontier_agents, post_frontier_agents)
+
+    Raises:
+        ValueError: If any agent is missing a date in agent_dates
     """
     pre_frontier = []
     post_frontier = []
+    missing_dates = []
 
     for agent in agents:
         date = agent_dates.get(agent)
         if not date:
-            # No valid date, skip this agent
+            missing_dates.append(agent)
             continue
 
         if date >= cutoff_date:
             post_frontier.append(agent)
         else:
             pre_frontier.append(agent)
+
+    if missing_dates:
+        raise ValueError(
+            f"{len(missing_dates)} agents missing dates. "
+            f"First 5: {missing_dates[:5]}"
+        )
 
     return pre_frontier, post_frontier
 
@@ -106,9 +119,25 @@ def identify_frontier_tasks(
     post_pass_rates = compute_pass_rates(responses_path, post_frontier_agents)
 
     frontier_tasks = []
+
+    # Check for tasks in pre but not in post (and vice versa)
+    pre_only = set(pre_pass_rates.keys()) - set(post_pass_rates.keys())
+    post_only = set(post_pass_rates.keys()) - set(pre_pass_rates.keys())
+
+    if pre_only:
+        raise ValueError(
+            f"{len(pre_only)} tasks have pre-frontier data but no post-frontier data. "
+            f"First 5: {list(pre_only)[:5]}"
+        )
+    if post_only:
+        raise ValueError(
+            f"{len(post_only)} tasks have post-frontier data but no pre-frontier data. "
+            f"First 5: {list(post_only)[:5]}"
+        )
+
     for task_id in pre_pass_rates:
-        pre_rate = pre_pass_rates.get(task_id, 0.0)
-        post_rate = post_pass_rates.get(task_id, 0.0)
+        pre_rate = pre_pass_rates[task_id]
+        post_rate = post_pass_rates[task_id]
 
         if pre_rate <= pre_threshold and post_rate > post_threshold:
             frontier_tasks.append(task_id)
@@ -142,10 +171,25 @@ def identify_nontrivial_tasks(
     pre_pass_rates = compute_pass_rates(responses_path, pre_frontier_agents)
     post_pass_rates = compute_pass_rates(responses_path, post_frontier_agents)
 
+    # Check for tasks in pre but not in post (and vice versa)
+    pre_only = set(pre_pass_rates.keys()) - set(post_pass_rates.keys())
+    post_only = set(post_pass_rates.keys()) - set(pre_pass_rates.keys())
+
+    if pre_only:
+        raise ValueError(
+            f"{len(pre_only)} tasks have pre-frontier data but no post-frontier data. "
+            f"First 5: {list(pre_only)[:5]}"
+        )
+    if post_only:
+        raise ValueError(
+            f"{len(post_only)} tasks have post-frontier data but no pre-frontier data. "
+            f"First 5: {list(post_only)[:5]}"
+        )
+
     nontrivial_tasks = []
     for task_id in pre_pass_rates:
-        pre_rate = pre_pass_rates.get(task_id, 0.0)
-        post_rate = post_pass_rates.get(task_id, 0.0)
+        pre_rate = pre_pass_rates[task_id]
+        post_rate = post_pass_rates[task_id]
 
         # Both groups must have meaningful variation
         pre_nontrivial = min_pass_rate <= pre_rate <= max_pass_rate
@@ -291,6 +335,6 @@ if __name__ == "__main__":
     if frontier_tasks:
         print("\nExample frontier tasks:")
         for task_id in frontier_tasks[:5]:
-            pre_rate = pre_rates.get(task_id, 0.0)
-            post_rate = post_rates.get(task_id, 0.0)
+            pre_rate = pre_rates[task_id]
+            post_rate = post_rates[task_id]
             print(f"  {task_id}: pre={pre_rate:.1%}, post={post_rate:.1%}")

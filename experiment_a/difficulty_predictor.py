@@ -4,6 +4,7 @@ All difficulty predictors inherit from DifficultyPredictorBase and implement
 the fit() and predict() methods for use in Experiment A.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -15,6 +16,8 @@ from sklearn.linear_model import Ridge, RidgeCV, LassoCV
 from sklearn.feature_selection import SelectKBest, f_regression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+logger = logging.getLogger(__name__)
 
 
 class DifficultyPredictorBase(ABC):
@@ -105,6 +108,9 @@ class EmbeddingPredictor(DifficultyPredictorBase):
         Args:
             task_ids: List of training task identifiers
             ground_truth_b: Array of ground truth difficulty values
+
+        Raises:
+            ValueError: If any task is missing from embeddings
         """
         if self._embeddings is None:
             raise RuntimeError("Embeddings not loaded")
@@ -112,8 +118,11 @@ class EmbeddingPredictor(DifficultyPredictorBase):
         # Get embeddings for training tasks
         available_tasks = [t for t in task_ids if t in self._embeddings]
         if len(available_tasks) < len(task_ids):
-            missing = len(task_ids) - len(available_tasks)
-            print(f"Warning: {missing} tasks missing from embeddings")
+            missing_tasks = [t for t in task_ids if t not in self._embeddings]
+            raise ValueError(
+                f"{len(missing_tasks)} training tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
         # Build training matrix
         X = np.stack([self._embeddings[t] for t in available_tasks])
@@ -144,22 +153,27 @@ class EmbeddingPredictor(DifficultyPredictorBase):
 
         Returns:
             Dict mapping task_id to predicted difficulty
+
+        Raises:
+            ValueError: If any task is missing from embeddings
         """
         if self._model is None:
             raise RuntimeError("Model not fitted. Call fit() first.")
         if self._embeddings is None:
             raise RuntimeError("Embeddings not loaded")
 
-        # Get embeddings for prediction tasks
-        available_tasks = [t for t in task_ids if t in self._embeddings]
+        # Check for missing tasks
+        missing_tasks = [t for t in task_ids if t not in self._embeddings]
+        if missing_tasks:
+            raise ValueError(
+                f"{len(missing_tasks)} prediction tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
-        if not available_tasks:
-            return {}
-
-        X = np.stack([self._embeddings[t] for t in available_tasks])
+        X = np.stack([self._embeddings[t] for t in task_ids])
         preds = self._model.predict(X)
 
-        return dict(zip(available_tasks, preds.tolist()))
+        return dict(zip(task_ids, preds.tolist()))
 
     @property
     def embedding_dim(self) -> Optional[int]:
@@ -287,14 +301,15 @@ class MLEEmbeddingPredictor(DifficultyPredictorBase):
         if self._embeddings is None:
             raise RuntimeError("Embeddings not loaded")
 
-        # Get embeddings for training tasks
-        available_tasks = [t for t in task_ids if t in self._embeddings]
-        if len(available_tasks) < len(task_ids):
-            missing = len(task_ids) - len(available_tasks)
-            print(f"Warning: {missing} tasks missing from embeddings")
+        # Get embeddings for training tasks - require all tasks to have embeddings
+        missing_tasks = [t for t in task_ids if t not in self._embeddings]
+        if missing_tasks:
+            raise ValueError(
+                f"{len(missing_tasks)} training tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
-        if len(available_tasks) == 0:
-            raise ValueError("No tasks available for training")
+        available_tasks = task_ids
 
         # Build embedding matrix for training tasks: (n_tasks, embed_dim)
         embed_matrix = np.stack([self._embeddings[t] for t in available_tasks])
@@ -397,10 +412,10 @@ class MLEEmbeddingPredictor(DifficultyPredictorBase):
         # Training loop
         if self.verbose:
             mode = "MC marginalization" if use_mc else "fixed abilities"
-            print(f"   MLE Training ({mode}): {n_tasks} tasks, {n_agents} agents")
+            logger.info(f"MLE Training ({mode}): {n_tasks} tasks, {n_agents} agents")
             if use_mc:
-                print(f"   MC samples: {n_mc}")
-            print(f"   Valid response pairs: {mask.sum().item()}")
+                logger.info(f"MC samples: {n_mc}")
+            logger.info(f"Valid response pairs: {mask.sum().item()}")
 
         for iteration in range(self.max_iter):
             if iteration > 0:
@@ -416,13 +431,15 @@ class MLEEmbeddingPredictor(DifficultyPredictorBase):
                 grad_norm = w.grad.abs().max().item() if w.grad is not None else 0
 
                 if self.verbose and (iteration % 10 == 0 or iteration < 5):
-                    print(f"     Iter {iteration}: loss={loss.item():.6f}, "
-                          f"d_loss={d_loss:.2e}, d_w={d_w:.2e}, grad={grad_norm:.2e}")
+                    logger.info(
+                        f"Iter {iteration}: loss={loss.item():.6f}, "
+                        f"d_loss={d_loss:.2e}, d_w={d_w:.2e}, grad={grad_norm:.2e}"
+                    )
 
                 # Check convergence
                 if abs(d_loss) < self.tol and d_w < self.tol and grad_norm < self.tol:
                     if self.verbose:
-                        print(f"   Converged at iteration {iteration}")
+                        logger.info(f"Converged at iteration {iteration}")
                     break
 
         # Store learned parameters
@@ -430,7 +447,7 @@ class MLEEmbeddingPredictor(DifficultyPredictorBase):
         self._bias = b.detach().item()
 
         if self.verbose:
-            print(f"   Final loss: {loss.item():.6f}")
+            logger.info(f"Final loss: {loss.item():.6f}")
 
     def predict(self, task_ids: List[str]) -> Dict[str, float]:
         """Predict difficulty for tasks.
@@ -440,26 +457,31 @@ class MLEEmbeddingPredictor(DifficultyPredictorBase):
 
         Returns:
             Dict mapping task_id to predicted difficulty
+
+        Raises:
+            ValueError: If any task is missing from embeddings
         """
         if self._weights is None or self._bias is None:
             raise RuntimeError("Model not fitted. Call fit() first.")
         if self._embeddings is None:
             raise RuntimeError("Embeddings not loaded")
 
-        # Get embeddings for prediction tasks
-        available_tasks = [t for t in task_ids if t in self._embeddings]
-
-        if not available_tasks:
-            return {}
+        # Check for missing tasks
+        missing_tasks = [t for t in task_ids if t not in self._embeddings]
+        if missing_tasks:
+            raise ValueError(
+                f"{len(missing_tasks)} prediction tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
         # Build embedding matrix and scale
-        embed_matrix = np.stack([self._embeddings[t] for t in available_tasks])
+        embed_matrix = np.stack([self._embeddings[t] for t in task_ids])
         embed_scaled = (embed_matrix - self._scaler_mean) / self._scaler_std
 
         # Predict: z = embed @ w + b
         preds = embed_scaled @ self._weights + self._bias
 
-        return dict(zip(available_tasks, preds.tolist()))
+        return dict(zip(task_ids, preds.tolist()))
 
     @property
     def embedding_dim(self) -> Optional[int]:
@@ -600,15 +622,22 @@ class EmbeddingSimilarityPredictor(DifficultyPredictorBase):
         Args:
             task_ids: List of training task identifiers
             ground_truth_b: Array of ground truth difficulty values
+
+        Raises:
+            ValueError: If any task is missing from embeddings
         """
         if self._embeddings is None:
             raise RuntimeError("Embeddings not loaded")
 
-        # Get embeddings for training tasks
-        available_tasks = [t for t in task_ids if t in self._embeddings]
-        if len(available_tasks) < len(task_ids):
-            missing = len(task_ids) - len(available_tasks)
-            print(f"Warning: {missing} tasks missing from embeddings")
+        # Check for missing tasks
+        missing_tasks = [t for t in task_ids if t not in self._embeddings]
+        if missing_tasks:
+            raise ValueError(
+                f"{len(missing_tasks)} training tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
+
+        available_tasks = task_ids
 
         # Store training state
         self._train_task_ids = available_tasks
@@ -650,6 +679,9 @@ class EmbeddingSimilarityPredictor(DifficultyPredictorBase):
 
         Returns:
             Dict mapping task_id to predicted difficulty
+
+        Raises:
+            ValueError: If any task is missing from embeddings
         """
         if self._model is None:
             raise RuntimeError("Model not fitted. Call fit() first.")
@@ -658,15 +690,17 @@ class EmbeddingSimilarityPredictor(DifficultyPredictorBase):
         if self._train_embeddings is None:
             raise RuntimeError("Training embeddings not stored")
 
-        # Get embeddings for prediction tasks
-        available_tasks = [t for t in task_ids if t in self._embeddings]
-
-        if not available_tasks:
-            return {}
+        # Check for missing tasks
+        missing_tasks = [t for t in task_ids if t not in self._embeddings]
+        if missing_tasks:
+            raise ValueError(
+                f"{len(missing_tasks)} prediction tasks missing from embeddings. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
         # Compute features for each test task (no exclusion needed)
         features = []
-        for t in available_tasks:
+        for t in task_ids:
             feat = self._compute_similarity_features(
                 self._embeddings[t],
                 self._train_embeddings,
@@ -677,7 +711,7 @@ class EmbeddingSimilarityPredictor(DifficultyPredictorBase):
         X = np.stack(features)
         preds = self._model.predict(X)
 
-        return dict(zip(available_tasks, preds.tolist()))
+        return dict(zip(task_ids, preds.tolist()))
 
     @property
     def embedding_dim(self) -> Optional[int]:
@@ -871,7 +905,11 @@ class LunettePredictor(DifficultyPredictorBase):
         return "Lunette"
 
     def _load_features(self) -> None:
-        """Load features from CSV file."""
+        """Load features from CSV file.
+
+        Raises:
+            ValueError: If required feature columns are missing
+        """
         if not self.features_path.exists():
             raise FileNotFoundError(f"Features file not found: {self.features_path}")
 
@@ -885,11 +923,14 @@ class LunettePredictor(DifficultyPredictorBase):
         elif "task_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("task_id")
 
-        # Filter to available feature columns
+        # Check for missing feature columns
         available_cols = [c for c in self.feature_cols if c in self._features_df.columns]
         if len(available_cols) < len(self.feature_cols):
             missing = set(self.feature_cols) - set(available_cols)
-            print(f"Warning: Missing feature columns: {missing}")
+            raise ValueError(
+                f"Lunette features file missing required columns: {missing}. "
+                f"Available columns: {list(self._features_df.columns)}"
+            )
 
         self.feature_cols = available_cols
 
@@ -922,16 +963,19 @@ class LunettePredictor(DifficultyPredictorBase):
         Args:
             task_ids: List of training task identifiers
             ground_truth_b: Array of ground truth difficulty values
+
+        Raises:
+            ValueError: If any task is missing from Lunette features
         """
         # Get feature matrix
         X, available_tasks = self._get_feature_matrix(task_ids)
 
         if len(available_tasks) < len(task_ids):
-            missing = len(task_ids) - len(available_tasks)
-            print(f"Warning: {missing} tasks missing from Lunette features")
-
-        if len(available_tasks) == 0:
-            raise ValueError("No tasks available for training")
+            missing_tasks = [t for t in task_ids if t not in self._features_df.index]
+            raise ValueError(
+                f"{len(missing_tasks)} training tasks missing from Lunette features. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
         # Get corresponding ground truth values
         y = np.array([ground_truth_b[task_ids.index(t)] for t in available_tasks])
@@ -966,7 +1010,7 @@ class LunettePredictor(DifficultyPredictorBase):
             selected_mask[top_k_idx] = True
         elif np.sum(nonzero_mask) == 0:
             # No features selected, use top k by correlation
-            print("Warning: Lasso selected 0 features, falling back to top-k correlation")
+            logger.warning("Lasso selected 0 features, falling back to top-k correlation")
             k = self.max_features or 5
             selector = SelectKBest(f_regression, k=min(k, X.shape[1]))
             selector.fit(X_scaled, y)
@@ -1154,7 +1198,11 @@ class LLMJudgePredictor(DifficultyPredictorBase):
         return "LLM Judge"
 
     def _load_features(self) -> None:
-        """Load features from CSV file."""
+        """Load features from CSV file.
+
+        Raises:
+            ValueError: If required feature columns are missing
+        """
         if not self.features_path.exists():
             raise FileNotFoundError(f"Features file not found: {self.features_path}")
 
@@ -1168,11 +1216,14 @@ class LLMJudgePredictor(DifficultyPredictorBase):
         elif "task_id" in self._features_df.columns:
             self._features_df = self._features_df.set_index("task_id")
 
-        # Filter to available feature columns
+        # Check for missing feature columns
         available_cols = [c for c in self.feature_cols if c in self._features_df.columns]
         if len(available_cols) < len(self.feature_cols):
             missing = set(self.feature_cols) - set(available_cols)
-            print(f"Warning: Missing feature columns: {missing}")
+            raise ValueError(
+                f"LLM Judge features file missing required columns: {missing}. "
+                f"Available columns: {list(self._features_df.columns)}"
+            )
 
         self.feature_cols = available_cols
 
@@ -1205,16 +1256,19 @@ class LLMJudgePredictor(DifficultyPredictorBase):
         Args:
             task_ids: List of training task identifiers
             ground_truth_b: Array of ground truth difficulty values
+
+        Raises:
+            ValueError: If any task is missing from LLM Judge features
         """
         # Get feature matrix
         X, available_tasks = self._get_feature_matrix(task_ids)
 
         if len(available_tasks) < len(task_ids):
-            missing = len(task_ids) - len(available_tasks)
-            print(f"Warning: {missing} tasks missing from LLM Judge features")
-
-        if len(available_tasks) == 0:
-            raise ValueError("No tasks available for training")
+            missing_tasks = [t for t in task_ids if t not in self._features_df.index]
+            raise ValueError(
+                f"{len(missing_tasks)} training tasks missing from LLM Judge features. "
+                f"First 5: {missing_tasks[:5]}"
+            )
 
         # Get corresponding ground truth values
         y = np.array([ground_truth_b[task_ids.index(t)] for t in available_tasks])
@@ -1239,7 +1293,7 @@ class LLMJudgePredictor(DifficultyPredictorBase):
             selected_mask[top_k_idx] = True
         elif np.sum(nonzero_mask) == 0:
             # No features selected, use top k by correlation
-            print("Warning: Lasso selected 0 features, falling back to top-k correlation")
+            logger.warning("Lasso selected 0 features, falling back to top-k correlation")
             k = self.max_features or 5
             selector = SelectKBest(f_regression, k=min(k, X.shape[1]))
             selector.fit(X_scaled, y)

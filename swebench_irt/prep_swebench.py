@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
+
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,17 +48,34 @@ def load_results_json(results_path: Path) -> Tuple[Dict[str, int], set[str]]:
 
 def load_logs(logs_dir: Path) -> Tuple[Dict[str, int], set[str]]:
     responses: Dict[str, int] = {}
+    json_errors = []
+    missing_resolved = []
+
     for report_path in logs_dir.glob("*/report.json"):
         try:
             with report_path.open() as f:
                 record = json.load(f)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            json_errors.append((report_path, str(e)))
             continue
         resolved = record.get("resolved")
         if resolved is None:
+            missing_resolved.append(report_path)
             continue
         instance_id = report_path.parent.name
         responses[instance_id] = 1 if bool(resolved) else 0
+
+    if json_errors:
+        logger.warning(
+            f"Skipped {len(json_errors)} report.json files with JSON parse errors. "
+            f"First error: {json_errors[0]}"
+        )
+    if missing_resolved:
+        logger.warning(
+            f"Skipped {len(missing_resolved)} report.json files without 'resolved' field. "
+            f"First: {missing_resolved[0]}"
+        )
+
     return responses, set(responses.keys())
 
 

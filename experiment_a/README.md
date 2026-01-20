@@ -238,6 +238,24 @@ Results saved to `chris_output/experiment_a/experiment_a_results.json`:
 --dry_run             Show configuration without running
 ```
 
+## Caches
+
+Experiment A uses several cached files to avoid recomputation. Clear these when changing data or parameters:
+
+| Cache | Location | When to Clear |
+|-------|----------|---------------|
+| **IRT Split Models** | `chris_output/experiment_a/irt_splits/` | When changing split parameters (`test_fraction`, `split_seed`) or response matrix |
+| **Pre-computed Embeddings** | `chris_output/experiment_a/embeddings/*.npz` | When changing embedding backbone or task set |
+| **Lunette Features** | `chris_output/experiment_a/sandbox_features/lunette_features.csv` | When re-extracting features |
+| **LLM Judge Features** | `chris_output/experiment_a/llm_judge_features/` | When changing prompts or re-running extraction |
+
+To clear all caches and force recomputation:
+```bash
+rm -rf chris_output/experiment_a/irt_splits/
+# Then re-run the pipeline
+python -m experiment_a.train_evaluate
+```
+
 ## Known Issues
 
 **Train/Test Split Bias:** The hash-based split has statistically significant bias (p=0.025):

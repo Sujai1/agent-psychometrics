@@ -386,14 +386,25 @@ def compute_frontier_auc(
 
     Returns:
         Dict with 'auc', 'n_pairs', 'n_positive', 'n_negative'
+
+    Raises:
+        ValueError: If too many agents or tasks are missing from required data
     """
     y_true = []
     y_scores = []
 
+    # Track missing data
+    agents_missing_abilities = []
+    agents_missing_responses = []
+    tasks_missing_beta = set()
+    tasks_missing_responses = set()
+
     for agent_id in eval_agents:
         if agent_id not in oracle_abilities.index:
+            agents_missing_abilities.append(agent_id)
             continue
         if agent_id not in responses:
+            agents_missing_responses.append(agent_id)
             continue
 
         theta = oracle_abilities.loc[agent_id, "theta"]
@@ -401,8 +412,10 @@ def compute_frontier_auc(
 
         for task_id in frontier_task_ids:
             if task_id not in shifted_beta:
+                tasks_missing_beta.add(task_id)
                 continue
             if task_id not in agent_responses:
+                tasks_missing_responses.add(task_id)
                 continue
 
             beta = shifted_beta[task_id]
@@ -411,6 +424,29 @@ def compute_frontier_auc(
 
             y_scores.append(prob)
             y_true.append(response)
+
+    # Check for missing data and raise if too much is missing
+    if agents_missing_abilities:
+        raise ValueError(
+            f"{len(agents_missing_abilities)} eval agents missing from oracle abilities. "
+            f"First 5: {agents_missing_abilities[:5]}"
+        )
+    if agents_missing_responses:
+        raise ValueError(
+            f"{len(agents_missing_responses)} eval agents missing from responses. "
+            f"First 5: {agents_missing_responses[:5]}"
+        )
+    if tasks_missing_beta:
+        raise ValueError(
+            f"{len(tasks_missing_beta)} frontier tasks missing from predicted difficulties. "
+            f"First 5: {list(tasks_missing_beta)[:5]}"
+        )
+    if tasks_missing_responses:
+        # This is less critical - some task/agent pairs may genuinely not exist
+        logger.warning(
+            f"{len(tasks_missing_responses)} frontier tasks missing from some agent responses. "
+            f"First 5: {list(tasks_missing_responses)[:5]}"
+        )
 
     n_pairs = len(y_true)
     n_positive = sum(y_true)

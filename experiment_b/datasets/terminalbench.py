@@ -1,6 +1,7 @@
 """TerminalBench dataset configuration for Experiment B."""
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -8,6 +9,8 @@ from typing import Dict, List, Optional
 from urllib.parse import unquote
 
 from experiment_b.datasets.base import DatasetConfig
+
+logger = logging.getLogger(__name__)
 
 
 def parse_detail_url_to_subject_id(detail_url: str) -> str:
@@ -35,17 +38,24 @@ def parse_detail_url_to_subject_id(detail_url: str) -> str:
 
     Returns:
         subject_id string matching response matrix format
+
+    Raises:
+        ValueError: If the URL cannot be parsed into a valid subject_id
     """
     # Extract path after the version number
     # URL: https://www.tbench.ai/leaderboard/terminal-bench/2.0/{Agent}/{variant}/{model}@{provider}
     parts = detail_url.split("/terminal-bench/2.0/")
     if len(parts) != 2:
-        return ""
+        raise ValueError(
+            f"Invalid TerminalBench URL format (missing /terminal-bench/2.0/): {detail_url}"
+        )
 
     path = parts[1]  # e.g., "Factory%20Droid/unknown/gpt-5.2@openai"
     path_parts = path.split("/")
     if len(path_parts) < 3:
-        return ""
+        raise ValueError(
+            f"Invalid TerminalBench URL format (expected agent/variant/model@provider): {detail_url}"
+        )
 
     # URL decode and parse
     agent = unquote(path_parts[0])  # "Factory%20Droid" -> "Factory Droid"
@@ -54,22 +64,33 @@ def parse_detail_url_to_subject_id(detail_url: str) -> str:
 
     # Parse model@provider - handle multi-model ensembles (comma-separated)
     if "@" not in model_provider:
-        return ""
+        raise ValueError(
+            f"Invalid TerminalBench URL format (missing @ in model@provider): {detail_url}"
+        )
 
     # Check if this is a multi-model ensemble (contains commas)
     if "," in model_provider:
         # Multi-model format: model1@provider1,model2@provider2,...
         model_parts = []
+        invalid_parts = []
         for mp in model_provider.split(","):
             if "@" not in mp:
+                invalid_parts.append(mp)
                 continue
             model, provider = mp.rsplit("@", 1)
             model_clean = model.lower().replace(".", "_")
             provider_clean = provider.lower()
             model_parts.append(f"{model_clean}_at_{provider_clean}")
 
+        if invalid_parts:
+            logger.warning(
+                f"Skipped {len(invalid_parts)} invalid model parts in ensemble URL {detail_url}: {invalid_parts}"
+            )
+
         if not model_parts:
-            return ""
+            raise ValueError(
+                f"Invalid TerminalBench URL format (no valid model@provider parts in ensemble): {detail_url}"
+            )
 
         agent_clean = agent.lower().replace(" ", "_")
         subject_id = f"{agent_clean}_{','.join(model_parts)}"
@@ -99,26 +120,64 @@ def load_terminalbench_agent_dates(metadata_path: Path) -> Dict[str, str]:
 
     Returns:
         Dict mapping subject_id -> date string (YYYYMMDD)
+
+    Raises:
+        FileNotFoundError: If metadata file doesn't exist
+        ValueError: If results in metadata have missing required fields
     """
     if not metadata_path.exists():
-        return {}
+        raise FileNotFoundError(f"TerminalBench metadata file not found: {metadata_path}")
 
     with open(metadata_path, "r") as f:
         data = json.load(f)
 
+    results = data.get("results", [])
+    if not results:
+        raise ValueError(f"TerminalBench metadata has no 'results' field: {metadata_path}")
+
     agent_dates = {}
-    for result in data.get("results", []):
+    skipped_no_url = 0
+    skipped_no_date = 0
+    skipped_invalid_date = 0
+
+    for i, result in enumerate(results):
         detail_url = result.get("detail_url", "")
         date_str = result.get("agent_org", "")  # Format: "2025-12-24"
 
-        subject_id = parse_detail_url_to_subject_id(detail_url)
-        if not subject_id or not date_str:
+        if not detail_url:
+            skipped_no_url += 1
             continue
+
+        if not date_str:
+            skipped_no_date += 1
+            continue
+
+        # parse_detail_url_to_subject_id will raise ValueError on invalid URLs
+        subject_id = parse_detail_url_to_subject_id(detail_url)
 
         # Convert date from YYYY-MM-DD to YYYYMMDD
         date_clean = date_str.replace("-", "")
-        if len(date_clean) == 8 and date_clean.isdigit():
-            agent_dates[subject_id] = date_clean
+        if len(date_clean) != 8 or not date_clean.isdigit():
+            skipped_invalid_date += 1
+            logger.warning(
+                f"Invalid date format for agent {subject_id}: '{date_str}' (expected YYYY-MM-DD)"
+            )
+            continue
+
+        agent_dates[subject_id] = date_clean
+
+    # Log summary of skipped entries
+    if skipped_no_url or skipped_no_date or skipped_invalid_date:
+        logger.warning(
+            f"Skipped entries when loading TerminalBench agent dates: "
+            f"no_url={skipped_no_url}, no_date={skipped_no_date}, invalid_date={skipped_invalid_date}"
+        )
+
+    if not agent_dates:
+        raise ValueError(
+            f"No valid agent dates found in TerminalBench metadata. "
+            f"Total results: {len(results)}, skipped: {skipped_no_url + skipped_no_date + skipped_invalid_date}"
+        )
 
     return agent_dates
 
@@ -188,6 +247,9 @@ class TerminalBenchConfig(DatasetConfig):
 
         Returns:
             Dict mapping agent_id -> date string (YYYYMMDD)
+
+        Raises:
+            ValueError: If any agent is missing from the metadata dates
         """
         if self._agent_dates_cache is None:
             object.__setattr__(
@@ -196,12 +258,16 @@ class TerminalBenchConfig(DatasetConfig):
                 load_terminalbench_agent_dates(self.metadata_path),
             )
 
-        # Return only dates for agents in the provided list
-        return {
-            agent: self._agent_dates_cache[agent]
-            for agent in agents
-            if agent in self._agent_dates_cache
-        }
+        # Check for missing agents
+        missing_agents = [a for a in agents if a not in self._agent_dates_cache]
+        if missing_agents:
+            raise ValueError(
+                f"{len(missing_agents)} agents missing from TerminalBench metadata dates. "
+                f"First 5: {missing_agents[:5]}"
+            )
+
+        # Return dates for all agents
+        return {agent: self._agent_dates_cache[agent] for agent in agents}
 
     @property
     def llm_judge_feature_cols(self) -> List[str]:

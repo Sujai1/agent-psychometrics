@@ -160,6 +160,41 @@ Default embeddings (DeepSeek-R1-Distill-Qwen-32B):
 - Embedding and LLM Judge predictors underperform baseline IRT on frontier tasks
 - Spearman correlation is significant for IRT-based methods but not for feature-based predictors
 
+## Caches
+
+Experiment B uses cached data from other experiments. Clear these when changing data or parameters:
+
+| Cache | Location | When to Clear |
+|-------|----------|---------------|
+| **Oracle IRT** | `clean_data/swebench_verified_*/1d/` or `chris_output/terminal_bench_*/1d/` | When retraining IRT on full data |
+| **Baseline IRT (SWE-bench)** | `chris_output/sad_irt/baseline_irt/` | When changing pre-frontier agent set |
+| **Baseline IRT (TerminalBench)** | `chris_output/experiment_b/terminalbench/baseline_irt/cache_*/` | Auto-invalidated when training data changes |
+| **Pre-computed Embeddings** | `chris_output/experiment_a/embeddings/` | When changing embedding backbone or task set |
+| **LLM Judge Features** | `chris_output/experiment_a/llm_judge_features/` | When re-extracting features |
+| **TerminalBench Embeddings** | `chris_output/experiment_a_terminalbench/embeddings/` | When changing TerminalBench task set |
+| **TerminalBench LLM Judge** | `chris_output/experiment_a_terminalbench/llm_judge_features/` | When re-extracting TerminalBench features |
+
+### Baseline IRT Caching
+
+For datasets without a pre-computed baseline IRT path (e.g., TerminalBench), the baseline IRT model is cached automatically. The cache key is computed from:
+- Response matrix file name
+- Sorted list of pre-frontier agents
+- Cutoff date
+
+If any of these change, the cache is automatically invalidated and the baseline IRT is retrained. Each cache is stored in a directory named `cache_{hash}` where `{hash}` is the first 12 characters of a SHA256 hash of the cache key components.
+
+To force recomputation from scratch:
+```bash
+# Clear SWE-bench baseline (pre-computed, rarely needs regeneration)
+rm -rf chris_output/sad_irt/baseline_irt/
+
+# Clear TerminalBench baseline caches (auto-managed, rarely needed)
+rm -rf chris_output/experiment_b/terminalbench/baseline_irt/
+
+# Then re-run
+python -m experiment_b.compare_methods --dataset terminalbench
+```
+
 ## Related Experiments
 
 - **Experiment A**: Prior validation - tests how well static task features predict difficulty

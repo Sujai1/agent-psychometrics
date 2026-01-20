@@ -241,12 +241,21 @@ def get_or_train_split_irt(
     if not force_retrain and check_cached_irt(cache_dir):
         cached_info = load_cached_split_info(cache_dir)
         data_type = "binomial" if is_binomial else "Bernoulli"
-        print(f"Found cached {data_type} IRT model at {cache_dir}")
-        print(f"  Split seed: {cached_info.get('split_seed')}")
-        print(f"  Test fraction: {cached_info.get('test_fraction')}")
-        print(f"  Train tasks: {cached_info.get('n_train_tasks')}")
-        print(f"  Test tasks: {cached_info.get('n_test_tasks')}")
-        return cache_dir
+
+        # Verify cache was trained on the same response matrix
+        cached_responses_path = cached_info.get("responses_path", "")
+        if cached_responses_path and str(responses_path) != cached_responses_path:
+            print(f"Cache invalidated: response matrix changed")
+            print(f"  Cached: {cached_responses_path}")
+            print(f"  Current: {responses_path}")
+            # Fall through to retrain
+        else:
+            print(f"Found cached {data_type} IRT model at {cache_dir}")
+            print(f"  Split seed: {cached_info.get('split_seed')}")
+            print(f"  Test fraction: {cached_info.get('test_fraction')}")
+            print(f"  Train tasks: {cached_info.get('n_train_tasks')}")
+            print(f"  Test tasks: {cached_info.get('n_test_tasks')}")
+            return cache_dir
 
     data_type = "BINOMIAL" if is_binomial else "BERNOULLI"
     print("=" * 60)
