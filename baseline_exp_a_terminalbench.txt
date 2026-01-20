@@ -1,0 +1,185 @@
+============================================================
+EXPERIMENT A: 5-FOLD CROSS-VALIDATION - TerminalBench
+============================================================
+
+Total tasks: 89
+Tasks per fold (test): ~17
+
+1. Oracle (ground truth b from full IRT):
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold0of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 1: AUC = 0.9071
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold1of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 2: AUC = 0.9202
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold2of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 3: AUC = 0.8912
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold3of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 4: AUC = 0.8921
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold4of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 68
+  Test tasks: 21
+      Fold 5: AUC = 0.9077
+   Mean AUC: 0.9037 ± 0.0109
+
+2. Constant (mean b):
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold0of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 1: AUC = 0.7020
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold1of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 2: AUC = 0.6859
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold2of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 3: AUC = 0.7231
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold3of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 4: AUC = 0.7089
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold4of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 68
+  Test tasks: 21
+      Fold 5: AUC = 0.6983
+   Mean AUC: 0.7036 ± 0.0123
+
+3. Embedding:
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold0of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 1: AUC = 0.7769
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold1of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 2: AUC = 0.7881
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold2of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 3: AUC = 0.8158
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold3of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 4: AUC = 0.7102
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold4of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 68
+  Test tasks: 21
+      Fold 5: AUC = 0.8237
+   Mean AUC: 0.7829 ± 0.0402
+
+4. LLM Judge:
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold0of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 1: AUC = 0.8110
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold1of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 2: AUC = 0.7672
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold2of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 3: AUC = 0.7841
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold3of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 4: AUC = 0.7417
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold4of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 68
+  Test tasks: 21
+      Fold 5: AUC = 0.8165
+   Mean AUC: 0.7841 ± 0.0278
+
+5. Agent-only baseline:
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold0of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 1: AUC = 0.7028
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold1of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 2: AUC = 0.6862
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold2of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 3: AUC = 0.7239
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold3of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 72
+  Test tasks: 17
+      Fold 4: AUC = 0.7088
+Found cached binomial IRT model at /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/irt_splits/seed0_fold4of5_1pl_binomial/1d
+  Split seed: 0
+  Test fraction: 0.2
+  Train tasks: 68
+  Test tasks: 21
+      Fold 5: AUC = 0.6978
+   Mean AUC: 0.7039 ± 0.0125
+
+============================================================
+SUMMARY (5-FOLD CROSS-VALIDATION)
+============================================================
+
+Method                      Mean AUC      Std  Pass Rate MSE
+--------------------------------------------------------------
+Oracle (true b)               0.9037   0.0109         0.0540
+Embedding                     0.7829   0.0402         0.1240
+LLM Judge                     0.7841   0.0278         0.1212
+Constant (mean b)             0.7036   0.0123         0.1490
+Agent-only                    0.7039   0.0125         0.1404
+
+Results saved to: /Users/chrisge/Downloads/model_irt/chris_output/experiment_a_terminalbench/experiment_a_cv5_results.json

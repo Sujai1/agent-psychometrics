@@ -1,15 +1,12 @@
-"""Common framework for Experiment A across different datasets.
+"""Root-level shared utilities for experiments A and B.
 
-This module provides:
-- Abstract dataset interface for binary (SWE-bench) and binomial (TerminalBench) data
-- Unified evaluator that loops through difficulty predictors
-- Common AUC computation with proper IRT formulas
-- Generic baselines that work with any dataset type
-- Cross-validation utilities for k-fold CV
-- Binomial metrics for pass rate prediction evaluation
+This module provides the core abstractions for difficulty prediction:
+- TaskFeatureSource: Plug-and-play interface for any feature type
+- FeatureBasedPredictor: Source-agnostic Ridge regression predictor
+- DifficultyPredictorBase: Abstract base for all predictors
 """
 
-from experiment_a_common.dataset import (
+from shared.dataset import (
     ExperimentData,
     BinaryExperimentData,
     BinomialExperimentData,
@@ -18,7 +15,7 @@ from experiment_a_common.dataset import (
     stable_split_tasks,
     filter_unsolved_tasks,
 )
-from experiment_a_common.evaluator import (
+from shared.evaluator import (
     compute_auc,
     compute_irt_probability,
     convert_numpy,
@@ -27,42 +24,39 @@ from experiment_a_common.evaluator import (
     PredictorConfig,
     PredictorResult,
 )
-from experiment_a_common.baselines import (
+from shared.baselines import (
     agent_only_baseline,
     random_baseline,
     verify_random_baseline_sanity,
 )
-from experiment_a_common.cross_validation import (
+from shared.cross_validation import (
     CrossValidationResult,
     k_fold_split_tasks,
     run_cv_for_predictor,
     run_cv_for_baseline,
 )
-from experiment_a_common.pipeline import (
-    ExperimentSpec,
-    build_predictor_configs,
-    run_single_holdout,
-    run_cross_validation,
-    create_main_parser,
-    run_experiment_main,
-)
-from experiment_a_common.binomial_metrics import (
+from shared.binomial_metrics import (
     BinomialMetricsResult,
     compute_binomial_metrics,
 )
-from experiment_a_common.feature_source import (
+from shared.feature_source import (
     TaskFeatureSource,
     EmbeddingFeatureSource,
     CSVFeatureSource,
     ConcatenatedFeatureSource,
 )
-from experiment_a_common.feature_predictor import (
+from shared.feature_predictor import (
     FeatureBasedPredictor,
 )
-from experiment_a_common.predictor_base import (
+from shared.predictor_base import (
     DifficultyPredictorBase,
     ConstantPredictor,
     GroundTruthPredictor,
+)
+from shared.train_irt_split import (
+    get_or_train_split_irt,
+    get_split_cache_dir,
+    check_cached_irt,
 )
 
 __all__ = [
@@ -91,13 +85,6 @@ __all__ = [
     "k_fold_split_tasks",
     "run_cv_for_predictor",
     "run_cv_for_baseline",
-    # Pipeline
-    "ExperimentSpec",
-    "build_predictor_configs",
-    "run_single_holdout",
-    "run_cross_validation",
-    "create_main_parser",
-    "run_experiment_main",
     # Binomial metrics
     "BinomialMetricsResult",
     "compute_binomial_metrics",
@@ -112,4 +99,8 @@ __all__ = [
     "DifficultyPredictorBase",
     "ConstantPredictor",
     "GroundTruthPredictor",
+    # IRT training
+    "get_or_train_split_irt",
+    "get_split_cache_dir",
+    "check_cached_irt",
 ]

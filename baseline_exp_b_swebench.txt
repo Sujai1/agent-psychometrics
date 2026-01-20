@@ -1,0 +1,126 @@
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=1.28782e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=1.1135e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=2.15895e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=9.58161e-09): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=1.3676e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+Loading dataset configuration: swebench
+  Dataset: SWE-bench Verified
+  Cutoff date: 20250807
+
+Loading IRT models...
+  Oracle IRT: 500 tasks
+  Oracle abilities: 131 agents
+
+Loading response matrix...
+  Loaded responses for 131 agents
+
+Identifying frontier tasks...
+  Agents with dates: 131 / 131
+  Pre-frontier agents (< 20250807): 112
+  Post-frontier agents (>= 20250807): 19
+  Baseline IRT: 500 tasks (loaded from chris_output/sad_irt/baseline_irt/items.csv)
+  Frontier tasks: 40
+
+Identifying nontrivial anchor tasks...
+  Anchor tasks (10-90% pass rate in both groups): 203
+  Training tasks (non-frontier): 460
+
+Evaluating Oracle (upper bound)...
+  AUC: 0.7716
+  Spearman rho: 1.0000
+
+Evaluating Baseline IRT...
+  AUC: 0.6978
+  Spearman rho: 0.3336
+
+Loading SAD-IRT beta values from chris_output/sad_irt_beta_values...
+  Found 9 beta CSV files
+
+  Evaluating SAD-IRT (full_20260117_150625)...
+    AUC: 0.6710
+    Spearman rho: 0.3191
+
+  Evaluating SAD-IRT (full)...
+    AUC: 0.6703
+    Spearman rho: 0.3272
+
+  Evaluating SAD-IRT (full_20260117_181914_lora_r64)...
+    AUC: 0.6717
+    Spearman rho: 0.3302
+
+  Evaluating SAD-IRT (freeze_irt)...
+    AUC: 0.6706
+    Spearman rho: 0.3221
+
+  Evaluating SAD-IRT (full_20260117_124926)...
+    AUC: 0.6703
+    Spearman rho: 0.3272
+
+  Evaluating SAD-IRT (full_20260118_024625_psi_batch...)...
+    AUC: 0.6708
+    Spearman rho: 0.3351
+
+  Evaluating SAD-IRT (full_20260117_144025)...
+    AUC: 0.6718
+    Spearman rho: 0.3315
+
+  Evaluating SAD-IRT (freeze_encoder_20260117_173918)...
+    AUC: 0.6711
+    Spearman rho: 0.3281
+
+  Evaluating SAD-IRT (full_20260118_024625_psi_batch...)...
+    AUC: 0.6711
+    Spearman rho: 0.3212
+
+Evaluating Embedding + Ridge...
+  Training on 460 tasks
+    [Sanity check] Train set Spearman rho: 0.7750
+  AUC: 0.6655
+  Spearman rho: -0.1629
+
+Evaluating LLM Judge + Ridge...
+  Training on 460 tasks
+    [Sanity check] Train set Spearman rho: 0.6525
+  AUC: 0.6835
+  Spearman rho: -0.0921
+
+==========================================================================================
+EXPERIMENT B: FRONTIER TASK DIFFICULTY PREDICTION
+==========================================================================================
+
+Frontier Task Definition:
+  - Pre-frontier pass rate <= 10%
+  - Post-frontier pass rate > 10%
+  - Cutoff date: 20250807
+
+Data Summary:
+  - Pre-frontier agents: 112
+  - Post-frontier agents: 19
+  - Frontier tasks: 40
+  - Anchor tasks (for AUC alignment): 203
+  - Alignment method: affine
+
+==========================================================================================
+COMPARISON TABLE (Frontier Tasks: 40, Eval Agents: 19)
+==========================================================================================
+
+Method                                           ROC-AUC   Spearman ρ    p-value
+------------------------------------------------------------------------------------------
+Oracle (upper bound)                              0.7716       1.0000    <0.0001
+Baseline IRT (pre-frontier only)                  0.6978       0.3336     0.0354
+LLM Judge + Ridge                                 0.6835      -0.0921     0.5718
+SAD-IRT (full_20260117_144025)                    0.6718       0.3315     0.0366
+SAD-IRT (full_20260117_181914_lora_r64)           0.6717       0.3302     0.0374
+SAD-IRT (freeze_encoder_20260117_173918)          0.6711       0.3281     0.0387
+SAD-IRT (full_20260118_024625_psi_batch...)       0.6711       0.3212     0.0433
+SAD-IRT (full_20260117_150625)                    0.6710       0.3191     0.0447
+SAD-IRT (freeze_irt)                              0.6706       0.3221     0.0427
+SAD-IRT (full)                                    0.6703       0.3272     0.0393
+SAD-IRT (full_20260117_124926)                    0.6703       0.3272     0.0393
+Embedding + Ridge                                 0.6655      -0.1629     0.3154
+

@@ -16,7 +16,53 @@ Methods compared:
 - (Optional) SAD-IRT: State-aware deep IRT from experiment_sad_irt
 
 Usage:
-    python -m experiment_b.compare_methods --output_csv chris_output/experiment_b_results.csv
+    python -m experiment_b.swebench.compare_methods
+    python -m experiment_b.terminalbench.compare_methods
 
 See README.md for full documentation.
 """
+
+from experiment_b.swebench.config import SWEBenchConfig
+from experiment_b.terminalbench.config import TerminalBenchConfig
+from experiment_b.shared.config_base import DatasetConfig
+
+
+# Registry of available dataset configurations
+DATASET_CONFIGS = {
+    "swebench": SWEBenchConfig,
+    "terminalbench": TerminalBenchConfig,
+}
+
+
+def get_dataset_config(name: str) -> DatasetConfig:
+    """Get a dataset configuration by name.
+
+    Args:
+        name: Dataset name (e.g., "swebench", "terminalbench")
+
+    Returns:
+        DatasetConfig instance for the specified dataset
+
+    Raises:
+        ValueError: If the dataset name is not recognized
+    """
+    if name not in DATASET_CONFIGS:
+        available = ", ".join(DATASET_CONFIGS.keys())
+        raise ValueError(f"Unknown dataset: {name}. Available: {available}")
+
+    return DATASET_CONFIGS[name]()
+
+
+def list_datasets() -> list:
+    """List available dataset names."""
+    return list(DATASET_CONFIGS.keys())
+
+
+__all__ = [
+    "DatasetConfig",
+    "SWEBenchConfig",
+    "TerminalBenchConfig",
+    "get_dataset_config",
+    "list_datasets",
+    "DATASET_CONFIGS",
+]

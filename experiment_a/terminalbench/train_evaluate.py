@@ -1,23 +1,23 @@
 """Main training and evaluation pipeline for Experiment A (TerminalBench).
 
-This is a thin wrapper around the shared pipeline in experiment_a_common.pipeline.
+This is a thin wrapper around the shared pipeline in experiment_a.shared.pipeline.
 """
 
 from pathlib import Path
 from typing import Any, Dict, List
 
-from experiment_a_terminalbench.config import TerminalBenchConfig
-from experiment_a_terminalbench.data_loader import load_task_data_from_repo
-from experiment_a_common.pipeline import ExperimentSpec, run_experiment_main
+from experiment_a.terminalbench.config import TerminalBenchConfig
+from experiment_a.terminalbench.data_loader import load_task_data_from_repo
+from experiment_a.shared.pipeline import ExperimentSpec, run_experiment_main
 
 
 # Root directory for resolving relative paths
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 # TerminalBench-specific LLM judge features (4 pre-selected features)
 # Pre-selected subset that works well with Ridge regression (verified by comparing
 # Ridge-only vs Lasso+Ridge performance). The full 8 features extracted by
-# experiment_a_terminalbench/llm_judge_prompt.py are available, but using all 8
+# experiment_a/terminalbench/llm_judge_prompt.py are available, but using all 8
 # with Ridge-only hurts performance compared to this pre-selected subset.
 TERMINALBENCH_LLM_JUDGE_FEATURES = [
     "task_clarity",

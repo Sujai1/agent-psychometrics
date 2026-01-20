@@ -153,7 +153,7 @@ def run_cv_validation(
         Dict with CV results
     """
     from experiment_a.config import ExperimentAConfig
-    from experiment_a_common.pipeline import ExperimentSpec, run_cross_validation
+    from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
 
     print(f"\n{'='*60}")
     print(f"Validating version {version_id}")

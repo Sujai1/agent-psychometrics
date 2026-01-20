@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from experiment_b.datasets.base import DatasetConfig
+from experiment_b.shared.config_base import DatasetConfig
 
 
 def extract_date_prefix(agent_name: str) -> str:

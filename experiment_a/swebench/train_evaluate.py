@@ -5,15 +5,15 @@ This is a thin wrapper around the shared pipeline in experiment_a.shared.pipelin
 
 from pathlib import Path
 
-from experiment_a.config import ExperimentAConfig
+from experiment_a.swebench.config import ExperimentAConfig
 from experiment_a.shared.pipeline import ExperimentSpec, run_experiment_main
 
 
 # Root directory for resolving relative paths
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 # SWE-bench-specific LLM judge features (9 semantic features)
-# These match the features extracted by experiment_a/llm_judge_prompt.py
+# These match the features extracted by experiment_a/swebench/llm_judge_prompt.py
 SWEBENCH_LLM_JUDGE_FEATURES = [
     "fix_in_description",
     "problem_clarity",

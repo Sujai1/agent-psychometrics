@@ -22,8 +22,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from experiment_a_common.dataset import ExperimentData
-from experiment_a_common.evaluator import compute_auc, PredictorConfig
+from shared.dataset import ExperimentData
+from shared.evaluator import compute_auc, PredictorConfig
 
 
 @dataclass
@@ -178,8 +178,8 @@ def run_cv_for_predictor(
 
         # Optionally compute binomial metrics
         if compute_binomial:
-            from experiment_a_common.binomial_metrics import compute_binomial_metrics
-            from experiment_a_common.dataset import BinomialExperimentData
+            from shared.binomial_metrics import compute_binomial_metrics
+            from shared.dataset import BinomialExperimentData
 
             if isinstance(data, BinomialExperimentData):
                 binom_result = compute_binomial_metrics(

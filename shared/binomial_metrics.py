@@ -13,8 +13,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from experiment_a_common.dataset import BinomialExperimentData
-from experiment_a_common.evaluator import compute_irt_probability
+from shared.dataset import BinomialExperimentData
+from shared.evaluator import compute_irt_probability
 
 
 @dataclass

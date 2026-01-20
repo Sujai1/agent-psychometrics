@@ -29,14 +29,14 @@ import numpy as np
 import pandas as pd
 
 # Add parent to path for imports
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiment_a_terminalbench.config import TerminalBenchConfig
-from experiment_a_terminalbench.data_loader import load_task_data_from_repo
-from experiment_a_common.pipeline import ExperimentSpec, run_cross_validation
-from experiment_a_common.sampling import (
+from experiment_a.terminalbench.config import TerminalBenchConfig
+from experiment_a.terminalbench.data_loader import load_task_data_from_repo
+from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
+from shared.sampling import (
     sample_binary_from_binomial,
     load_binomial_responses,
     save_binary_responses,

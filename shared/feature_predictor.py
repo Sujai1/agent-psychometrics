@@ -5,8 +5,8 @@ The predictor uses StandardScaler + RidgeCV regression, which is sufficient for
 both high-dimensional embeddings and low-dimensional semantic features.
 
 Example usage:
-    from experiment_a_common.feature_source import EmbeddingFeatureSource
-    from experiment_a_common.feature_predictor import FeatureBasedPredictor
+    from shared.feature_source import EmbeddingFeatureSource
+    from shared.feature_predictor import FeatureBasedPredictor
 
     # Create feature source
     source = EmbeddingFeatureSource(Path("embeddings.npz"))
@@ -28,7 +28,7 @@ import numpy as np
 from sklearn.linear_model import RidgeCV
 from sklearn.preprocessing import StandardScaler
 
-from experiment_a_common.feature_source import (
+from shared.feature_source import (
     TaskFeatureSource,
     EmbeddingFeatureSource,
     CSVFeatureSource,

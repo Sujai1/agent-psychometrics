@@ -1,0 +1,100 @@
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=3.70818e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=3.79591e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=3.55386e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+/Users/chrisge/Downloads/model_irt/.venv/lib/python3.12/site-packages/scipy/_lib/_util.py:1233: LinAlgWarning: Ill-conditioned matrix (rcond=3.42743e-08): result may not be accurate.
+  return f(*arrays, *other_args, **kwargs)
+Loading dataset configuration: terminalbench
+  Dataset: TerminalBench
+  Cutoff date: 20251117
+
+Loading IRT models...
+  Oracle IRT: 89 tasks
+  Oracle abilities: 83 agents
+
+Loading response matrix...
+  Loaded responses for 83 agents
+
+Identifying frontier tasks...
+  Agents with dates: 83 / 83
+  Pre-frontier agents (< 20251117): 52
+  Post-frontier agents (>= 20251117): 31
+
+Loading/training baseline IRT...
+  Baseline IRT: 89 tasks
+  Frontier tasks: 18
+
+Identifying nontrivial anchor tasks...
+  Anchor tasks (10-90% pass rate in both groups): 27
+  Training tasks (non-frontier): 71
+
+Evaluating Oracle (upper bound)...
+  AUC: 0.8130
+  Spearman rho: 1.0000
+
+Evaluating Baseline IRT...
+  AUC: 0.6988
+  Spearman rho: 0.5253
+
+Loading SAD-IRT beta values from chris_output/sad_irt_beta_values...
+  Found 9 beta CSV files
+
+  Skipping SAD-IRT (full_20260117_150625): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full_20260117_181914_lora_r64): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (freeze_irt): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full_20260117_124926): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full_20260118_024625_psi_batch...): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full_20260117_144025): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (freeze_encoder_20260117_173918): no overlap with frontier tasks (trained on different dataset?)
+
+  Skipping SAD-IRT (full_20260118_024625_psi_batch...): no overlap with frontier tasks (trained on different dataset?)
+
+Evaluating Embedding + Ridge...
+  Training on 71 tasks
+    [Sanity check] Train set Spearman rho: 0.9576
+  AUC: 0.6007
+  Spearman rho: -0.2632
+
+Evaluating LLM Judge + Ridge...
+  Training on 71 tasks
+    [Sanity check] Train set Spearman rho: 0.5920
+  AUC: 0.7320
+  Spearman rho: -0.1547
+
+==========================================================================================
+EXPERIMENT B: FRONTIER TASK DIFFICULTY PREDICTION
+==========================================================================================
+
+Frontier Task Definition:
+  - Pre-frontier pass rate <= 10%
+  - Post-frontier pass rate > 10%
+  - Cutoff date: 20251117
+
+Data Summary:
+  - Pre-frontier agents: 52
+  - Post-frontier agents: 31
+  - Frontier tasks: 18
+  - Anchor tasks (for AUC alignment): 27
+  - Alignment method: affine
+
+==========================================================================================
+COMPARISON TABLE (Frontier Tasks: 18, Eval Agents: 31)
+==========================================================================================
+
+Method                                           ROC-AUC   Spearman ρ    p-value
+------------------------------------------------------------------------------------------
+Oracle (upper bound)                              0.8130       1.0000    <0.0001
+LLM Judge + Ridge                                 0.7320      -0.1547     0.5399
+Baseline IRT (pre-frontier only)                  0.6988       0.5253     0.0252
+Embedding + Ridge                                 0.6007      -0.2632     0.2914
+

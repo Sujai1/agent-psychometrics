@@ -90,11 +90,11 @@ This constraint ensures a realistic simulation of predicting difficulty for task
 
 ## Architecture
 
-Uses the shared `experiment_a_common/` infrastructure for predictors:
+Uses the shared `shared/` infrastructure for predictors:
 
 ```python
-from experiment_a_common.feature_source import EmbeddingFeatureSource, CSVFeatureSource
-from experiment_a_common.feature_predictor import FeatureBasedPredictor
+from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from shared.feature_predictor import FeatureBasedPredictor
 
 # Build predictors
 source = EmbeddingFeatureSource(embeddings_path)

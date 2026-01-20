@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import unquote
 
-from experiment_b.datasets.base import DatasetConfig
+from experiment_b.shared.config_base import DatasetConfig
 
 logger = logging.getLogger(__name__)
 

@@ -31,13 +31,13 @@ import numpy as np
 import pandas as pd
 
 # Import from experiment_b (canonical location for frontier evaluation utilities)
-from experiment_b.data_splits import (
+from experiment_b.shared.data_splits import (
     get_all_agents_from_responses,
     identify_frontier_tasks,
     identify_nontrivial_tasks,
     split_agents_by_cutoff,
 )
-from experiment_b.evaluate import (
+from experiment_b.shared.evaluate import (
     compute_frontier_difficulty_metrics,
     compute_scale_offset,
     shift_to_oracle_scale,
@@ -45,12 +45,10 @@ from experiment_b.evaluate import (
     load_responses_dict,
 )
 
-# Import from experiment_a
-from experiment_a.difficulty_predictor import (
-    DifficultyPredictorBase,
-    EmbeddingPredictor,
-    LLMJudgePredictor,
-)
+# Import from shared
+from shared.predictor_base import DifficultyPredictorBase
+from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from shared.feature_predictor import FeatureBasedPredictor
 
 
 def compute_method_metrics(

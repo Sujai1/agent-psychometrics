@@ -19,15 +19,15 @@ from typing import Any, Callable, Dict, List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from experiment_a_common.predictor_base import (
+from shared.predictor_base import (
     ConstantPredictor,
     GroundTruthPredictor,
 )
-from experiment_a_common.feature_source import (
+from shared.feature_source import (
     EmbeddingFeatureSource,
     CSVFeatureSource,
 )
-from experiment_a_common.feature_predictor import (
+from shared.feature_predictor import (
     FeatureBasedPredictor,
 )
 
@@ -43,7 +43,7 @@ SWEBENCH_LLM_JUDGE_FEATURES = [
     "logical_reasoning_required",
     "atypicality",
 ]
-from experiment_a_common import (
+from shared import (
     load_dataset,
     load_dataset_for_fold,
     compute_auc,
@@ -53,11 +53,11 @@ from experiment_a_common import (
     convert_numpy,
     filter_unsolved_tasks,
 )
-from experiment_a_common.dataset import (
+from shared.dataset import (
     _load_binary_responses,
     _load_binomial_responses,
 )
-from experiment_a_common.cross_validation import (
+from shared.cross_validation import (
     k_fold_split_tasks,
     run_cv_for_predictor,
     run_cv_for_baseline,
@@ -221,8 +221,8 @@ def run_single_holdout(
 
     # Add binomial metrics to oracle if applicable
     if compute_binomial:
-        from experiment_a_common.binomial_metrics import compute_binomial_metrics
-        from experiment_a_common.dataset import BinomialExperimentData
+        from shared.binomial_metrics import compute_binomial_metrics
+        from shared.dataset import BinomialExperimentData
         if isinstance(data, BinomialExperimentData):
             binom_result = compute_binomial_metrics(data, oracle_preds, use_full_abilities=True)
             oracle_result["binomial_metrics"] = binom_result.to_dict()
