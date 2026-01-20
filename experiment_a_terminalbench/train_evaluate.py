@@ -14,17 +14,16 @@ from experiment_a_common.pipeline import ExperimentSpec, run_experiment_main
 # Root directory for resolving relative paths
 ROOT = Path(__file__).resolve().parents[1]
 
-# TerminalBench-specific LLM judge features (8 semantic features)
-# These match the features extracted by experiment_a_terminalbench/llm_judge_prompt.py
+# TerminalBench-specific LLM judge features (4 pre-selected features)
+# Pre-selected subset that works well with Ridge regression (verified by comparing
+# Ridge-only vs Lasso+Ridge performance). The full 8 features extracted by
+# experiment_a_terminalbench/llm_judge_prompt.py are available, but using all 8
+# with Ridge-only hurts performance compared to this pre-selected subset.
 TERMINALBENCH_LLM_JUDGE_FEATURES = [
-    "solution_in_instruction",
     "task_clarity",
-    "solution_size",
     "domain_knowledge_required",
     "task_complexity",
-    "logical_reasoning_required",
     "atypicality",
-    "tooling_complexity",
 ]
 
 # Experiment specification for TerminalBench

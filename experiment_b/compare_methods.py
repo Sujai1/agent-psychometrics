@@ -51,12 +51,10 @@ from experiment_b.evaluate import (
     load_responses_dict,
 )
 
-# Import predictors from experiment_a
-from experiment_a.difficulty_predictor import (
-    DifficultyPredictorBase,
-    EmbeddingPredictor,
-    LLMJudgePredictor,
-)
+# Import predictors from shared module
+from experiment_a_common.predictor_base import DifficultyPredictorBase
+from experiment_a_common.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from experiment_a_common.feature_predictor import FeatureBasedPredictor
 
 
 def compute_baseline_irt_cache_key(
@@ -718,7 +716,8 @@ def main():
             print(f"\nEvaluating {method_name}...")
             print(f"  Training on {len(config['train_task_ids'])} tasks")
             try:
-                predictor = EmbeddingPredictor(embeddings_path=embeddings_path)
+                source = EmbeddingFeatureSource(embeddings_path)
+                predictor = FeatureBasedPredictor(source)
                 embedding_metrics = evaluate_predictor(
                     predictor=predictor,
                     baseline_items=baseline_items,
@@ -752,14 +751,16 @@ def main():
     # 4. LLM Judge predictor
     if llm_judge_path.exists():
         for config in training_configs:
-            method_name = f"LLM Judge + Lasso/Ridge{config['suffix']}"
+            method_name = f"LLM Judge + Ridge{config['suffix']}"
             print(f"\nEvaluating {method_name}...")
             print(f"  Training on {len(config['train_task_ids'])} tasks")
             try:
-                predictor = LLMJudgePredictor(
-                    features_path=llm_judge_path,
+                source = CSVFeatureSource(
+                    llm_judge_path,
                     feature_cols=dataset_config.llm_judge_feature_cols,
+                    name="LLM Judge",
                 )
+                predictor = FeatureBasedPredictor(source)
                 llm_judge_metrics = evaluate_predictor(
                     predictor=predictor,
                     baseline_items=baseline_items,

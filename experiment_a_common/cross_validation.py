@@ -112,7 +112,7 @@ def run_cv_for_predictor(
     This ensures expensive data loading (embeddings, LLM features) happens only once.
 
     Args:
-        predictor_config: The predictor configuration (class + kwargs)
+        predictor_config: The predictor configuration (with pre-instantiated predictor)
         folds: List of (train_tasks, test_tasks) tuples from k_fold_split_tasks
         load_fold_data: Function that loads ExperimentData for a specific fold.
                         Signature: (train_tasks, test_tasks, fold_idx) -> ExperimentData
@@ -142,8 +142,8 @@ def run_cv_for_predictor(
             k=len(folds),
         )
 
-    # Instantiate predictor once - this loads embeddings/features
-    predictor = predictor_config.predictor_class(**predictor_config.kwargs)
+    # Use pre-instantiated predictor (embeddings/features already loaded)
+    predictor = predictor_config.predictor
 
     fold_aucs: List[Optional[float]] = []
     fold_maes: List[Optional[float]] = []

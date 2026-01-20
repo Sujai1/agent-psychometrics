@@ -35,12 +35,17 @@ class TerminalBenchConfig:
     split_seed: int = 0
 
     # Embedding predictor config
-    embeddings_path: Optional[Path] = None  # Required for EmbeddingPredictor
+    embeddings_path: Optional[Path] = Path(
+        "chris_output/experiment_a_terminalbench/embeddings/"
+        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__maxlen8192.npz"
+    )
     # Ridge alphas to sweep during cross-validation (uses RidgeCV)
     ridge_alphas: tuple = (0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0)
 
     # LLM Judge predictor config
-    llm_judge_features_path: Optional[Path] = None  # Required for LLMJudgePredictor
+    llm_judge_features_path: Optional[Path] = Path(
+        "chris_output/experiment_a_terminalbench/llm_judge_features/llm_judge_features.csv"
+    )
     llm_judge_ridge_alphas: tuple = (0.01, 0.1, 1.0, 10.0, 100.0, 1000.0)
     llm_judge_max_features: Optional[int] = None  # None = use all features
 

@@ -50,6 +50,20 @@ from experiment_a_common.binomial_metrics import (
     BinomialMetricsResult,
     compute_binomial_metrics,
 )
+from experiment_a_common.feature_source import (
+    TaskFeatureSource,
+    EmbeddingFeatureSource,
+    CSVFeatureSource,
+    ConcatenatedFeatureSource,
+)
+from experiment_a_common.feature_predictor import (
+    FeatureBasedPredictor,
+)
+from experiment_a_common.predictor_base import (
+    DifficultyPredictorBase,
+    ConstantPredictor,
+    GroundTruthPredictor,
+)
 
 __all__ = [
     # Dataset
@@ -87,4 +101,15 @@ __all__ = [
     # Binomial metrics
     "BinomialMetricsResult",
     "compute_binomial_metrics",
+    # Feature sources
+    "TaskFeatureSource",
+    "EmbeddingFeatureSource",
+    "CSVFeatureSource",
+    "ConcatenatedFeatureSource",
+    # Feature-based predictor
+    "FeatureBasedPredictor",
+    # Predictor base classes
+    "DifficultyPredictorBase",
+    "ConstantPredictor",
+    "GroundTruthPredictor",
 ]

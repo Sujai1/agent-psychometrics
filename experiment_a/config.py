@@ -34,13 +34,18 @@ class ExperimentAConfig:
     split_seed: int = 0
 
     # Embedding predictor config
-    embeddings_path: Optional[Path] = None  # Required for EmbeddingPredictor
+    embeddings_path: Optional[Path] = Path(
+        "chris_output/experiment_a/embeddings/"
+        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__merged.npz"
+    )
     ridge_alphas: List[float] = field(
         default_factory=lambda: [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
     )
 
     # LLM Judge predictor config
-    llm_judge_features_path: Optional[Path] = None  # Required for LLMJudgePredictor
+    llm_judge_features_path: Optional[Path] = Path(
+        "chris_output/experiment_a/llm_judge_features/llm_judge_features.csv"
+    )
     llm_judge_ridge_alphas: List[float] = field(
         default_factory=lambda: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
     )

@@ -7,13 +7,14 @@ This module provides:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 from scipy.special import expit as sigmoid
 from sklearn.metrics import roc_auc_score
 
 from experiment_a_common.dataset import ExperimentData
+from experiment_a_common.predictor_base import DifficultyPredictorBase
 
 
 def compute_irt_probability(theta: float, beta: float) -> float:
@@ -89,16 +90,14 @@ def compute_auc(
 class PredictorConfig:
     """Configuration for a single difficulty predictor."""
 
-    # Predictor class or factory function
-    predictor_class: Type
+    # Pre-instantiated predictor (must implement fit/predict interface)
+    predictor: DifficultyPredictorBase
     # Name for results dict
     name: str
-    # Display name for printing
+    # Display name for str
     display_name: str
     # Whether this predictor is enabled
     enabled: bool = True
-    # Keyword arguments to pass to predictor constructor
-    kwargs: Dict[str, Any] = field(default_factory=dict)
     # Whether to use full IRT abilities (only for oracle)
     use_full_abilities: bool = False
     # Whether to store predictions in results
@@ -127,7 +126,7 @@ def evaluate_single_predictor(
 
     Args:
         data: The experiment dataset
-        config: Predictor configuration
+        config: Predictor configuration (with pre-instantiated predictor)
         train_b: Ground truth difficulties for training tasks
         verbose: Whether to print progress
 
@@ -135,28 +134,21 @@ def evaluate_single_predictor(
         PredictorResult with AUC and metadata
     """
     try:
-        # Instantiate predictor
-        predictor = config.predictor_class(**config.kwargs)
+        predictor = config.predictor
 
         if verbose:
             # Print predictor-specific info
-            if hasattr(predictor, "n_embeddings"):
-                print(f"   Embeddings loaded: {predictor.n_embeddings} tasks")
-            if hasattr(predictor, "embedding_dim"):
-                print(f"   Embedding dim: {predictor.embedding_dim}")
-            if hasattr(predictor, "n_tasks"):
-                print(f"   Features loaded: {predictor.n_tasks} tasks")
-            if hasattr(predictor, "n_features"):
-                print(f"   Feature count: {predictor.n_features}")
+            if hasattr(predictor, "source"):
+                print(f"   Feature source: {predictor.source.name}")
+                print(f"   Tasks available: {len(predictor.source.task_ids)}")
+                print(f"   Feature dim: {predictor.source.feature_dim}")
 
         # Fit predictor
         predictor.fit(data.train_tasks, train_b)
 
-        # Print selected features if applicable
-        if verbose and hasattr(predictor, "print_selected_features"):
-            predictor.print_selected_features()
-        elif verbose and hasattr(predictor, "print_feature_coefficients"):
-            predictor.print_feature_coefficients()
+        # Print model summary if available
+        if verbose and hasattr(predictor, "print_model_summary"):
+            predictor.print_model_summary()
 
         # Predict
         predictions = predictor.predict(data.test_tasks)
@@ -175,18 +167,8 @@ def evaluate_single_predictor(
 
         # Collect metadata from predictor
         metadata: Dict[str, Any] = {}
-        for attr in [
-            "n_embeddings", "embedding_dim", "n_tasks", "n_features",
-            "selected_features", "feature_coefficients", "feature_names",
-        ]:
-            if hasattr(predictor, attr):
-                val = getattr(predictor, attr)
-                if val is not None:
-                    metadata[attr] = val
-
-        # Get additional metadata from get_metadata() if available
-        if hasattr(predictor, "get_metadata"):
-            metadata.update(predictor.get_metadata())
+        if hasattr(predictor, "get_model_info"):
+            metadata.update(predictor.get_model_info())
 
         return PredictorResult(
             name=config.name,
@@ -250,11 +232,6 @@ def run_evaluation_pipeline(
                 "auc_result": result.auc_result,
             }
             result_dict.update(result.metadata)
-
-            # Add kwargs for reproducibility
-            for key, val in config.kwargs.items():
-                if key not in result_dict:
-                    result_dict[key] = str(val) if hasattr(val, "__fspath__") else val
 
             # Compute binomial metrics if requested
             if compute_binomial and result.predictions:

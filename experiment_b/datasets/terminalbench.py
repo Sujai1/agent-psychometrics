@@ -273,15 +273,13 @@ class TerminalBenchConfig(DatasetConfig):
     def llm_judge_feature_cols(self) -> List[str]:
         """TerminalBench-specific LLM judge feature columns.
 
+        Pre-selected subset of 4 features that work well with Ridge regression
+        (verified by comparing Ridge-only vs Lasso+Ridge performance).
         These differ from SWE-bench features because the task domain is different.
         """
         return [
-            "solution_in_instruction",
             "task_clarity",
-            "solution_size",
             "domain_knowledge_required",
             "task_complexity",
-            "logical_reasoning_required",
             "atypicality",
-            "tooling_complexity",
         ]

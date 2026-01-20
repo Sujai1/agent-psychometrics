@@ -19,12 +19,30 @@ from typing import Any, Callable, Dict, List, Optional, Type
 import numpy as np
 import pandas as pd
 
-from experiment_a.difficulty_predictor import (
-    EmbeddingPredictor,
+from experiment_a_common.predictor_base import (
     ConstantPredictor,
     GroundTruthPredictor,
-    LLMJudgePredictor,
 )
+from experiment_a_common.feature_source import (
+    EmbeddingFeatureSource,
+    CSVFeatureSource,
+)
+from experiment_a_common.feature_predictor import (
+    FeatureBasedPredictor,
+)
+
+# Default SWE-bench LLM Judge features (all 9 semantic features)
+SWEBENCH_LLM_JUDGE_FEATURES = [
+    "fix_in_description",
+    "problem_clarity",
+    "error_message_provided",
+    "reproduction_steps",
+    "fix_locality",
+    "domain_knowledge_required",
+    "fix_complexity",
+    "logical_reasoning_required",
+    "atypicality",
+]
 from experiment_a_common import (
     load_dataset,
     load_dataset_for_fold,
@@ -76,17 +94,17 @@ def build_predictor_configs(
         config: Experiment configuration (ExperimentAConfig or TerminalBenchConfig)
         root: Root directory for resolving relative paths
         llm_judge_features: Optional list of feature columns for LLM Judge.
-            If provided, passed to LLMJudgePredictor to override defaults.
+            If provided, uses these instead of the default SWE-bench features.
 
     Returns:
-        List of PredictorConfig objects for enabled predictors.
+        List of PredictorConfig objects with pre-instantiated predictors.
     """
     configs = []
 
     # Constant baseline (mean difficulty)
     configs.append(
         PredictorConfig(
-            predictor_class=ConstantPredictor,
+            predictor=ConstantPredictor(),
             name="constant_baseline",
             display_name="Constant (mean b)",
         )
@@ -96,15 +114,16 @@ def build_predictor_configs(
     if config.embeddings_path is not None:
         embeddings_path = root / config.embeddings_path
         if embeddings_path.exists():
+            source = EmbeddingFeatureSource(embeddings_path)
+            predictor = FeatureBasedPredictor(
+                source,
+                ridge_alphas=list(config.ridge_alphas),
+            )
             configs.append(
                 PredictorConfig(
-                    predictor_class=EmbeddingPredictor,
+                    predictor=predictor,
                     name="embedding_predictor",
                     display_name="Embedding",
-                    kwargs={
-                        "embeddings_path": embeddings_path,
-                        "ridge_alphas": list(config.ridge_alphas),
-                    },
                 )
             )
 
@@ -112,21 +131,18 @@ def build_predictor_configs(
     if config.llm_judge_features_path is not None:
         llm_judge_path = root / config.llm_judge_features_path
         if llm_judge_path.exists():
-            kwargs = {
-                "features_path": llm_judge_path,
-                "ridge_alphas": list(config.llm_judge_ridge_alphas),
-                "max_features": config.llm_judge_max_features,
-            }
-            # Only pass feature_cols if explicitly specified
-            if llm_judge_features is not None:
-                kwargs["feature_cols"] = llm_judge_features
-
+            # Use provided features or defaults
+            feature_cols = llm_judge_features or SWEBENCH_LLM_JUDGE_FEATURES
+            source = CSVFeatureSource(llm_judge_path, feature_cols, name="LLM Judge")
+            predictor = FeatureBasedPredictor(
+                source,
+                ridge_alphas=list(config.llm_judge_ridge_alphas),
+            )
             configs.append(
                 PredictorConfig(
-                    predictor_class=LLMJudgePredictor,
+                    predictor=predictor,
                     name="llm_judge_predictor",
                     display_name="LLM Judge",
-                    kwargs=kwargs,
                 )
             )
 
@@ -374,10 +390,9 @@ def run_cross_validation(
 
     # Add oracle as a predictor config
     oracle_config = PredictorConfig(
-        predictor_class=GroundTruthPredictor,
+        predictor=GroundTruthPredictor(full_items),
         name="oracle",
         display_name="Oracle (true b)",
-        kwargs={"items_df": full_items},
         use_full_abilities=True,
     )
 
@@ -569,18 +584,20 @@ def run_experiment_main(
     parser = create_main_parser(spec.name, str(config_class().output_dir))
     args = parser.parse_args()
 
-    # Build config kwargs from args
-    config_kwargs = dict(
-        test_fraction=args.test_fraction,
-        split_seed=args.split_seed,
-        embeddings_path=Path(args.embeddings_path) if args.embeddings_path else None,
-        output_dir=Path(args.output_dir),
-        llm_judge_features_path=(
-            Path(args.llm_judge_features_path) if args.llm_judge_features_path else None
-        ),
-        llm_judge_max_features=args.llm_judge_max_features,
-        exclude_unsolved=args.exclude_unsolved,
-    )
+    # Build config kwargs from args - only override if CLI arg is provided
+    config_kwargs: Dict[str, Any] = {
+        "test_fraction": args.test_fraction,
+        "split_seed": args.split_seed,
+        "output_dir": Path(args.output_dir),
+        "exclude_unsolved": args.exclude_unsolved,
+    }
+    # Only override paths if explicitly provided via CLI
+    if args.embeddings_path is not None:
+        config_kwargs["embeddings_path"] = Path(args.embeddings_path)
+    if args.llm_judge_features_path is not None:
+        config_kwargs["llm_judge_features_path"] = Path(args.llm_judge_features_path)
+    if args.llm_judge_max_features is not None:
+        config_kwargs["llm_judge_max_features"] = args.llm_judge_max_features
     if args.items_path:
         config_kwargs["items_path"] = Path(args.items_path)
     if args.abilities_path:

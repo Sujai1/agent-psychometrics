@@ -22,11 +22,11 @@ from experiment_a.data_loader import (
 )
 from experiment_a.difficulty_predictor import (
     DifficultyPredictorBase,
-    EmbeddingPredictor,
     ConstantPredictor,
     GroundTruthPredictor,
-    LunettePredictor,
-    LLMJudgePredictor,
+    FeatureBasedPredictor,
+    EmbeddingFeatureSource,
+    CSVFeatureSource,
 )
 from experiment_a_common import (
     compute_auc,
@@ -42,11 +42,11 @@ __all__ = [
     "load_responses",
     "stable_split_tasks",
     "DifficultyPredictorBase",
-    "EmbeddingPredictor",
     "ConstantPredictor",
     "GroundTruthPredictor",
-    "LunettePredictor",
-    "LLMJudgePredictor",
+    "FeatureBasedPredictor",
+    "EmbeddingFeatureSource",
+    "CSVFeatureSource",
     "compute_auc",
     "agent_only_baseline",
     "random_baseline",
