@@ -19,6 +19,9 @@ source .venv/bin/activate
 # Run comparison with default settings
 python -m experiment_b.compare_methods
 
+# Compare training on pre-frontier tasks only vs all tasks
+python -m experiment_b.compare_methods --train_on_all_tasks
+
 # With custom embeddings (e.g., different backbone)
 python -m experiment_b.compare_methods \
     --embeddings_path chris_output/experiment_a/embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__maxlen8192.npz
@@ -54,6 +57,16 @@ python -m experiment_b.compare_methods --verbose
 4. **Calculate ROC-AUC**: Compare predicted probabilities to actual responses
 
 **Note**: Scale alignment uses oracle information and is ONLY for evaluation. In production, you would not have access to oracle difficulties.
+
+## Data Leakage Constraints
+
+**Critical**: Oracle data and held-out (post-frontier) agent data must NEVER be exposed during training.
+
+- **Training ground truth**: Always from baseline IRT (pre-frontier agents only)
+- **Oracle IRT**: Used ONLY for evaluation metrics
+- **`--train_on_all_tasks` flag**: Includes frontier tasks in training but still uses baseline IRT difficulties as ground truth (these are poorly calibrated for frontier tasks since pre-frontier agents rarely solve them)
+
+This constraint ensures a realistic simulation of predicting difficulty for tasks that are beyond current model capabilities.
 
 ## Data Splits
 

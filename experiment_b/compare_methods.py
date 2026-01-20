@@ -380,6 +380,11 @@ def main():
         action="store_true",
         help="Print alignment parameters for each method",
     )
+    parser.add_argument(
+        "--train_on_all_tasks",
+        action="store_true",
+        help="Also train predictors on all tasks (still using baseline IRT difficulties) and compare",
+    )
     args = parser.parse_args()
 
     # Validate required files exist
@@ -517,73 +522,98 @@ def main():
         print(f"\nSAD-IRT beta directory not found: {args.sad_irt_beta_dir}")
         print("  To include SAD-IRT results, run experiment_sad_irt and extract beta values")
 
+    # Define training configurations
+    # Note: ground truth is ALWAYS baseline_items (pre-frontier IRT)
+    # We only vary which tasks are included in training
+    training_configs = [
+        {
+            "suffix": "",
+            "train_task_ids": train_task_ids,  # non-frontier only
+        }
+    ]
+
+    if args.train_on_all_tasks:
+        # Include frontier tasks in training, but still use baseline_items difficulties
+        # (baseline difficulties for frontier tasks are poorly calibrated but that's expected)
+        all_task_ids_baseline = list(baseline_items.index)
+        training_configs.append({
+            "suffix": " (all tasks)",
+            "train_task_ids": all_task_ids_baseline,
+        })
+
     # 3. Embedding predictor
     if args.embeddings_path.exists():
-        print("\nEvaluating Embedding + Ridge predictor...")
-        try:
-            predictor = EmbeddingPredictor(embeddings_path=args.embeddings_path)
-            embedding_metrics = evaluate_predictor(
-                predictor=predictor,
-                baseline_items=baseline_items,
-                oracle_items=oracle_items,
-                oracle_abilities=oracle_abilities,
-                responses=responses,
-                frontier_task_ids=frontier_task_ids,
-                train_task_ids=train_task_ids,
-                anchor_task_ids=anchor_task_ids,
-                eval_agents=post_frontier,
-                alignment_method=args.alignment_method,
-            )
-            results["Embedding + Ridge"] = embedding_metrics
-            auc = embedding_metrics.get('auc')
-            rho = embedding_metrics.get('frontier_spearman_rho')
-            print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
-            print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
-        except Exception as e:
-            print(f"  Error: {e}")
-            import traceback
-            traceback.print_exc()
-            results["Embedding + Ridge"] = {
-                "frontier_spearman_rho": float("nan"),
-                "frontier_spearman_p": float("nan"),
-                "auc": None,
-                "num_frontier_tasks": 0,
-            }
+        for config in training_configs:
+            method_name = f"Embedding + Ridge{config['suffix']}"
+            print(f"\nEvaluating {method_name}...")
+            print(f"  Training on {len(config['train_task_ids'])} tasks")
+            try:
+                predictor = EmbeddingPredictor(embeddings_path=args.embeddings_path)
+                embedding_metrics = evaluate_predictor(
+                    predictor=predictor,
+                    baseline_items=baseline_items,
+                    oracle_items=oracle_items,
+                    oracle_abilities=oracle_abilities,
+                    responses=responses,
+                    frontier_task_ids=frontier_task_ids,
+                    train_task_ids=config['train_task_ids'],
+                    anchor_task_ids=anchor_task_ids,
+                    eval_agents=post_frontier,
+                    alignment_method=args.alignment_method,
+                )
+                results[method_name] = embedding_metrics
+                auc = embedding_metrics.get('auc')
+                rho = embedding_metrics.get('frontier_spearman_rho')
+                print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
+                print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
+            except Exception as e:
+                print(f"  Error: {e}")
+                import traceback
+                traceback.print_exc()
+                results[method_name] = {
+                    "frontier_spearman_rho": float("nan"),
+                    "frontier_spearman_p": float("nan"),
+                    "auc": None,
+                    "num_frontier_tasks": 0,
+                }
     else:
         print(f"\nEmbeddings not found: {args.embeddings_path}")
 
     # 4. LLM Judge predictor
     if args.llm_judge_path.exists():
-        print("\nEvaluating LLM Judge + Lasso/Ridge predictor...")
-        try:
-            predictor = LLMJudgePredictor(features_path=args.llm_judge_path)
-            llm_judge_metrics = evaluate_predictor(
-                predictor=predictor,
-                baseline_items=baseline_items,
-                oracle_items=oracle_items,
-                oracle_abilities=oracle_abilities,
-                responses=responses,
-                frontier_task_ids=frontier_task_ids,
-                train_task_ids=train_task_ids,
-                anchor_task_ids=anchor_task_ids,
-                eval_agents=post_frontier,
-                alignment_method=args.alignment_method,
-            )
-            results["LLM Judge + Lasso/Ridge"] = llm_judge_metrics
-            auc = llm_judge_metrics.get('auc')
-            rho = llm_judge_metrics.get('frontier_spearman_rho')
-            print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
-            print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
-        except Exception as e:
-            print(f"  Error: {e}")
-            import traceback
-            traceback.print_exc()
-            results["LLM Judge + Lasso/Ridge"] = {
-                "frontier_spearman_rho": float("nan"),
-                "frontier_spearman_p": float("nan"),
-                "auc": None,
-                "num_frontier_tasks": 0,
-            }
+        for config in training_configs:
+            method_name = f"LLM Judge + Lasso/Ridge{config['suffix']}"
+            print(f"\nEvaluating {method_name}...")
+            print(f"  Training on {len(config['train_task_ids'])} tasks")
+            try:
+                predictor = LLMJudgePredictor(features_path=args.llm_judge_path)
+                llm_judge_metrics = evaluate_predictor(
+                    predictor=predictor,
+                    baseline_items=baseline_items,
+                    oracle_items=oracle_items,
+                    oracle_abilities=oracle_abilities,
+                    responses=responses,
+                    frontier_task_ids=frontier_task_ids,
+                    train_task_ids=config['train_task_ids'],
+                    anchor_task_ids=anchor_task_ids,
+                    eval_agents=post_frontier,
+                    alignment_method=args.alignment_method,
+                )
+                results[method_name] = llm_judge_metrics
+                auc = llm_judge_metrics.get('auc')
+                rho = llm_judge_metrics.get('frontier_spearman_rho')
+                print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
+                print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
+            except Exception as e:
+                print(f"  Error: {e}")
+                import traceback
+                traceback.print_exc()
+                results[method_name] = {
+                    "frontier_spearman_rho": float("nan"),
+                    "frontier_spearman_p": float("nan"),
+                    "auc": None,
+                    "num_frontier_tasks": 0,
+                }
     else:
         print(f"\nLLM Judge features not found: {args.llm_judge_path}")
 
