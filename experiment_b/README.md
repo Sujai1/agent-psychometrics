@@ -114,6 +114,24 @@ python -m experiment_a.generate_embeddings --backbone "deepseek-ai/DeepSeek-R1-D
 python -m experiment_b.compare_methods --embeddings_path path/to/embeddings.npz
 ```
 
+## Results: SWE-bench Verified
+
+**Data**: 40 frontier tasks, 19 post-frontier eval agents
+
+| Method | ROC-AUC | Spearman ρ | p-value |
+|--------|---------|------------|---------|
+| Oracle (upper bound) | 0.7716 | 1.0000 | <0.0001 |
+| Baseline IRT (pre-frontier only) | 0.6978 | 0.3336 | 0.0354 |
+| LLM Judge + Lasso/Ridge | 0.6835 | -0.0921 | 0.5718 |
+| SAD-IRT (best run) | 0.6718 | 0.3315 | 0.0366 |
+| Embedding + Ridge (DeepSeek-R1-32B) | 0.6655 | -0.1629 | 0.3154 |
+
+**Key observations**:
+- Baseline IRT (trained only on pre-frontier agents) already achieves reasonable AUC
+- SAD-IRT provides marginal improvement over baseline IRT
+- Embedding and LLM Judge predictors underperform baseline IRT on frontier tasks
+- Spearman correlation is significant for IRT-based methods but not for feature-based predictors
+
 ## Related Experiments
 
 - **Experiment A**: Prior validation - tests how well static task features predict difficulty
