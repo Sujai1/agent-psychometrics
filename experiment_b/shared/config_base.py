@@ -44,6 +44,10 @@ class DatasetConfig(ABC):
     anchor_min_pass_rate: float = 0.10
     anchor_max_pass_rate: float = 0.90
 
+    # IRT-based frontier definition threshold
+    # Tasks where no pre-frontier agent has >= this probability are "frontier"
+    irt_solve_probability: float = 0.5
+
     # Output
     output_dir: Path = field(default_factory=Path)
 

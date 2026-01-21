@@ -21,7 +21,7 @@ The two primary metrics reported are:
 Two definitions of "frontier task" are supported (both evaluated by default):
 
 1. **Pass-rate based** (`passrate`): Tasks with ≤10% pre-frontier pass rate AND >10% post-frontier pass rate
-2. **IRT-based** (`irt`): Tasks where NO pre-frontier agent has ≥30% solve probability under IRT
+2. **IRT-based** (`irt`): Tasks where NO pre-frontier agent has ≥50% solve probability under IRT
 
 ## Quick Start
 
@@ -62,17 +62,17 @@ python -m experiment_b.compare_methods --output_csv results.csv
 | Feature-IRT (LLM Judge) | 0.7480 |
 | Embedding + Ridge | 0.7475 |
 
-#### IRT Definition (30 frontier tasks)
+#### IRT Definition (36 frontier tasks)
 
 | Method | ROC-AUC |
 |--------|---------|
-| Oracle (upper bound) | 0.7412 |
-| SAD-IRT (best) | 0.6998 |
-| Feature-IRT (Embedding) | 0.6974 |
-| Baseline IRT (pre-frontier only) | 0.6829 ± 0.014 |
-| Feature-IRT (LLM Judge) | 0.6757 |
-| LLM Judge + Ridge | 0.6746 |
-| Embedding + Ridge | 0.6741 |
+| Oracle (upper bound) | 0.7810 |
+| SAD-IRT (best) | 0.7315 |
+| Feature-IRT (LLM Judge) | 0.7302 |
+| LLM Judge + Ridge | 0.7294 |
+| Embedding + Ridge | 0.7291 |
+| Feature-IRT (Embedding) | 0.7284 |
+| Baseline IRT (pre-frontier only) | 0.6966 ± 0.014 |
 
 ### TerminalBench
 
@@ -89,16 +89,16 @@ python -m experiment_b.compare_methods --output_csv results.csv
 | Baseline IRT (pre-frontier only) | 0.7289 ± 0.012 |
 | Embedding + Ridge | 0.7237 |
 
-#### IRT Definition (18 frontier tasks)
+#### IRT Definition (16 frontier tasks)
 
 | Method | ROC-AUC |
 |--------|---------|
-| Oracle (upper bound) | 0.7863 |
-| LLM Judge + Ridge | 0.7448 |
-| Feature-IRT (LLM Judge) | 0.7427 |
-| Feature-IRT (Embedding) | 0.7368 |
-| Embedding + Ridge | 0.7348 |
-| Baseline IRT (pre-frontier only) | 0.7211 ± 0.011 |
+| Oracle (upper bound) | 0.8088 |
+| Feature-IRT (Embedding) | 0.7426 |
+| LLM Judge + Ridge | 0.7376 |
+| Feature-IRT (LLM Judge) | 0.7315 |
+| Baseline IRT (pre-frontier only) | 0.7287 ± 0.011 |
+| Embedding + Ridge | 0.7200 |
 
 **Key observations**:
 - **Feature-IRT (Embedding) consistently outperforms Baseline IRT** in ROC-AUC

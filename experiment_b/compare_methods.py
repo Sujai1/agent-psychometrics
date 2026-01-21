@@ -679,9 +679,8 @@ def main():
         )
         print(f"  Baseline IRT: {len(baseline_items)} tasks, {len(baseline_abilities)} agents")
 
-    # Default solve probability threshold for IRT-based frontier definition
-    # Using 30% means tasks where no pre-frontier agent has >= 30% solve probability
-    irt_solve_prob = 0.3
+    # IRT solve probability threshold from config
+    irt_solve_prob = dataset_config.irt_solve_probability
 
     # Identify frontier tasks for each definition
     frontier_tasks_by_def = {}

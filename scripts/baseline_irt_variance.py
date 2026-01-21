@@ -58,7 +58,7 @@ def main():
         config.responses_path, pre_frontier, post_frontier, 0.1, 0.1
     )
     frontier_irt = identify_frontier_tasks_irt(
-        oracle_items, oracle_abilities, agent_dates, config.cutoff_date, 0.3
+        oracle_items, oracle_abilities, agent_dates, config.cutoff_date, config.irt_solve_probability
     )
 
     # Identify anchor tasks
