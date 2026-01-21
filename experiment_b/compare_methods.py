@@ -603,9 +603,9 @@ def main():
         "--frontier_definitions",
         type=str,
         nargs="+",
-        default=["passrate", "irt", "zero_pre"],
+        default=["passrate", "irt"],
         choices=["irt", "passrate", "zero_pre"],
-        help="Frontier definitions to evaluate (default: all three). "
+        help="Frontier definitions to evaluate (default: passrate, irt). "
              "'passrate' = pass rate thresholds, 'irt' = IRT probability threshold, "
              "'zero_pre' = 0%% pre-frontier, >0%% post-frontier",
     )
