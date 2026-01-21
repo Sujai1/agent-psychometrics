@@ -11,6 +11,7 @@ This script compares:
 Methods are evaluated by:
 - Spearman correlation with oracle IRT difficulties on frontier tasks
 - ROC-AUC on frontier tasks using oracle abilities and aligned difficulties
+- (Optional) Date forecasting: predicting when tasks become solvable
 
 The AUC metric requires aligning predicted difficulties to the oracle scale using
 an affine transformation fitted on "nontrivial" anchor tasks (10-90% pass rate in
@@ -21,6 +22,7 @@ Usage:
     python -m experiment_b.compare_methods --embeddings_path path/to/embeddings.npz
     python -m experiment_b.compare_methods --output_csv chris_output/experiment_b_results.csv
     python -m experiment_b.compare_methods --alignment_method affine
+    python -m experiment_b.compare_methods --forecast_dates
 """
 
 import argparse
@@ -49,6 +51,14 @@ from experiment_b.shared.evaluate import (
     load_responses_dict,
 )
 from experiment_b.shared.baseline_irt import get_or_train_baseline_irt
+from experiment_b.shared.date_forecasting import (
+    compute_first_capable_dates,
+    compute_ground_truth_days,
+    split_tasks_by_first_capable_date,
+    DateForecastModel,
+    compute_date_forecast_metrics,
+    parse_date,
+)
 
 # Import predictors from shared module
 from shared.predictor_base import DifficultyPredictorBase
@@ -125,6 +135,7 @@ def evaluate_predictor(
     eval_agents: List[str],
     alignment_method: str = "affine",
     sanity_check: bool = True,
+    return_predictions: bool = False,
 ) -> Dict[str, Any]:
     """Train a difficulty predictor on non-frontier tasks, evaluate with full metrics.
 
@@ -140,9 +151,10 @@ def evaluate_predictor(
         eval_agents: Agents to use for AUC (post-frontier)
         alignment_method: "constant" or "affine"
         sanity_check: If True, print train set correlation
+        return_predictions: If True, also return raw predictions dict
 
     Returns:
-        Dict with spearman, pearson, auc metrics
+        Dict with spearman, pearson, auc metrics (and optionally 'raw_predictions')
     """
     # Get training data
     train_tasks_available = [t for t in train_task_ids if t in baseline_items.index]
@@ -165,7 +177,7 @@ def evaluate_predictor(
     predictions = predictor.predict(all_tasks)
 
     # Compute full metrics
-    return compute_method_metrics(
+    metrics = compute_method_metrics(
         predicted_beta=predictions,
         oracle_items=oracle_items,
         oracle_abilities=oracle_abilities,
@@ -175,6 +187,13 @@ def evaluate_predictor(
         eval_agents=eval_agents,
         alignment_method=alignment_method,
     )
+
+    if return_predictions:
+        # For date forecasting, predict for ALL tasks (train + frontier + anchor)
+        all_tasks_for_dates = list(set(frontier_task_ids + anchor_task_ids + train_task_ids))
+        metrics["raw_predictions"] = predictor.predict(all_tasks_for_dates)
+
+    return metrics
 
 
 def evaluate_predictor_with_responses(
@@ -190,6 +209,7 @@ def evaluate_predictor_with_responses(
     train_agents: List[str],
     alignment_method: str = "affine",
     sanity_check: bool = True,
+    return_predictions: bool = False,
 ) -> Dict[str, Any]:
     """Evaluate predictor that requires response data for training.
 
@@ -209,9 +229,10 @@ def evaluate_predictor_with_responses(
         train_agents: Pre-frontier agents for training (CRITICAL: no data leakage)
         alignment_method: "constant" or "affine"
         sanity_check: If True, print train set correlation
+        return_predictions: If True, also return raw predictions dict
 
     Returns:
-        Dict with spearman, pearson, auc metrics
+        Dict with spearman, pearson, auc metrics (and optionally 'raw_predictions')
     """
     # Get training data
     train_tasks_available = [t for t in train_task_ids if t in baseline_items.index]
@@ -249,7 +270,7 @@ def evaluate_predictor_with_responses(
     predictions = predictor.predict(all_tasks)
 
     # Compute full metrics
-    return compute_method_metrics(
+    metrics = compute_method_metrics(
         predicted_beta=predictions,
         oracle_items=oracle_items,
         oracle_abilities=oracle_abilities,
@@ -259,6 +280,13 @@ def evaluate_predictor_with_responses(
         eval_agents=eval_agents,
         alignment_method=alignment_method,
     )
+
+    if return_predictions:
+        # For date forecasting, return predictions for ALL tasks we have
+        # (FeatureIRTPredictor can only predict for tasks in train_tasks_available)
+        metrics["raw_predictions"] = predictor.predict(train_tasks_available)
+
+    return metrics
 
 
 def print_comparison_table(
@@ -383,6 +411,60 @@ def save_results_csv(results: Dict[str, Dict], output_path: Path) -> None:
     print(f"Results saved to: {output_path}")
 
 
+def print_date_forecast_table(
+    date_results: Dict[str, Dict],
+    n_frontier_total: int,
+    n_frontier_with_gt: int,
+    n_excluded: int,
+    earliest_agent_date: str,
+    latest_agent_date: str,
+    cutoff_date: str,
+    gt_date_min: str,
+    gt_date_max: str,
+) -> None:
+    """Print formatted date forecasting results table."""
+    print()
+    print("=" * 90)
+    print("DATE FORECASTING: PREDICT WHEN TASKS BECOME SOLVABLE")
+    print("=" * 90)
+    print()
+    print("Data Summary:")
+    print(f"  Post-cutoff tasks (eval set): {n_frontier_total}")
+    print(f"  Tasks without any capable agent: {n_excluded}")
+    print()
+    print("Date Range:")
+    print(f"  Earliest agent date: {earliest_agent_date}")
+    print(f"  Latest agent date: {latest_agent_date}")
+    print(f"  Frontier cutoff: {cutoff_date}")
+    print(f"  Ground truth date range: {gt_date_min} to {gt_date_max}")
+    print()
+    print(f"{'Method':<45} {'MAE (days)':>12} {'Pearson r':>12} {'R²(fit)':>10} {'n':>6}")
+    print("-" * 86)
+
+    # Sort by MAE (ascending), NaN at bottom
+    def sort_key(item):
+        mae = item[1].get("mae_days", float("inf"))
+        if isinstance(mae, float) and np.isnan(mae):
+            return float("inf")
+        return mae
+
+    sorted_results = sorted(date_results.items(), key=sort_key)
+
+    for method, metrics in sorted_results:
+        mae = metrics.get("mae_days", float("nan"))
+        pearson = metrics.get("pearson_r", float("nan"))
+        r2_fit = metrics.get("r_squared_fit", float("nan"))
+        n_tasks = metrics.get("n_tasks", 0)
+
+        mae_str = f"{mae:.1f}" if not (isinstance(mae, float) and np.isnan(mae)) else "N/A"
+        pearson_str = f"{pearson:.4f}" if not (isinstance(pearson, float) and np.isnan(pearson)) else "N/A"
+        r2_str = f"{r2_fit:.4f}" if not (isinstance(r2_fit, float) and np.isnan(r2_fit)) else "N/A"
+
+        print(f"{method:<45} {mae_str:>12} {pearson_str:>12} {r2_str:>10} {n_tasks:>6}")
+
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare methods for frontier task difficulty prediction"
@@ -481,6 +563,11 @@ def main():
         "--grid_search",
         action="store_true",
         help="Run grid search over Feature-IRT hyperparameters",
+    )
+    parser.add_argument(
+        "--forecast_dates",
+        action="store_true",
+        help="Also run date forecasting evaluation (predict when tasks become solvable)",
     )
     args = parser.parse_args()
 
@@ -581,6 +668,8 @@ def main():
 
     # Collect results
     results = {}
+    # For date forecasting: store raw predicted betas (before oracle alignment)
+    raw_predictions = {}
 
     # 0. Oracle upper bound (uses true oracle beta - perfect alignment)
     print("\nEvaluating Oracle (upper bound)...")
@@ -596,6 +685,7 @@ def main():
         alignment_method=args.alignment_method,
     )
     results["Oracle (upper bound)"] = oracle_metrics
+    raw_predictions["Oracle (upper bound)"] = oracle_beta
     print(f"  AUC: {oracle_metrics['auc']:.4f}")
     print(f"  Spearman rho: {oracle_metrics['frontier_spearman_rho']:.4f}")
 
@@ -613,6 +703,7 @@ def main():
         alignment_method=args.alignment_method,
     )
     results["Baseline IRT (pre-frontier only)"] = baseline_metrics
+    raw_predictions["Baseline IRT (pre-frontier only)"] = baseline_beta
     print(f"  AUC: {baseline_metrics['auc']:.4f}")
     print(f"  Spearman rho: {baseline_metrics['frontier_spearman_rho']:.4f}")
 
@@ -658,6 +749,7 @@ def main():
                 alignment_method=args.alignment_method,
             )
             results[method_name] = sad_irt_metrics
+            raw_predictions[method_name] = sad_irt_beta
             auc = sad_irt_metrics.get('auc')
             rho = sad_irt_metrics.get('frontier_spearman_rho')
             print(f"    AUC: {auc:.4f}" if auc else "    AUC: N/A")
@@ -723,8 +815,11 @@ def main():
                     anchor_task_ids=anchor_task_ids,
                     eval_agents=post_frontier,
                     alignment_method=args.alignment_method,
+                    return_predictions=args.forecast_dates,
                 )
                 results[method_name] = metrics
+                if args.forecast_dates and "raw_predictions" in metrics:
+                    raw_predictions[method_name] = metrics.pop("raw_predictions")
                 auc = metrics.get('auc')
                 rho = metrics.get('frontier_spearman_rho')
                 print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
@@ -790,6 +885,7 @@ def main():
                             train_agents=pre_frontier,
                             alignment_method=args.alignment_method,
                             sanity_check=not args.grid_search,
+                            return_predictions=args.forecast_dates,
                         )
                         auc = metrics.get('auc', 0) or 0
                         if args.grid_search:
@@ -815,6 +911,8 @@ def main():
             if not args.grid_search:
                 print(f"\nEvaluating {method_name}...")
                 print(f"  Training on {len(all_task_ids_baseline)} tasks")
+            if args.forecast_dates and "raw_predictions" in best_metrics:
+                raw_predictions[method_name] = best_metrics.pop("raw_predictions")
             results[method_name] = best_metrics
             auc = best_metrics.get('auc')
             rho = best_metrics.get('frontier_spearman_rho')
@@ -840,6 +938,98 @@ def main():
         cutoff_date=cutoff_date,
         verbose=args.verbose,
     )
+
+    # Date forecasting evaluation (if enabled)
+    if args.forecast_dates:
+        print("\nRunning date forecasting evaluation...")
+
+        # Get agent dates for ground truth computation
+        agent_dates = dataset_config.get_agent_dates(all_agents)
+
+        # Compute ground truth solvability dates (when first agent with θ >= β appeared)
+        gt_result = compute_first_capable_dates(oracle_items, oracle_abilities, agent_dates)
+        first_capable_dates = gt_result.first_capable_dates
+        tasks_without_capable = gt_result.tasks_without_capable_agent
+        earliest_agent_date = gt_result.earliest_agent_date
+        latest_agent_date = gt_result.latest_agent_date
+        reference_date = earliest_agent_date
+
+        # Split tasks by whether first capable agent is pre/post cutoff
+        # - pre_cutoff_tasks: became solvable BEFORE cutoff -> use for training
+        # - post_cutoff_tasks: became solvable AFTER cutoff -> use for evaluation
+        cutoff_datetime = parse_date(cutoff_date)
+        pre_cutoff_tasks, post_cutoff_tasks = split_tasks_by_first_capable_date(
+            first_capable_dates, cutoff_datetime
+        )
+
+        print(f"  Tasks with ground truth (first capable agent exists): {len(first_capable_dates)}")
+        print(f"  Pre-cutoff tasks (for training): {len(pre_cutoff_tasks)}")
+        print(f"  Post-cutoff tasks (for evaluation): {len(post_cutoff_tasks)}")
+        print(f"  Tasks without any capable agent: {len(tasks_without_capable)}")
+
+        if len(post_cutoff_tasks) >= 3 and len(pre_cutoff_tasks) >= 3:
+            # Compute ground truth days for all tasks
+            ground_truth_days = compute_ground_truth_days(
+                all_task_ids, first_capable_dates, reference_date
+            )
+
+            # Get ground truth date range for post-cutoff tasks (eval set)
+            post_cutoff_gt_dates = [first_capable_dates[t] for t in post_cutoff_tasks]
+            gt_date_min = min(post_cutoff_gt_dates).strftime("%Y-%m-%d")
+            gt_date_max = max(post_cutoff_gt_dates).strftime("%Y-%m-%d")
+
+            # Evaluate date forecasting for each method
+            date_results = {}
+
+            # All tasks with ground truth (for Oracle fitting)
+            all_task_ids_with_gt = list(first_capable_dates.keys())
+
+            for method_name, pred_beta in raw_predictions.items():
+                try:
+                    # Oracle gets to fit on ALL tasks (including post-cutoff) - it's an upper bound
+                    # Other methods only fit on pre-cutoff tasks (no data leakage)
+                    if method_name == "Oracle (upper bound)":
+                        fit_task_ids = all_task_ids_with_gt
+                    else:
+                        fit_task_ids = pre_cutoff_tasks
+
+                    date_model = DateForecastModel()
+                    fit_stats = date_model.fit(
+                        pred_beta, ground_truth_days, fit_task_ids, reference_date
+                    )
+                    predictions = date_model.predict(pred_beta, post_cutoff_tasks)
+                    metrics = compute_date_forecast_metrics(
+                        predictions, ground_truth_days, post_cutoff_tasks
+                    )
+                    date_results[method_name] = {
+                        **metrics,
+                        "r_squared_fit": fit_stats["r_squared"],
+                    }
+                except Exception as e:
+                    print(f"  Error forecasting dates for {method_name}: {e}")
+                    date_results[method_name] = {
+                        "mae_days": float("nan"),
+                        "pearson_r": float("nan"),
+                        "spearman_rho": float("nan"),
+                        "r_squared_fit": float("nan"),
+                        "n_tasks": 0,
+                    }
+
+            # Print date forecasting table
+            print_date_forecast_table(
+                date_results,
+                n_frontier_total=len(post_cutoff_tasks),
+                n_frontier_with_gt=len(post_cutoff_tasks),
+                n_excluded=len(tasks_without_capable),
+                earliest_agent_date=earliest_agent_date.strftime("%Y-%m-%d"),
+                latest_agent_date=latest_agent_date.strftime("%Y-%m-%d"),
+                cutoff_date=cutoff_date,
+                gt_date_min=gt_date_min,
+                gt_date_max=gt_date_max,
+            )
+        else:
+            print("  Error: Too few tasks for date forecasting")
+            print(f"    Need >=3 pre-cutoff tasks ({len(pre_cutoff_tasks)}) and >=3 post-cutoff tasks ({len(post_cutoff_tasks)})")
 
     # Save to CSV if requested
     if args.output_csv:

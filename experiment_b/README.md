@@ -106,6 +106,39 @@ P(success) = sigmoid(θ_j - b_i)
 3. **Compute probabilities**: For each (post-frontier agent, frontier task): `P(success) = sigmoid(θ_oracle - β_shifted)`
 4. **Calculate ROC-AUC**: Compare predicted probabilities to actual responses
 
+### 3. Date Forecasting (Optional)
+
+Predict **when** tasks will become solvable with 50% probability, based on the linear relationship between difficulty and time discovered in Experiment D.
+
+**Key insight**: From IRT, `P(success) = sigmoid(θ - β) = 0.5` when `θ = β`. Combined with Experiment D's finding that frontier ability grows linearly over time, we can predict when a task with difficulty β will become solvable.
+
+**Methodology**:
+1. **Compute ground truth**: For each task, find the earliest agent where `θ_agent >= β_oracle` (using Oracle IRT)
+2. **Split tasks**: Pre-cutoff tasks (first capable agent before cutoff) for training; post-cutoff tasks for evaluation
+3. **Fit linear model**: `days = slope × predicted_β + intercept` on pre-cutoff tasks
+4. **Evaluate**: MAE, Pearson correlation on post-cutoff task predictions
+
+```bash
+# Run with date forecasting
+python -m experiment_b.compare_methods --forecast_dates
+```
+
+**Example output** (TerminalBench):
+```
+DATE FORECASTING: PREDICT WHEN TASKS BECOME SOLVABLE
+==========================================================================================
+
+Data Summary:
+  Post-cutoff tasks (eval set): 10
+  Tasks without any capable agent: 12
+
+Method                                          MAE (days)    Pearson r    R²(fit)      n
+--------------------------------------------------------------------------------------
+Oracle (upper bound)                                  20.3       0.7047     0.5106     10
+Baseline IRT (pre-frontier only)                      39.0       0.1718     0.2845     10
+Feature-IRT (Embedding)                               39.4       0.2748     0.2912     10
+```
+
 ## Data Leakage Constraints
 
 **Critical**: Oracle data and post-frontier agent data must NEVER be exposed during training.
@@ -143,7 +176,8 @@ experiment_b/
 │   ├── data_splits.py        # Agent/task splitting utilities
 │   ├── evaluate.py           # Evaluation metrics (Spearman, AUC, alignment)
 │   ├── baseline_irt.py       # Baseline IRT training with caching
-│   └── feature_irt_predictor.py  # Feature-IRT predictor (NEW)
+│   ├── feature_irt_predictor.py  # Feature-IRT predictor
+│   └── date_forecasting.py   # Date forecasting utilities (NEW)
 └── datasets/                 # Dataset-specific configurations
     ├── base.py               # DatasetConfig base class
     ├── swebench.py           # SWE-bench config
@@ -210,6 +244,7 @@ class DatasetConfig:
 --output_csv          Save results to CSV file
 --train_on_all_tasks  Include frontier tasks in training (still uses baseline IRT)
 --grid_search         Run grid search over Feature-IRT hyperparameters
+--forecast_dates      Run date forecasting evaluation (predict when tasks become solvable)
 --verbose             Show alignment parameters and training progress
 ```
 
