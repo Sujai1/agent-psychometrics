@@ -152,14 +152,15 @@ def identify_frontier_tasks_irt(
     oracle_abilities: pd.DataFrame,
     agent_dates: Dict[str, str],
     cutoff_date: str,
+    solve_probability: float = 0.3,
 ) -> List[str]:
-    """Identify frontier tasks using IRT 50% probability threshold.
+    """Identify frontier tasks using IRT probability threshold.
 
-    A task is frontier if NO agent before the cutoff date has theta >= beta
-    (i.e., no pre-frontier agent can solve it with at least 50% probability).
+    A task is frontier if NO agent before the cutoff date has theta >= beta + logit(p)
+    (i.e., no pre-frontier agent can solve it with at least p probability).
 
     This differs from identify_frontier_tasks() which uses empirical pass rates.
-    The IRT-based definition is more principled since P(success) = 0.5 when theta = beta.
+    The IRT-based definition is more principled since P(success) = sigmoid(theta - beta).
 
     Args:
         oracle_items: DataFrame with 'b' column (oracle task difficulties)
@@ -167,6 +168,8 @@ def identify_frontier_tasks_irt(
         agent_dates: Dict mapping agent_id -> date string (YYYYMMDD)
         cutoff_date: Cutoff date string (YYYYMMDD). Tasks where the first capable
                      agent appears ON or AFTER this date are frontier tasks.
+        solve_probability: Probability threshold for considering an agent "capable"
+            of solving a task (default 0.3, i.e., 30% solve rate)
 
     Returns:
         List of task_ids that are frontier tasks (excludes tasks with no capable agent)
@@ -177,8 +180,10 @@ def identify_frontier_tasks_irt(
         parse_date,
     )
 
-    # Compute first capable date for each task (when first agent has theta >= beta)
-    result = compute_first_capable_dates(oracle_items, oracle_abilities, agent_dates)
+    # Compute first capable date for each task
+    result = compute_first_capable_dates(
+        oracle_items, oracle_abilities, agent_dates, solve_probability
+    )
 
     # Split by cutoff: tasks where first capable agent is on/after cutoff are "frontier"
     cutoff_datetime = parse_date(cutoff_date)
@@ -191,7 +196,7 @@ def identify_frontier_tasks_irt(
     if result.tasks_without_capable_agent:
         logger.info(
             f"Excluding {len(result.tasks_without_capable_agent)} tasks with no capable agent "
-            f"(no agent has theta >= beta)"
+            f"(no agent has >={solve_probability:.0%} solve probability)"
         )
 
     return post_cutoff_tasks

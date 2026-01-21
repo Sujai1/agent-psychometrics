@@ -299,6 +299,7 @@ def print_comparison_table(
     alignment_method: str = "affine",
     cutoff_date: str = "20250401",
     frontier_definition: str = "passrate",
+    irt_solve_prob: float = 0.3,
     date_results: Optional[Dict[str, Dict]] = None,
     verbose: bool = False,
 ) -> None:
@@ -309,7 +310,7 @@ def print_comparison_table(
     print()
     if frontier_definition == "irt":
         print("Frontier Task Definition (IRT-based):")
-        print("  - No pre-frontier agent has theta >= beta (50% solve probability)")
+        print(f"  - No pre-frontier agent has >={irt_solve_prob:.0%} solve probability")
     else:
         print("Frontier Task Definition (pass-rate based):")
         print("  - Pre-frontier pass rate <= 10%")
@@ -593,7 +594,7 @@ def main():
         default="passrate",
         choices=["irt", "passrate"],
         help="Method for defining frontier tasks: 'passrate' (pass rate thresholds, default) "
-             "or 'irt' (no pre-frontier agent with theta>=beta, i.e., 50%% solve probability)",
+             "or 'irt' (IRT probability threshold)",
     )
     args = parser.parse_args()
 
@@ -668,14 +669,17 @@ def main():
         print(f"  Baseline IRT: {len(baseline_items)} tasks")
 
     # Identify frontier tasks using selected definition
+    # Default solve probability threshold for IRT-based frontier definition
+    irt_solve_prob = 0.3
     if args.frontier_definition == "irt":
         frontier_task_ids = identify_frontier_tasks_irt(
             oracle_items=oracle_items,
             oracle_abilities=oracle_abilities,
             agent_dates=agent_dates,
             cutoff_date=cutoff_date,
+            solve_probability=irt_solve_prob,
         )
-        print(f"  Frontier tasks (IRT: no pre-frontier agent with theta>=beta): {len(frontier_task_ids)}")
+        print(f"  Frontier tasks (IRT: no pre-frontier agent with >={irt_solve_prob:.0%} solve prob): {len(frontier_task_ids)}")
     else:
         frontier_task_ids = identify_frontier_tasks(
             responses_path,
@@ -743,11 +747,16 @@ def main():
     print(f"  AUC: {baseline_metrics['auc']:.4f}")
     print(f"  Spearman rho: {baseline_metrics['frontier_spearman_rho']:.4f}")
 
-    # 2. SAD-IRT runs (from extracted beta CSV files)
+    # 2. SAD-IRT runs (from extracted beta CSV files) - only keep best by AUC
     if args.sad_irt_beta_dir.exists():
         beta_files = list(args.sad_irt_beta_dir.glob("*.csv"))
         print(f"\nLoading SAD-IRT beta values from {args.sad_irt_beta_dir}...")
         print(f"  Found {len(beta_files)} beta CSV files")
+
+        best_sad_irt_auc = -1
+        best_sad_irt_metrics = None
+        best_sad_irt_beta = None
+        best_sad_irt_name = None
 
         for beta_file in beta_files:
             # Load beta values from CSV
@@ -758,22 +767,14 @@ def main():
 
             sad_irt_beta = beta_df["beta"].to_dict()
 
-            # Create method name from filename
-            method_name = f"SAD-IRT ({beta_file.stem})"
-            if len(method_name) > 45:
-                method_name = f"SAD-IRT ({beta_file.stem[:30]}...)"
-
             # Check if SAD-IRT predictions cover the frontier tasks
             frontier_overlap = [t for t in frontier_task_ids if t in sad_irt_beta]
             if len(frontier_overlap) < len(frontier_task_ids):
                 coverage_pct = len(frontier_overlap) / len(frontier_task_ids) * 100
                 if coverage_pct == 0:
-                    print(f"\n  Skipping {method_name}: no overlap with frontier tasks (trained on different dataset?)")
+                    print(f"  Skipping {beta_file.name}: no overlap with frontier tasks")
                     continue
-                else:
-                    print(f"\n  Warning: {method_name} only covers {coverage_pct:.0f}% of frontier tasks")
 
-            print(f"\n  Evaluating {method_name}...")
             sad_irt_metrics = compute_method_metrics(
                 predicted_beta=sad_irt_beta,
                 oracle_items=oracle_items,
@@ -784,12 +785,17 @@ def main():
                 eval_agents=post_frontier,
                 alignment_method=args.alignment_method,
             )
-            results[method_name] = sad_irt_metrics
-            raw_predictions[method_name] = sad_irt_beta
-            auc = sad_irt_metrics.get('auc')
-            rho = sad_irt_metrics.get('frontier_spearman_rho')
-            print(f"    AUC: {auc:.4f}" if auc else "    AUC: N/A")
-            print(f"    Spearman rho: {rho:.4f}" if rho else "    Spearman rho: N/A")
+            auc = sad_irt_metrics.get('auc') or 0
+            if auc > best_sad_irt_auc:
+                best_sad_irt_auc = auc
+                best_sad_irt_metrics = sad_irt_metrics
+                best_sad_irt_beta = sad_irt_beta
+                best_sad_irt_name = beta_file.stem
+
+        if best_sad_irt_metrics is not None:
+            print(f"  Best SAD-IRT: {best_sad_irt_name} (AUC: {best_sad_irt_auc:.4f})")
+            results["SAD-IRT (best)"] = best_sad_irt_metrics
+            raw_predictions["SAD-IRT (best)"] = best_sad_irt_beta
     else:
         print(f"\nSAD-IRT beta directory not found: {args.sad_irt_beta_dir}")
         print("  To include SAD-IRT results, run experiment_sad_irt and extract beta values")
@@ -1053,6 +1059,7 @@ def main():
         alignment_method=args.alignment_method,
         cutoff_date=cutoff_date,
         frontier_definition=args.frontier_definition,
+        irt_solve_prob=irt_solve_prob,
         date_results=date_results,
         verbose=args.verbose,
     )

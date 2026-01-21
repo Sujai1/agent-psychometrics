@@ -220,8 +220,9 @@ class TerminalBenchConfig(DatasetConfig):
     )
 
     # Frontier split settings
-    # Default cutoff targets ~80% pre-frontier / ~20% post-frontier
-    cutoff_date: str = "20251117"
+    # Default cutoff targets ~58% pre-frontier / ~42% post-frontier
+    # Earlier cutoff gives more frontier tasks for IRT-based evaluation
+    cutoff_date: str = "20251105"
 
     # Output
     output_dir: Path = field(

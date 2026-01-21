@@ -47,16 +47,19 @@ def compute_first_capable_dates(
     oracle_items: pd.DataFrame,
     oracle_abilities: pd.DataFrame,
     agent_dates: Dict[str, str],
+    solve_probability: float = 0.5,
 ) -> FirstCapableDatesResult:
-    """Compute the first date when each task became solvable with 50% prob.
+    """Compute the first date when each task became solvable with given probability.
 
-    A task is solvable with 50% probability when theta_agent >= beta_task
-    (since P(success) = sigmoid(theta - beta) = 0.5 when theta = beta).
+    A task is solvable with probability p when theta_agent >= beta_task + logit(p),
+    where logit(p) = log(p / (1-p)). For p=0.5, this simplifies to theta >= beta.
 
     Args:
         oracle_items: DataFrame with 'b' column (oracle task difficulties)
         oracle_abilities: DataFrame with 'theta' column (oracle agent abilities)
         agent_dates: Dict mapping agent_id -> date string (YYYYMMDD)
+        solve_probability: Probability threshold for considering an agent "capable"
+            of solving a task (default 0.5, i.e., 50% solve rate)
 
     Returns:
         FirstCapableDatesResult with:
@@ -89,18 +92,21 @@ def compute_first_capable_dates(
     earliest_agent_date = min(all_dates)
     latest_agent_date = max(all_dates)
 
-    # For each task, find earliest agent where theta >= beta
+    # For each task, find earliest agent where theta >= beta + logit(p)
+    # logit(p) = log(p / (1-p)), so for p=0.5, logit=0; for p=0.3, logit≈-0.847
+    threshold_offset = np.log(solve_probability / (1 - solve_probability))
     first_capable_dates = {}
     tasks_without_capable_agent = []
 
     for task_id in oracle_items.index:
         beta = oracle_items.loc[task_id, "b"]
 
-        # Find all agents capable of solving with 50% prob (theta >= beta)
+        # Find all agents capable of solving with given probability
+        # P(solve) = sigmoid(theta - beta) >= p  =>  theta >= beta + logit(p)
         capable_agents = [
             (agent_id, info[1])  # (agent_id, date)
             for agent_id, info in agent_info.items()
-            if info[0] >= beta
+            if info[0] >= beta + threshold_offset
         ]
 
         if capable_agents:
@@ -108,7 +114,7 @@ def compute_first_capable_dates(
             earliest = min(capable_agents, key=lambda x: x[1])
             first_capable_dates[task_id] = earliest[1]
         else:
-            # No agent can currently solve this task with 50% probability
+            # No agent can currently solve this task with the given probability
             tasks_without_capable_agent.append(task_id)
 
     return FirstCapableDatesResult(
