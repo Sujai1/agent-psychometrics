@@ -301,6 +301,7 @@ def print_comparison_table(
     frontier_definition: str = "passrate",
     irt_solve_prob: float = 0.3,
     date_results: Optional[Dict[str, Dict]] = None,
+    last_agent_date: Optional[str] = None,
     verbose: bool = False,
 ) -> None:
     """Print formatted comparison table."""
@@ -315,7 +316,12 @@ def print_comparison_table(
         print("Frontier Task Definition (pass-rate based):")
         print("  - Pre-frontier pass rate <= 10%")
         print("  - Post-frontier pass rate > 10%")
-    print(f"  - Cutoff date: {cutoff_date}")
+    # Format cutoff date as YYYY-MM-DD for readability
+    cutoff_formatted = f"{cutoff_date[:4]}-{cutoff_date[4:6]}-{cutoff_date[6:]}"
+    if last_agent_date:
+        print(f"  - Date range: {cutoff_formatted} to {last_agent_date}")
+    else:
+        print(f"  - Cutoff date: {cutoff_formatted}")
     print()
     print("Data Summary:")
     print(f"  - Pre-frontier agents: {pre_frontier_count}")
@@ -641,6 +647,13 @@ def main():
     pre_frontier, post_frontier = split_agents_by_dates(all_agents, agent_dates, cutoff_date)
     print(f"  Pre-frontier agents (< {cutoff_date}): {len(pre_frontier)}")
     print(f"  Post-frontier agents (>= {cutoff_date}): {len(post_frontier)}")
+
+    # Compute last agent date for display
+    if agent_dates:
+        all_dates = [parse_date(d) for d in agent_dates.values()]
+        last_agent_date = max(all_dates).strftime("%Y-%m-%d")
+    else:
+        last_agent_date = None
 
     # Load or train baseline IRT (pre-frontier agents only)
     # Uses caching based on (responses_file, pre_frontier_agents, cutoff_date)
@@ -1110,6 +1123,7 @@ def main():
             frontier_definition=frontier_def,
             irt_solve_prob=irt_solve_prob,
             date_results=date_results,
+            last_agent_date=last_agent_date,
             verbose=args.verbose,
         )
 
