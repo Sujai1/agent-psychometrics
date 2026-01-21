@@ -39,8 +39,10 @@ Usage:
 import argparse
 import logging
 import sys
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -78,6 +80,71 @@ from experiment_ab_shared.predictor_base import DifficultyPredictorBase
 from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
 from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
 from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
+from experiment_b.shared.config_base import DatasetConfig
+
+
+# =============================================================================
+# Dataclasses for grouping related data
+# =============================================================================
+
+
+@dataclass
+class ExperimentData:
+    """Runtime-computed values specific to this experiment run.
+
+    Contains values that depend on experiment parameters (cutoff date,
+    frontier definitions, etc.). Dataset-inherent values come from config.
+    """
+
+    config: DatasetConfig  # Reference to dataset config
+
+    # Loaded IRT models (depend on paths, potentially CLI overrides)
+    oracle_items: pd.DataFrame
+    oracle_abilities: pd.DataFrame
+    baseline_items: pd.DataFrame
+    baseline_abilities: Optional[pd.DataFrame]
+
+    # Agent splits (depend on cutoff_date)
+    pre_frontier_agents: List[str]
+    post_frontier_agents: List[str]
+
+    # Task sets (depend on frontier definitions and cutoff)
+    train_task_ids: List[str]  # All tasks in baseline IRT
+    frontier_tasks_by_def: Dict[str, List[str]]  # frontier_def -> task list
+    anchor_task_ids: List[str]  # For scale alignment
+
+    # Cutoff date used (may be overridden from CLI)
+    cutoff_date: str
+
+    # Pre-filtered responses for training (no post-frontier agents)
+    train_responses: Dict[str, Dict[str, int]] = field(default_factory=dict)
+
+    # Ground truth difficulties from baseline IRT for training predictors
+    baseline_ground_truth_b: Optional[np.ndarray] = field(default=None, repr=False)
+
+
+@dataclass
+class FeatureIRTResults:
+    """Results from running Feature-IRT methods."""
+
+    predictions: Dict[str, Dict[str, float]]  # method_name -> beta predictions
+    abilities: Dict[str, Dict[str, float]]  # method_name -> theta abilities
+    diagnostics: Optional[List[Dict[str, Any]]] = None  # Grid search diagnostics
+    best_predictors: Dict[str, Any] = field(default_factory=dict)  # source_name -> predictor
+
+
+@dataclass
+class DateForecastingData:
+    """Data for date forecasting evaluation."""
+
+    date_models: Dict[str, Tuple[DateForecastModel, Dict[str, Any]]]  # method -> (model, fit_stats)
+    ground_truth_days: Dict[str, float]  # task_id -> days since earliest agent
+    first_capable_dates: Dict[str, datetime]  # task_id -> datetime
+    earliest_agent_date: str  # YYYY-MM-DD
+    latest_agent_date: str  # YYYY-MM-DD
+    gt_date_min: str  # YYYY-MM-DD (min ground truth date for eval set)
+    gt_date_max: str  # YYYY-MM-DD (max ground truth date for eval set)
+    tasks_without_capable: int  # Count of tasks without any capable agent
 
 
 def compute_method_metrics(
@@ -741,6 +808,601 @@ def print_date_forecast_table(
     print()
 
 
+# =============================================================================
+# Helper functions for main()
+# =============================================================================
+
+
+def load_and_prepare_data(args: argparse.Namespace, config: DatasetConfig) -> ExperimentData:
+    """Load IRT models and compute experiment-specific splits.
+
+    Args:
+        args: Parsed CLI arguments
+        config: Dataset configuration (with lazy-loaded data)
+
+    Returns:
+        ExperimentData with all loaded models and computed splits
+    """
+    # Override paths from CLI args if provided
+    oracle_irt_path = args.oracle_irt_path or config.oracle_irt_path
+    oracle_abilities_path = args.oracle_abilities_path or config.oracle_abilities_path
+    baseline_irt_path = args.baseline_irt_path or config.baseline_irt_path
+    cutoff_date = args.cutoff_date or config.cutoff_date
+    pre_threshold = args.pre_threshold if args.pre_threshold is not None else config.pre_threshold
+    post_threshold = args.post_threshold if args.post_threshold is not None else config.post_threshold
+
+    print(f"  Dataset: {config.name}")
+    print(f"  Cutoff date: {cutoff_date}")
+
+    # Validate required files exist
+    required_files = [
+        (config.responses_path, "Response matrix"),
+        (oracle_irt_path, "Oracle IRT"),
+        (oracle_abilities_path, "Oracle abilities"),
+    ]
+    for path, name in required_files:
+        if not path.exists():
+            print(f"Error: {name} not found: {path}")
+            sys.exit(1)
+
+    # Load IRT models and abilities
+    print("\nLoading IRT models...")
+    oracle_items = pd.read_csv(oracle_irt_path, index_col=0)
+    oracle_abilities = pd.read_csv(oracle_abilities_path, index_col=0)
+    print(f"  Oracle IRT: {len(oracle_items)} tasks")
+    print(f"  Oracle abilities: {len(oracle_abilities)} agents")
+
+    # Load response matrix (use lazy-loaded from config)
+    print("\nLoading response matrix...")
+    print(f"  Loaded responses for {len(config.responses)} agents")
+
+    # Get agent dates from config and split by cutoff
+    print("\nIdentifying frontier tasks...")
+    print(f"  Agents with dates: {len(config.agent_dates)} / {len(config.all_agents)}")
+
+    pre_frontier, post_frontier = split_agents_by_dates(
+        config.all_agents, config.agent_dates, cutoff_date
+    )
+    print(f"  Pre-frontier agents (< {cutoff_date}): {len(pre_frontier)}")
+    print(f"  Post-frontier agents (>= {cutoff_date}): {len(post_frontier)}")
+
+    # Load or train baseline IRT (pre-frontier agents only)
+    baseline_items: Optional[pd.DataFrame] = None
+    baseline_abilities: Optional[pd.DataFrame] = None
+
+    if baseline_irt_path and baseline_irt_path.exists():
+        baseline_abilities_path_file = baseline_irt_path.parent / "abilities.csv"
+        if baseline_abilities_path_file.exists():
+            baseline_items = pd.read_csv(baseline_irt_path, index_col=0)
+            baseline_abilities = pd.read_csv(baseline_abilities_path_file, index_col=0)
+            print(f"  Baseline IRT: {len(baseline_items)} tasks (loaded from {baseline_irt_path})")
+        else:
+            print(f"  Baseline IRT abilities not found at {baseline_abilities_path_file}, retraining...")
+
+    if baseline_items is None:
+        print("\nLoading/training baseline IRT...")
+        baseline_items, baseline_abilities = get_or_train_baseline_irt(
+            responses_path=config.responses_path,
+            pre_frontier_agents=pre_frontier,
+            cutoff_date=cutoff_date,
+            output_dir=config.output_dir,
+        )
+        print(f"  Baseline IRT: {len(baseline_items)} tasks, {len(baseline_abilities)} agents")
+
+    irt_solve_prob = config.irt_solve_probability
+
+    # Identify frontier tasks for each definition
+    frontier_tasks_by_def: Dict[str, List[str]] = {}
+    for frontier_def in args.frontier_definitions:
+        if frontier_def == "irt":
+            frontier_task_ids = identify_frontier_tasks_irt(
+                oracle_items=oracle_items,
+                oracle_abilities=oracle_abilities,
+                agent_dates=config.agent_dates,
+                cutoff_date=cutoff_date,
+                solve_probability=irt_solve_prob,
+            )
+            print(f"  Frontier tasks ({frontier_def}: no pre-frontier agent with >={irt_solve_prob:.0%} solve prob): {len(frontier_task_ids)}")
+        elif frontier_def == "zero_pre":
+            frontier_task_ids = identify_frontier_tasks_zero_pre(
+                config.responses_path,
+                pre_frontier,
+                post_frontier,
+            )
+            print(f"  Frontier tasks ({frontier_def}: 0% pre, >0% post): {len(frontier_task_ids)}")
+        else:  # passrate
+            frontier_task_ids = identify_frontier_tasks(
+                config.responses_path,
+                pre_frontier,
+                post_frontier,
+                pre_threshold,
+                post_threshold,
+            )
+            print(f"  Frontier tasks ({frontier_def}: <={pre_threshold*100:.0f}% pre, >{post_threshold*100:.0f}% post): {len(frontier_task_ids)}")
+        frontier_tasks_by_def[frontier_def] = frontier_task_ids
+
+    # Identify nontrivial anchor tasks for scale alignment
+    print("\nIdentifying nontrivial anchor tasks...")
+    anchor_task_ids, _, _ = identify_nontrivial_tasks(
+        config.responses_path,
+        pre_frontier,
+        post_frontier,
+        min_pass_rate=0.10,
+        max_pass_rate=0.90,
+    )
+    print(f"  Anchor tasks (10-90% pass rate in both groups): {len(anchor_task_ids)}")
+
+    train_task_ids = list(baseline_items.index)
+    print(f"  Training tasks: {len(train_task_ids)}")
+
+    # Pre-filter responses for training (no post-frontier agents)
+    train_responses = {
+        agent_id: agent_responses
+        for agent_id, agent_responses in config.responses.items()
+        if agent_id in pre_frontier
+    }
+
+    baseline_ground_truth_b = baseline_items.loc[train_task_ids, "b"].values
+
+    return ExperimentData(
+        config=config,
+        oracle_items=oracle_items,
+        oracle_abilities=oracle_abilities,
+        baseline_items=baseline_items,
+        baseline_abilities=baseline_abilities,
+        pre_frontier_agents=pre_frontier,
+        post_frontier_agents=post_frontier,
+        train_task_ids=train_task_ids,
+        frontier_tasks_by_def=frontier_tasks_by_def,
+        anchor_task_ids=anchor_task_ids,
+        cutoff_date=cutoff_date,
+        train_responses=train_responses,
+        baseline_ground_truth_b=baseline_ground_truth_b,
+    )
+
+
+def load_sad_irt_predictions(
+    sad_irt_beta_dir: Path,
+    raw_predictions: Dict[str, Dict[str, float]],
+    method_abilities: Dict[str, Dict[str, float]],
+) -> None:
+    """Load SAD-IRT beta and theta values from CSV files.
+
+    Each SAD-IRT run is added as a separate method to raw_predictions and
+    method_abilities. The best run is selected by AUC during table printing.
+
+    Args:
+        sad_irt_beta_dir: Directory containing extracted SAD-IRT beta CSV files
+        raw_predictions: Dict to add predictions to (mutated)
+        method_abilities: Dict to add abilities to (mutated)
+    """
+    if not sad_irt_beta_dir.exists():
+        print(f"\nSAD-IRT beta directory not found: {sad_irt_beta_dir}")
+        print("  To include SAD-IRT results, run experiment_sad_irt and extract beta values")
+        return
+
+    beta_files = list(sad_irt_beta_dir.glob("*.csv"))
+    print(f"\nLoading SAD-IRT beta values from {sad_irt_beta_dir}...")
+    print(f"  Found {len(beta_files)} beta CSV files")
+
+    sad_irt_theta_dir = Path("chris_output/sad_irt_theta_values")
+    loaded_count = 0
+
+    for beta_file in beta_files:
+        beta_df = pd.read_csv(beta_file, index_col=0)
+        if "beta" not in beta_df.columns:
+            print(f"  Skipping {beta_file.name}: no 'beta' column")
+            continue
+
+        stem = beta_file.stem
+        method_name = f"SAD-IRT ({stem})"
+        raw_predictions[method_name] = beta_df["beta"].to_dict()
+        loaded_count += 1
+
+        # Load matching theta file if available
+        theta_file = sad_irt_theta_dir / f"{stem}.csv"
+        if theta_file.exists():
+            theta_df = pd.read_csv(theta_file, index_col=0)
+            if "theta" in theta_df.columns:
+                method_abilities[method_name] = theta_df["theta"].to_dict()
+
+    print(f"  Loaded {loaded_count} valid SAD-IRT beta files")
+
+
+def build_feature_sources(
+    config: DatasetConfig,
+    embeddings_path_override: Optional[Path] = None,
+    llm_judge_path_override: Optional[Path] = None,
+) -> List[Tuple[str, Any]]:
+    """Build list of available feature sources."""
+    embeddings_path = embeddings_path_override or config.embeddings_path
+    llm_judge_path = llm_judge_path_override or config.llm_judge_path
+
+    feature_sources: List[Tuple[str, Any]] = []
+
+    if embeddings_path and embeddings_path.exists():
+        feature_sources.append(("Embedding", EmbeddingFeatureSource(embeddings_path)))
+    else:
+        print(f"\nEmbeddings not found: {embeddings_path}")
+
+    if llm_judge_path and llm_judge_path.exists():
+        feature_sources.append((
+            "LLM Judge",
+            CSVFeatureSource(
+                llm_judge_path,
+                feature_cols=config.llm_judge_feature_cols,
+                name="LLM Judge",
+            ),
+        ))
+    else:
+        print(f"\nLLM Judge features not found: {llm_judge_path}")
+
+    return feature_sources
+
+
+def collect_feature_ridge_predictions(
+    feature_sources: List[Tuple[str, Any]],
+    data: ExperimentData,
+) -> Dict[str, Dict[str, float]]:
+    """Train Ridge regressors on available feature sources."""
+    predictions: Dict[str, Dict[str, float]] = {}
+
+    for source_name, source in feature_sources:
+        method_name = f"{source_name} + Ridge"
+        print(f"\nTraining {method_name}...")
+        print(f"  Training on {len(data.train_task_ids)} tasks")
+        try:
+            predictor = FeatureBasedPredictor(source)
+            predictor.fit(data.train_task_ids, data.baseline_ground_truth_b)
+            predictions[method_name] = predictor.predict(data.config.all_task_ids)
+        except Exception as e:
+            print(f"  Error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    return predictions
+
+
+def run_feature_irt_methods(
+    args: argparse.Namespace,
+    feature_sources: List[Tuple[str, Any]],
+    data: ExperimentData,
+    primary_frontier_tasks: List[str],
+) -> FeatureIRTResults:
+    """Run Feature-IRT with optional grid search."""
+    if args.diagnostic_mode:
+        l2_weight_grid = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
+        l2_residual_grid = [0.1, 1.0, 10.0, 100.0, 1000.0]
+        use_residuals_grid = [True]
+    elif args.grid_search:
+        l2_weight_grid = [0.001, 0.01, 0.1]
+        l2_residual_grid = [10.0]
+        use_residuals_grid = [False]
+    else:
+        l2_weight_grid = [0.01]
+        l2_residual_grid = [10.0]
+        use_residuals_grid = [False]
+
+    predictions: Dict[str, Dict[str, float]] = {}
+    abilities: Dict[str, Dict[str, float]] = {}
+    diagnostics: Optional[List[Dict[str, Any]]] = [] if args.diagnostic_mode else None
+    best_predictors: Dict[str, Any] = {}
+
+    for source_name, source in feature_sources:
+        method_name = f"Feature-IRT ({source_name})"
+        best_auc = -1.0
+        best_predictions: Optional[Dict[str, float]] = None
+        best_abilities: Optional[Dict[str, float]] = None
+        best_predictor: Optional[Any] = None
+
+        if args.grid_search or args.diagnostic_mode:
+            print(f"\nRunning {method_name} grid search (using '{args.frontier_definitions[0]}' frontier for selection)...")
+            print(f"  Training on {len(data.train_task_ids)} tasks")
+            if args.diagnostic_mode:
+                print(f"  Extended diagnostic grid: {len(l2_weight_grid)}x{len(l2_residual_grid)}x{len(use_residuals_grid)} = {len(l2_weight_grid)*len(l2_residual_grid)*len(use_residuals_grid)} configs")
+
+        for l2_w in l2_weight_grid:
+            for l2_r in l2_residual_grid:
+                for use_res in use_residuals_grid:
+                    if args.grid_search or args.diagnostic_mode:
+                        print(f"    Testing: l2_w={l2_w}, l2_r={l2_r}, res={use_res}")
+
+                    try:
+                        predictor = FeatureIRTPredictor(
+                            source,
+                            use_residuals=use_res,
+                            l2_weight=l2_w,
+                            l2_residual=l2_r,
+                            verbose=args.verbose and not (args.grid_search or args.diagnostic_mode),
+                        )
+
+                        if not (args.grid_search or args.diagnostic_mode):
+                            print(f"\nTraining {method_name}...")
+                            print(f"  Training on {len(data.train_task_ids)} tasks with {len(data.train_responses)} pre-frontier agents")
+
+                        predictor.fit(
+                            task_ids=data.train_task_ids,
+                            ground_truth_b=data.baseline_ground_truth_b,
+                            responses=data.train_responses,
+                        )
+
+                        preds = predictor.predict(data.train_task_ids)
+
+                        if args.grid_search or args.diagnostic_mode:
+                            metrics = compute_method_metrics(
+                                predicted_beta=preds,
+                                oracle_items=data.oracle_items,
+                                oracle_abilities=data.oracle_abilities,
+                                responses=data.config.responses,
+                                frontier_task_ids=primary_frontier_tasks,
+                                anchor_task_ids=data.anchor_task_ids,
+                                eval_agents=data.post_frontier_agents,
+                                alignment_method=args.alignment_method,
+                            )
+                            auc = metrics.get('auc', 0) or 0
+                            rho = metrics.get('frontier_spearman_rho', 0) or 0
+                            if args.verbose:
+                                print(f"      AUC: {auc:.4f}, Spearman: {rho:.4f}")
+                            else:
+                                print(f"      AUC: {auc:.4f}")
+
+                            if args.diagnostic_mode and use_res:
+                                contributions = predictor.analyze_contributions()
+                                diag = predictor.get_training_diagnostics()
+                                diagnostics.append({
+                                    'source': source_name,
+                                    'l2_weight': l2_w,
+                                    'l2_residual': l2_r,
+                                    'use_residuals': use_res,
+                                    'auc': auc,
+                                    'spearman': rho,
+                                    'final_loss': diag['final_loss'],
+                                    'n_iterations': diag['n_iterations'],
+                                    'loss_history': diag['loss_history'],
+                                    'loss_components': diag['loss_components'],
+                                    'contributions': contributions,
+                                })
+                        else:
+                            auc = 1.0
+
+                        if auc > best_auc:
+                            best_auc = auc
+                            best_predictions = preds
+                            best_abilities = predictor.learned_abilities
+                            best_predictor = predictor
+
+                    except Exception as e:
+                        if args.grid_search or args.diagnostic_mode:
+                            print(f"      Error: {e}")
+                        else:
+                            print(f"  Error: {e}")
+                            import traceback
+                            traceback.print_exc()
+
+        if best_predictions is not None:
+            if args.grid_search or args.diagnostic_mode:
+                print(f"  Best AUC: {best_auc:.4f}")
+            predictions[method_name] = best_predictions
+            if best_abilities is not None:
+                abilities[method_name] = best_abilities
+            if best_predictor is not None:
+                best_predictors[source_name] = best_predictor
+
+    return FeatureIRTResults(
+        predictions=predictions,
+        abilities=abilities,
+        diagnostics=diagnostics,
+        best_predictors=best_predictors,
+    )
+
+
+def setup_date_forecasting(
+    data: ExperimentData,
+    raw_predictions: Dict[str, Dict[str, float]],
+    method_abilities: Dict[str, Dict[str, float]],
+) -> Optional[DateForecastingData]:
+    """Prepare date forecasting models and ground truth.
+
+    Fits a separate date model for each method that has abilities.
+
+    Args:
+        data: Experiment data
+        raw_predictions: All collected predictions
+        method_abilities: Abilities for methods that have their own IRT
+
+    Returns:
+        DateForecastingData or None if not enough data
+    """
+    print("\nRunning date forecasting evaluation...")
+
+    gt_result = compute_first_capable_dates(
+        data.oracle_items, data.oracle_abilities, data.config.agent_dates
+    )
+    first_capable_dates = gt_result.first_capable_dates
+    tasks_without_capable = gt_result.tasks_without_capable_agent
+    earliest_agent_date = gt_result.earliest_agent_date
+    latest_agent_date = gt_result.latest_agent_date
+
+    cutoff_datetime = parse_date(data.cutoff_date)
+    _, post_cutoff_tasks = split_tasks_by_first_capable_date(
+        first_capable_dates, cutoff_datetime
+    )
+
+    print(f"  Tasks with ground truth (first capable agent exists): {len(first_capable_dates)}")
+    print(f"  Post-cutoff tasks (for evaluation): {len(post_cutoff_tasks)}")
+    print(f"  Tasks without any capable agent: {len(tasks_without_capable)}")
+
+    if len(post_cutoff_tasks) < 3:
+        print("  Not enough post-cutoff tasks for date forecasting")
+        return None
+
+    ground_truth_days = compute_ground_truth_days(
+        data.train_task_ids, first_capable_dates, earliest_agent_date
+    )
+
+    post_cutoff_gt_dates = [first_capable_dates[t] for t in post_cutoff_tasks]
+    gt_date_min = min(post_cutoff_gt_dates).strftime("%Y-%m-%d")
+    gt_date_max = max(post_cutoff_gt_dates).strftime("%Y-%m-%d")
+
+    # Fit date models for each method with abilities
+    date_models: Dict[str, Tuple[DateForecastModel, Dict[str, Any]]] = {}
+    for method_name, abilities in method_abilities.items():
+        try:
+            date_model = DateForecastModel()
+            fit_stats = date_model.fit(abilities, data.config.agent_dates)
+            date_models[method_name] = (date_model, fit_stats)
+        except Exception as e:
+            print(f"  Warning: Could not fit date model for {method_name}: {e}")
+
+    return DateForecastingData(
+        date_models=date_models,
+        ground_truth_days=ground_truth_days,
+        first_capable_dates=first_capable_dates,
+        earliest_agent_date=earliest_agent_date,
+        latest_agent_date=latest_agent_date,
+        gt_date_min=gt_date_min,
+        gt_date_max=gt_date_max,
+        tasks_without_capable=len(tasks_without_capable),
+    )
+
+
+def evaluate_all_frontier_definitions(
+    args: argparse.Namespace,
+    data: ExperimentData,
+    raw_predictions: Dict[str, Dict[str, float]],
+    date_info: Optional[DateForecastingData],
+) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    """Run evaluation for all frontier definitions and methods.
+
+    Evaluates ALL methods uniformly. For reporting, the table printing
+    function consolidates SAD-IRT runs into a single "best" entry.
+
+    Args:
+        args: Parsed CLI arguments
+        data: Experiment data
+        raw_predictions: All collected predictions
+        date_info: Date forecasting data (optional)
+
+    Returns:
+        Dict mapping frontier_def -> results dict (includes all SAD-IRT runs)
+    """
+    all_results: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    for frontier_def in args.frontier_definitions:
+        frontier_task_ids = data.frontier_tasks_by_def[frontier_def]
+        print(f"\n{'='*90}")
+        print(f"Evaluating metrics for frontier definition: {frontier_def}")
+        print(f"{'='*90}")
+
+        results: Dict[str, Dict[str, Any]] = {}
+
+        # Compute metrics for each method uniformly
+        for method_name, pred_beta in raw_predictions.items():
+            try:
+                metrics = compute_method_metrics(
+                    predicted_beta=pred_beta,
+                    oracle_items=data.oracle_items,
+                    oracle_abilities=data.oracle_abilities,
+                    responses=data.config.responses,
+                    frontier_task_ids=frontier_task_ids,
+                    anchor_task_ids=data.anchor_task_ids,
+                    eval_agents=data.post_frontier_agents,
+                    alignment_method=args.alignment_method,
+                )
+                results[method_name] = metrics
+            except Exception as e:
+                print(f"  Error computing metrics for {method_name}: {e}")
+                results[method_name] = {
+                    "frontier_spearman_rho": float("nan"),
+                    "frontier_spearman_p": float("nan"),
+                    "auc": None,
+                    "num_frontier_tasks": 0,
+                }
+
+        all_results[frontier_def] = results
+
+        # Compute date forecasting for this frontier definition
+        date_results_for_def: Optional[Dict[str, Dict[str, Any]]] = None
+        if date_info is not None and date_info.date_models:
+            # Only evaluate on frontier tasks that have a capable agent (ground truth exists)
+            eval_tasks = [t for t in frontier_task_ids if t in date_info.first_capable_dates]
+
+            if len(eval_tasks) >= 3:
+                date_results_for_def = {}
+                for method_name, pred_beta in raw_predictions.items():
+                    if method_name not in date_info.date_models:
+                        continue
+
+                    date_model, fit_stats = date_info.date_models[method_name]
+                    try:
+                        predictions = date_model.predict(pred_beta, eval_tasks)
+                        metrics = compute_date_forecast_metrics(
+                            predictions, date_info.ground_truth_days, eval_tasks
+                        )
+                        date_results_for_def[method_name] = {
+                            **metrics,
+                            "r_squared_fit": fit_stats["r_squared"],
+                        }
+                    except Exception:
+                        date_results_for_def[method_name] = {
+                            "mae_days": float("nan"),
+                            "pearson_r": float("nan"),
+                            "spearman_rho": float("nan"),
+                            "r_squared_fit": float("nan"),
+                            "n_tasks": 0,
+                        }
+
+        # Consolidate SAD-IRT runs and print comparison table
+        # Find best SAD-IRT run by AUC for this frontier definition
+        consolidated_results = {}
+        best_sad_irt_auc = -1.0
+        best_sad_irt_name: Optional[str] = None
+
+        for method_name, metrics in results.items():
+            if method_name.startswith("SAD-IRT ("):
+                auc = metrics.get('auc') or 0
+                if auc > best_sad_irt_auc:
+                    best_sad_irt_auc = auc
+                    best_sad_irt_name = method_name
+            else:
+                consolidated_results[method_name] = metrics
+
+        # Add best SAD-IRT as "SAD-IRT (best)"
+        if best_sad_irt_name:
+            consolidated_results["SAD-IRT (best)"] = results[best_sad_irt_name]
+            print(f"  Best SAD-IRT: {best_sad_irt_name} (AUC: {best_sad_irt_auc:.4f})")
+
+        # Consolidate date results similarly
+        consolidated_date_results: Optional[Dict[str, Dict[str, Any]]] = None
+        if date_results_for_def:
+            consolidated_date_results = {}
+            for method_name, date_metrics in date_results_for_def.items():
+                if method_name.startswith("SAD-IRT ("):
+                    if method_name == best_sad_irt_name:
+                        consolidated_date_results["SAD-IRT (best)"] = date_metrics
+                else:
+                    consolidated_date_results[method_name] = date_metrics
+
+        print()
+        print_comparison_table(
+            consolidated_results,
+            len(frontier_task_ids),
+            len(data.pre_frontier_agents),
+            len(data.post_frontier_agents),
+            anchor_task_count=len(data.anchor_task_ids),
+            alignment_method=args.alignment_method,
+            cutoff_date=data.cutoff_date,
+            frontier_definition=frontier_def,
+            irt_solve_prob=data.config.irt_solve_probability,
+            date_results=consolidated_date_results,
+            last_agent_date=data.config.last_agent_date,
+            verbose=args.verbose,
+            dataset_name=data.config.name,
+        )
+
+    return all_results
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Compare methods for frontier task difficulty prediction"
@@ -869,595 +1531,52 @@ def main():
 
     # Load dataset configuration
     print(f"Loading dataset configuration: {args.dataset}")
-    dataset_config = get_dataset_config(args.dataset)
+    config = get_dataset_config(args.dataset)
 
-    # Override paths from CLI args if provided
-    responses_path = args.responses_path or dataset_config.responses_path
-    oracle_irt_path = args.oracle_irt_path or dataset_config.oracle_irt_path
-    oracle_abilities_path = args.oracle_abilities_path or dataset_config.oracle_abilities_path
-    baseline_irt_path = args.baseline_irt_path or dataset_config.baseline_irt_path
-    embeddings_path = args.embeddings_path or dataset_config.embeddings_path
-    llm_judge_path = args.llm_judge_path or dataset_config.llm_judge_path
-    cutoff_date = args.cutoff_date or dataset_config.cutoff_date
-    pre_threshold = args.pre_threshold if args.pre_threshold is not None else dataset_config.pre_threshold
-    post_threshold = args.post_threshold if args.post_threshold is not None else dataset_config.post_threshold
-    output_dir = dataset_config.output_dir
+    # Load IRT models and compute experiment-specific splits
+    data = load_and_prepare_data(args, config)
 
-    print(f"  Dataset: {dataset_config.name}")
-    print(f"  Cutoff date: {cutoff_date}")
+    # =========================================================================
+    # Collect raw predictions from all methods
+    # =========================================================================
+    raw_predictions: Dict[str, Dict[str, float]] = {
+        "Oracle (upper bound)": data.oracle_items["b"].to_dict(),
+        "Baseline IRT (pre-frontier only)": data.baseline_items["b"].to_dict(),
+    }
 
-    # Validate required files exist
-    required_files = [
-        (responses_path, "Response matrix"),
-        (oracle_irt_path, "Oracle IRT"),
-        (oracle_abilities_path, "Oracle abilities"),
-    ]
-    for path, name in required_files:
-        if not path.exists():
-            print(f"Error: {name} not found: {path}")
-            sys.exit(1)
+    # Track abilities for methods that have their own IRT (for date forecasting)
+    method_abilities: Dict[str, Dict[str, float]] = {
+        "Oracle (upper bound)": data.oracle_abilities["theta"].to_dict(),
+    }
+    if data.baseline_abilities is not None:
+        method_abilities["Baseline IRT (pre-frontier only)"] = data.baseline_abilities["theta"].to_dict()
 
-    # Load IRT models and abilities
-    print("\nLoading IRT models...")
-    oracle_items = pd.read_csv(oracle_irt_path, index_col=0)
-    oracle_abilities = pd.read_csv(oracle_abilities_path, index_col=0)
-    print(f"  Oracle IRT: {len(oracle_items)} tasks")
-    print(f"  Oracle abilities: {len(oracle_abilities)} agents")
+    # Load SAD-IRT predictions (each run added as separate method)
+    load_sad_irt_predictions(args.sad_irt_beta_dir, raw_predictions, method_abilities)
 
-    # Load response matrix for AUC computation
-    print("\nLoading response matrix...")
-    responses = load_responses_dict(responses_path)
-    print(f"  Loaded responses for {len(responses)} agents")
-
-    # Get agent dates from dataset config and split by cutoff
-    print("\nIdentifying frontier tasks...")
-    all_agents = get_all_agents_from_responses(responses_path)
-    agent_dates = dataset_config.get_agent_dates(all_agents)
-    print(f"  Agents with dates: {len(agent_dates)} / {len(all_agents)}")
-
-    pre_frontier, post_frontier = split_agents_by_dates(all_agents, agent_dates, cutoff_date)
-    print(f"  Pre-frontier agents (< {cutoff_date}): {len(pre_frontier)}")
-    print(f"  Post-frontier agents (>= {cutoff_date}): {len(post_frontier)}")
-
-    # Compute last agent date for display
-    if agent_dates:
-        all_dates = [parse_date(d) for d in agent_dates.values()]
-        last_agent_date = max(all_dates).strftime("%Y-%m-%d")
-    else:
-        last_agent_date = None
-
-    # Load or train baseline IRT (pre-frontier agents only)
-    # Uses caching based on (responses_file, pre_frontier_agents, cutoff_date)
-    if baseline_irt_path and baseline_irt_path.exists():
-        # Use explicitly provided baseline IRT path (e.g., SWE-bench pre-computed)
-        baseline_items = pd.read_csv(baseline_irt_path, index_col=0)
-        # Try to load abilities from the same directory
-        baseline_abilities_path = baseline_irt_path.parent / "abilities.csv"
-        if baseline_abilities_path.exists():
-            baseline_abilities = pd.read_csv(baseline_abilities_path, index_col=0)
-        else:
-            baseline_abilities = None
-        print(f"  Baseline IRT: {len(baseline_items)} tasks (loaded from {baseline_irt_path})")
-    else:
-        # Use cached baseline IRT or train new one
-        # Cache is invalidated if training data changes (responses, agents, or cutoff)
-        print("\nLoading/training baseline IRT...")
-        baseline_items, baseline_abilities = get_or_train_baseline_irt(
-            responses_path=responses_path,
-            pre_frontier_agents=pre_frontier,
-            cutoff_date=cutoff_date,
-            output_dir=output_dir,
-        )
-        print(f"  Baseline IRT: {len(baseline_items)} tasks, {len(baseline_abilities)} agents")
-
-    # IRT solve probability threshold from config
-    irt_solve_prob = dataset_config.irt_solve_probability
-
-    # Identify frontier tasks for each definition
-    frontier_tasks_by_def = {}
-    for frontier_def in args.frontier_definitions:
-        if frontier_def == "irt":
-            frontier_task_ids = identify_frontier_tasks_irt(
-                oracle_items=oracle_items,
-                oracle_abilities=oracle_abilities,
-                agent_dates=agent_dates,
-                cutoff_date=cutoff_date,
-                solve_probability=irt_solve_prob,
-            )
-            print(f"  Frontier tasks ({frontier_def}: no pre-frontier agent with >={irt_solve_prob:.0%} solve prob): {len(frontier_task_ids)}")
-        elif frontier_def == "zero_pre":
-            frontier_task_ids = identify_frontier_tasks_zero_pre(
-                responses_path,
-                pre_frontier,
-                post_frontier,
-            )
-            print(f"  Frontier tasks ({frontier_def}: 0% pre, >0% post): {len(frontier_task_ids)}")
-        else:  # passrate
-            frontier_task_ids = identify_frontier_tasks(
-                responses_path,
-                pre_frontier,
-                post_frontier,
-                pre_threshold,
-                post_threshold,
-            )
-            print(f"  Frontier tasks ({frontier_def}: <={pre_threshold*100:.0f}% pre, >{post_threshold*100:.0f}% post): {len(frontier_task_ids)}")
-        frontier_tasks_by_def[frontier_def] = frontier_task_ids
-
-    # Identify nontrivial anchor tasks for scale alignment
-    print("\nIdentifying nontrivial anchor tasks...")
-    anchor_task_ids, _, _ = identify_nontrivial_tasks(
-        responses_path,
-        pre_frontier,
-        post_frontier,
-        min_pass_rate=0.10,
-        max_pass_rate=0.90,
+    # Build feature sources and collect Ridge predictions
+    feature_sources = build_feature_sources(
+        config,
+        embeddings_path_override=args.embeddings_path,
+        llm_judge_path_override=args.llm_judge_path,
     )
-    print(f"  Anchor tasks (10-90% pass rate in both groups): {len(anchor_task_ids)}")
+    raw_predictions.update(collect_feature_ridge_predictions(feature_sources, data))
 
-    # Training tasks: use all tasks (ground truth from baseline IRT trained on pre-frontier agents)
-    # This simplifies logic when evaluating multiple frontier definitions
-    all_task_ids = list(baseline_items.index)
-    train_task_ids = all_task_ids
-    print(f"  Training tasks: {len(train_task_ids)}")
+    # Run Feature-IRT methods
+    primary_frontier_tasks = data.frontier_tasks_by_def[args.frontier_definitions[0]]
+    feature_irt = run_feature_irt_methods(args, feature_sources, data, primary_frontier_tasks)
+    raw_predictions.update(feature_irt.predictions)
+    method_abilities.update(feature_irt.abilities)
 
-    # =========================================================================
-    # PHASE 1: Collect raw predictions from all methods
-    # =========================================================================
-    # Store raw predicted betas (before oracle alignment)
-    # These will be evaluated against each frontier definition
-    raw_predictions = {}
-
-    # 0. Oracle upper bound (uses true oracle beta)
-    print("\nCollecting predictions: Oracle (upper bound)...")
-    oracle_beta = oracle_items["b"].to_dict()
-    raw_predictions["Oracle (upper bound)"] = oracle_beta
-
-    # 1. Baseline IRT
-    print("Collecting predictions: Baseline IRT...")
-    baseline_beta = baseline_items["b"].to_dict()
-    raw_predictions["Baseline IRT (pre-frontier only)"] = baseline_beta
-
-    # 2. SAD-IRT runs (from extracted beta CSV files) - load all valid ones
-    # Note: we'll select the best one per frontier definition later
-    sad_irt_betas = {}
-    if args.sad_irt_beta_dir.exists():
-        beta_files = list(args.sad_irt_beta_dir.glob("*.csv"))
-        print(f"\nLoading SAD-IRT beta values from {args.sad_irt_beta_dir}...")
-        print(f"  Found {len(beta_files)} beta CSV files")
-
-        for beta_file in beta_files:
-            beta_df = pd.read_csv(beta_file, index_col=0)
-            if "beta" not in beta_df.columns:
-                print(f"  Skipping {beta_file.name}: no 'beta' column")
-                continue
-            sad_irt_betas[beta_file.stem] = beta_df["beta"].to_dict()
-        print(f"  Loaded {len(sad_irt_betas)} valid SAD-IRT beta files")
-    else:
-        print(f"\nSAD-IRT beta directory not found: {args.sad_irt_beta_dir}")
-        print("  To include SAD-IRT results, run experiment_sad_irt and extract beta values")
-
-    # Build list of available feature sources
-    feature_sources = []
-    if embeddings_path.exists():
-        feature_sources.append(("Embedding", EmbeddingFeatureSource(embeddings_path)))
-    else:
-        print(f"\nEmbeddings not found: {embeddings_path}")
-
-    if llm_judge_path.exists():
-        feature_sources.append((
-            "LLM Judge",
-            CSVFeatureSource(
-                llm_judge_path,
-                feature_cols=dataset_config.llm_judge_feature_cols,
-                name="LLM Judge",
-            ),
-        ))
-    else:
-        print(f"\nLLM Judge features not found: {llm_judge_path}")
-
-    # 3-4. Feature + Ridge predictors: train and collect predictions
-    for source_name, source in feature_sources:
-        method_name = f"{source_name} + Ridge"
-        print(f"\nTraining {method_name}...")
-        print(f"  Training on {len(train_task_ids)} tasks")
-        try:
-            predictor = FeatureBasedPredictor(source)
-            # Fit the predictor
-            train_tasks_available = [t for t in train_task_ids if t in baseline_items.index]
-            ground_truth_b = baseline_items.loc[train_tasks_available, "b"].values
-            predictor.fit(train_tasks_available, ground_truth_b)
-
-            # Sanity check on training data
-            train_predictions = predictor.predict(train_tasks_available)
-            from experiment_b.shared.evaluate import compute_frontier_difficulty_metrics
-            baseline_dict = baseline_items["b"].to_dict()
-            train_metrics = compute_frontier_difficulty_metrics(
-                train_predictions, baseline_dict, train_tasks_available
-            )
-            print(f"    [Sanity check] Train set Spearman rho: {train_metrics['frontier_spearman_rho']:.4f}")
-
-            # Get predictions for all tasks
-            raw_predictions[method_name] = predictor.predict(all_task_ids)
-        except Exception as e:
-            print(f"  Error: {e}")
-            import traceback
-            traceback.print_exc()
-
-    # 5-6. Feature-IRT predictors: train and collect predictions
-    # For grid search, use first frontier definition to select best config
-    all_task_ids_baseline = list(baseline_items.index)
-    primary_frontier_def = args.frontier_definitions[0]
-    primary_frontier_tasks = frontier_tasks_by_def[primary_frontier_def]
-
-    # Configure hyperparameter grid
-    # Default: no residuals (residuals tend to overfit; main benefit is from joint ability learning)
-    if args.diagnostic_mode:
-        # Extended grid for diagnostics - wider range to explore WITH residuals
-        l2_weight_grid = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
-        l2_residual_grid = [0.1, 1.0, 10.0, 100.0, 1000.0]
-        use_residuals_grid = [True]  # Only test with residuals for contribution analysis
-    elif args.grid_search:
-        # Grid search over l2_weight only (no residuals by default)
-        l2_weight_grid = [0.001, 0.01, 0.1]
-        l2_residual_grid = [10.0]  # Not used when use_residuals=False
-        use_residuals_grid = [False]
-    else:
-        # Default: no residuals, single l2_weight value
-        l2_weight_grid = [0.01]
-        l2_residual_grid = [10.0]  # Not used when use_residuals=False
-        use_residuals_grid = [False]
-
-    # Store Feature-IRT learned abilities for date forecasting
-    feature_irt_abilities = {}
-
-    # Store grid diagnostics when in diagnostic mode
-    grid_diagnostics = [] if args.diagnostic_mode else None
-    best_predictors = {}  # Store best predictor per source for contribution analysis
-
-    for source_name, source in feature_sources:
-        method_name = f"Feature-IRT ({source_name})"
-        best_auc = -1
-        best_predictions = None
-        best_abilities = None
-        best_predictor = None
-
-        if args.grid_search or args.diagnostic_mode:
-            print(f"\nRunning {method_name} grid search (using '{primary_frontier_def}' frontier for selection)...")
-            print(f"  Training on {len(all_task_ids_baseline)} tasks")
-            if args.diagnostic_mode:
-                print(f"  Extended diagnostic grid: {len(l2_weight_grid)}x{len(l2_residual_grid)}x{len(use_residuals_grid)} = {len(l2_weight_grid)*len(l2_residual_grid)*len(use_residuals_grid)} configs")
-
-        for l2_w in l2_weight_grid:
-            for l2_r in l2_residual_grid:
-                for use_res in use_residuals_grid:
-                    if args.grid_search or args.diagnostic_mode:
-                        print(f"    Testing: l2_w={l2_w}, l2_r={l2_r}, res={use_res}")
-
-                    try:
-                        predictor = FeatureIRTPredictor(
-                            source,
-                            use_residuals=use_res,
-                            l2_weight=l2_w,
-                            l2_residual=l2_r,
-                            verbose=args.verbose and not (args.grid_search or args.diagnostic_mode),
-                        )
-
-                        # Fit with pre-frontier agents only (no data leakage)
-                        train_tasks_available = [t for t in all_task_ids_baseline if t in baseline_items.index]
-                        ground_truth_b = baseline_items.loc[train_tasks_available, "b"].values
-                        train_responses = {
-                            agent_id: agent_responses
-                            for agent_id, agent_responses in responses.items()
-                            if agent_id in pre_frontier
-                        }
-                        if not (args.grid_search or args.diagnostic_mode):
-                            print(f"\nTraining {method_name}...")
-                            print(f"  Training on {len(all_task_ids_baseline)} tasks with {len(train_responses)} pre-frontier agents")
-
-                        predictor.fit(
-                            task_ids=train_tasks_available,
-                            ground_truth_b=ground_truth_b,
-                            responses=train_responses,
-                        )
-
-                        # Sanity check
-                        if not (args.grid_search or args.diagnostic_mode):
-                            train_preds = predictor.predict(train_tasks_available)
-                            baseline_dict = baseline_items["b"].to_dict()
-                            train_metrics = compute_frontier_difficulty_metrics(
-                                train_preds, baseline_dict, train_tasks_available
-                            )
-                            print(f"    [Sanity check] Train set Spearman rho: {train_metrics['frontier_spearman_rho']:.4f}")
-
-                        # Get predictions
-                        predictions = predictor.predict(train_tasks_available)
-
-                        # For grid search, compute AUC on primary frontier to select best
-                        if args.grid_search or args.diagnostic_mode:
-                            metrics = compute_method_metrics(
-                                predicted_beta=predictions,
-                                oracle_items=oracle_items,
-                                oracle_abilities=oracle_abilities,
-                                responses=responses,
-                                frontier_task_ids=primary_frontier_tasks,
-                                anchor_task_ids=anchor_task_ids,
-                                eval_agents=post_frontier,
-                                alignment_method=args.alignment_method,
-                            )
-                            auc = metrics.get('auc', 0) or 0
-                            rho = metrics.get('frontier_spearman_rho', 0) or 0
-                            # Spearman is noisy and can be misleading; only show with --verbose
-                            if args.verbose:
-                                print(f"      AUC: {auc:.4f}, Spearman: {rho:.4f}")
-                            else:
-                                print(f"      AUC: {auc:.4f}")
-
-                            # Capture diagnostics for this configuration
-                            if args.diagnostic_mode and use_res:  # Only for configs with residuals
-                                contributions = predictor.analyze_contributions()
-                                diagnostics = predictor.get_training_diagnostics()
-                                grid_diagnostics.append({
-                                    'source': source_name,
-                                    'l2_weight': l2_w,
-                                    'l2_residual': l2_r,
-                                    'use_residuals': use_res,
-                                    'auc': auc,
-                                    'spearman': rho,
-                                    'final_loss': diagnostics['final_loss'],
-                                    'n_iterations': diagnostics['n_iterations'],
-                                    'loss_history': diagnostics['loss_history'],
-                                    'loss_components': diagnostics['loss_components'],
-                                    'contributions': contributions,
-                                })
-                        else:
-                            auc = 1.0  # No grid search, just use default config
-
-                        if auc > best_auc:
-                            best_auc = auc
-                            best_predictions = predictions
-                            best_abilities = predictor.learned_abilities
-                            best_predictor = predictor
-
-                    except Exception as e:
-                        if args.grid_search or args.diagnostic_mode:
-                            print(f"      Error: {e}")
-                        else:
-                            print(f"  Error: {e}")
-                            import traceback
-                            traceback.print_exc()
-
-        if best_predictions is not None:
-            if args.grid_search or args.diagnostic_mode:
-                print(f"  Best AUC: {best_auc:.4f}")
-            raw_predictions[method_name] = best_predictions
-            if best_abilities is not None:
-                feature_irt_abilities[method_name] = best_abilities
-            if best_predictor is not None:
-                best_predictors[source_name] = best_predictor
-
-    # Date forecasting setup (enabled by default)
-    # NOTE: Date forecasting requires abilities from IRT methods to fit
-    # the ability-over-time regression. Methods without their own IRT
-    # (Embedding + Ridge, LLM Judge + Ridge) are skipped.
-    first_capable_dates = {}
-    ground_truth_days = {}
-    date_models = {}
-
+    # Setup date forecasting (optional)
+    date_info: Optional[DateForecastingData] = None
     if not args.no_forecast_dates:
-        print("\nRunning date forecasting evaluation...")
-
-        # Get agent dates for ground truth computation
-        agent_dates = dataset_config.get_agent_dates(all_agents)
-
-        # Compute ground truth solvability dates (when first agent with θ >= β appeared)
-        # NOTE: This uses oracle IRT and is ONLY for evaluation, not training
-        gt_result = compute_first_capable_dates(oracle_items, oracle_abilities, agent_dates)
-        first_capable_dates = gt_result.first_capable_dates
-        tasks_without_capable = gt_result.tasks_without_capable_agent
-        earliest_agent_date = gt_result.earliest_agent_date
-        latest_agent_date = gt_result.latest_agent_date
-
-        # Split tasks by whether first capable agent is pre/post cutoff
-        cutoff_datetime = parse_date(cutoff_date)
-        pre_cutoff_tasks, post_cutoff_tasks = split_tasks_by_first_capable_date(
-            first_capable_dates, cutoff_datetime
-        )
-
-        print(f"  Tasks with ground truth (first capable agent exists): {len(first_capable_dates)}")
-        print(f"  Post-cutoff tasks (for evaluation): {len(post_cutoff_tasks)}")
-        print(f"  Tasks without any capable agent: {len(tasks_without_capable)}")
-
-        if len(post_cutoff_tasks) >= 3:
-            # Compute ground truth days for all tasks
-            ground_truth_days = compute_ground_truth_days(
-                all_task_ids, first_capable_dates, earliest_agent_date
-            )
-
-            # Get ground truth date range for post-cutoff tasks (eval set)
-            post_cutoff_gt_dates = [first_capable_dates[t] for t in post_cutoff_tasks]
-            gt_date_min = min(post_cutoff_gt_dates).strftime("%Y-%m-%d")
-            gt_date_max = max(post_cutoff_gt_dates).strftime("%Y-%m-%d")
-
-            # Build abilities dict for each method that has IRT abilities
-            # Methods without their own IRT are skipped for date forecasting
-            method_abilities = {}
-
-            # Oracle uses oracle abilities (upper bound)
-            method_abilities["Oracle (upper bound)"] = oracle_abilities["theta"].to_dict()
-
-            # Baseline IRT uses baseline abilities
-            if baseline_abilities is not None:
-                method_abilities["Baseline IRT (pre-frontier only)"] = baseline_abilities["theta"].to_dict()
-            else:
-                print("  Warning: Baseline IRT abilities not available for date forecasting")
-
-            # Feature-IRT learned abilities
-            for method_name, abilities in feature_irt_abilities.items():
-                method_abilities[method_name] = abilities
-
-            # SAD-IRT: match beta and theta files by stem name
-            # Load theta files and match with corresponding beta files
-            sad_irt_theta_dir = Path("chris_output/sad_irt_theta_values")
-            sad_irt_matched = {}  # stem -> (beta_dict, theta_dict)
-            if sad_irt_theta_dir.exists() and sad_irt_betas:
-                for theta_file in sad_irt_theta_dir.glob("*.csv"):
-                    stem = theta_file.stem
-                    if stem in sad_irt_betas:
-                        theta_df = pd.read_csv(theta_file, index_col=0)
-                        if "theta" in theta_df.columns:
-                            sad_irt_matched[stem] = (sad_irt_betas[stem], theta_df["theta"].to_dict())
-
-                # Select best SAD-IRT based on task coverage (use first frontier def)
-                if sad_irt_matched:
-                    primary_frontier = frontier_tasks_by_def[args.frontier_definitions[0]]
-                    best_coverage = 0
-                    best_stem = None
-                    for stem, (beta_dict, theta_dict) in sad_irt_matched.items():
-                        coverage = len([t for t in primary_frontier if t in beta_dict])
-                        if coverage > best_coverage:
-                            best_coverage = coverage
-                            best_stem = stem
-
-                    if best_stem:
-                        beta_dict, theta_dict = sad_irt_matched[best_stem]
-                        raw_predictions["SAD-IRT (best)"] = beta_dict
-                        method_abilities["SAD-IRT (best)"] = theta_dict
-                        print(f"  Using SAD-IRT run: {best_stem}")
-
-            # Pre-fit date models for each method (fit is the same for all frontier defs)
-            # The fit uses pre-frontier abilities, evaluation will use frontier tasks
-            date_models = {}
-            for method_name in method_abilities:
-                abilities = method_abilities[method_name]
-                try:
-                    date_model = DateForecastModel()
-                    fit_stats = date_model.fit(abilities, agent_dates)
-                    date_models[method_name] = (date_model, fit_stats)
-                except Exception as e:
-                    print(f"  Warning: Could not fit date model for {method_name}: {e}")
+        date_info = setup_date_forecasting(data, raw_predictions, method_abilities)
 
     # =========================================================================
-    # PHASE 2: Compute metrics and print tables for each frontier definition
+    # Evaluate all methods and print results
     # =========================================================================
-    all_results = {}  # Store results per frontier definition
-
-    for frontier_def in args.frontier_definitions:
-        frontier_task_ids = frontier_tasks_by_def[frontier_def]
-        print(f"\n{'='*90}")
-        print(f"Evaluating metrics for frontier definition: {frontier_def}")
-        print(f"{'='*90}")
-
-        results = {}
-
-        # Compute metrics for each method
-        for method_name, pred_beta in raw_predictions.items():
-            try:
-                metrics = compute_method_metrics(
-                    predicted_beta=pred_beta,
-                    oracle_items=oracle_items,
-                    oracle_abilities=oracle_abilities,
-                    responses=responses,
-                    frontier_task_ids=frontier_task_ids,
-                    anchor_task_ids=anchor_task_ids,
-                    eval_agents=post_frontier,
-                    alignment_method=args.alignment_method,
-                )
-                results[method_name] = metrics
-            except Exception as e:
-                print(f"  Error computing metrics for {method_name}: {e}")
-                results[method_name] = {
-                    "frontier_spearman_rho": float("nan"),
-                    "frontier_spearman_p": float("nan"),
-                    "auc": None,
-                    "num_frontier_tasks": 0,
-                }
-
-        # Add SAD-IRT (select best for this frontier definition)
-        # Skip if already in raw_predictions (already selected in date forecasting phase)
-        if sad_irt_betas and "SAD-IRT (best)" not in raw_predictions:
-            best_sad_irt_auc = -1
-            best_sad_irt_metrics = None
-            best_sad_irt_name = None
-
-            for sad_name, sad_beta in sad_irt_betas.items():
-                # Check coverage
-                frontier_overlap = [t for t in frontier_task_ids if t in sad_beta]
-                if len(frontier_overlap) == 0:
-                    continue
-
-                try:
-                    sad_metrics = compute_method_metrics(
-                        predicted_beta=sad_beta,
-                        oracle_items=oracle_items,
-                        oracle_abilities=oracle_abilities,
-                        responses=responses,
-                        frontier_task_ids=frontier_task_ids,
-                        anchor_task_ids=anchor_task_ids,
-                        eval_agents=post_frontier,
-                        alignment_method=args.alignment_method,
-                    )
-                    auc = sad_metrics.get('auc') or 0
-                    if auc > best_sad_irt_auc:
-                        best_sad_irt_auc = auc
-                        best_sad_irt_metrics = sad_metrics
-                        best_sad_irt_name = sad_name
-                except Exception:
-                    pass
-
-            if best_sad_irt_metrics is not None:
-                results["SAD-IRT (best)"] = best_sad_irt_metrics
-
-        all_results[frontier_def] = results
-
-        # Compute date forecasting for this frontier definition
-        # Evaluate on frontier tasks that have ground truth (first capable agent exists)
-        date_results_for_def = None
-        if not args.no_forecast_dates and date_models:
-            # Find frontier tasks with ground truth
-            eval_tasks = [t for t in frontier_task_ids if t in first_capable_dates]
-
-            if len(eval_tasks) >= 3:
-                date_results_for_def = {}
-                for method_name, pred_beta in raw_predictions.items():
-                    if method_name not in date_models:
-                        continue
-
-                    date_model, fit_stats = date_models[method_name]
-                    try:
-                        predictions = date_model.predict(pred_beta, eval_tasks)
-                        metrics = compute_date_forecast_metrics(
-                            predictions, ground_truth_days, eval_tasks
-                        )
-                        date_results_for_def[method_name] = {
-                            **metrics,
-                            "r_squared_fit": fit_stats["r_squared"],
-                        }
-                    except Exception as e:
-                        date_results_for_def[method_name] = {
-                            "mae_days": float("nan"),
-                            "pearson_r": float("nan"),
-                            "spearman_rho": float("nan"),
-                            "r_squared_fit": float("nan"),
-                            "n_tasks": 0,
-                        }
-
-        # Print comparison table for this frontier definition
-        print()
-        print_comparison_table(
-            results,
-            len(frontier_task_ids),
-            len(pre_frontier),
-            len(post_frontier),
-            anchor_task_count=len(anchor_task_ids),
-            alignment_method=args.alignment_method,
-            cutoff_date=cutoff_date,
-            frontier_definition=frontier_def,
-            irt_solve_prob=irt_solve_prob,
-            date_results=date_results_for_def,
-            last_agent_date=last_agent_date,
-            verbose=args.verbose,
-            dataset_name=dataset_config.name,
-        )
+    all_results = evaluate_all_frontier_definitions(args, data, raw_predictions, date_info)
 
     # Save to CSV if requested (use first frontier definition for backwards compatibility)
     if args.output_csv:
@@ -1465,8 +1584,8 @@ def main():
         save_results_csv(all_results[primary_def], args.output_csv)
 
     # Generate diagnostic outputs if in diagnostic mode
-    if args.diagnostic_mode and grid_diagnostics:
-        save_and_plot_diagnostics(grid_diagnostics, output_dir)
+    if args.diagnostic_mode and feature_irt.diagnostics:
+        save_and_plot_diagnostics(feature_irt.diagnostics, config.output_dir)
 
 
 if __name__ == "__main__":

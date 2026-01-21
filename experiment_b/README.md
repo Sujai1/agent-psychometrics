@@ -223,28 +223,52 @@ predictor.fit(task_ids, ground_truth_b, responses)  # responses = pre-frontier o
 
 ```
 experiment_b/
-├── compare_methods.py        # Main entry point
-├── experiment_ab_shared/
+├── compare_methods.py        # Main entry point (refactored with helper functions)
+├── shared/
+│   ├── config_base.py        # DatasetConfig base class with lazy-loaded properties
 │   ├── data_splits.py        # Agent/task splitting utilities
 │   ├── evaluate.py           # Evaluation metrics (Spearman, AUC, alignment)
 │   ├── baseline_irt.py       # Baseline IRT training with caching
 │   ├── feature_irt_predictor.py  # Feature-IRT predictor
-│   └── date_forecasting.py   # Date forecasting utilities (NEW)
-└── datasets/                 # Dataset-specific configurations
-    ├── base.py               # DatasetConfig base class
-    ├── swebench.py           # SWE-bench config
-    └── terminalbench.py      # TerminalBench config
+│   └── date_forecasting.py   # Date forecasting utilities
+├── swebench/
+│   └── config.py             # SWE-bench dataset configuration
+└── terminalbench/
+    └── config.py             # TerminalBench dataset configuration
 ```
+
+### Code Organization (`compare_methods.py`)
+
+The main script is organized into:
+
+**Dataclasses** for grouping related data:
+- `ExperimentData`: Runtime-computed values (IRT models, agent splits, frontier tasks)
+- `FeatureIRTResults`: Predictions, abilities, and diagnostics from Feature-IRT
+- `DateForecastingData`: Date models, ground truth, and evaluation metadata
+
+**Helper Functions** for modularity:
+- `load_and_prepare_data()`: Load IRT models and compute experiment-specific splits
+- `load_sad_irt_predictions()`: Load all SAD-IRT runs as separate methods
+- `build_feature_sources()`: Create feature source objects for embeddings/LLM judge
+- `collect_feature_ridge_predictions()`: Train Ridge regressors on feature sources
+- `run_feature_irt_methods()`: Run Feature-IRT with optional grid search
+- `setup_date_forecasting()`: Prepare date models and ground truth
+- `evaluate_all_frontier_definitions()`: Evaluate all methods, consolidate SAD-IRT at reporting
+
+**DatasetConfig** (`shared/config_base.py`) provides lazy-loaded cached properties:
+- `responses`: Load response matrix on first access
+- `all_agents`, `all_task_ids`: Derived from responses
+- `agent_dates`, `last_agent_date`: Agent date mappings
 
 ### Key Functions
 
-**Data Splitting** (`data_splits.py`):
+**Data Splitting** (`shared/data_splits.py`):
 - `split_agents_by_dates()`: Split by date cutoff
 - `identify_frontier_tasks_irt()`: IRT-based frontier definition (no pre-frontier agent with theta >= beta)
 - `identify_frontier_tasks()`: Pass-rate based definition (use `--frontier_definition passrate`)
 - `identify_nontrivial_tasks()`: Anchor tasks (10-90% pass rate)
 
-**Evaluation** (`evaluate.py`):
+**Evaluation** (`shared/evaluate.py`):
 - `compute_frontier_difficulty_metrics()`: Spearman correlation
 - `compute_scale_offset()`: Fit alignment transformation
 - `compute_frontier_auc()`: ROC-AUC on frontier tasks
@@ -271,23 +295,44 @@ experiment_b/
 
 ## Configuration
 
-Dataset configs in `datasets/`:
+Dataset configs in `swebench/config.py` and `terminalbench/config.py`:
 
 ```python
 @dataclass
-class DatasetConfig:
+class DatasetConfig(ABC):
+    # Core paths
     responses_path: Path
     oracle_irt_path: Path
+    oracle_abilities_path: Path
     embeddings_path: Path
     llm_judge_path: Path
+
+    # Frontier split settings
     cutoff_date: str
     pre_threshold: float = 0.1   # Max pass rate for pre-frontier
     post_threshold: float = 0.1  # Min pass rate for post-frontier
 
+    # Lazy-loaded cached properties (computed on first access)
+    @property
+    def responses(self) -> Dict[str, Dict[str, int]]: ...
+    @property
+    def all_agents(self) -> List[str]: ...
+    @property
+    def all_task_ids(self) -> List[str]: ...
+    @property
+    def agent_dates(self) -> Dict[str, str]: ...
+    @property
+    def last_agent_date(self) -> Optional[str]: ...
+
+    # Abstract methods (implemented per dataset)
+    @abstractmethod
+    def get_agent_dates(self, agents: List[str]) -> Dict[str, str]: ...
+    @property
+    @abstractmethod
+    def name(self) -> str: ...
     @property
     def llm_judge_feature_cols(self) -> List[str]:
-        # SWE-bench: 9 features
-        # TerminalBench: 4 pre-selected features
+        # SWE-bench: 9 features, TerminalBench: 4 pre-selected features
 ```
 
 ## Command Line Options

@@ -2,8 +2,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+
+def _parse_date(date_str: str) -> datetime:
+    """Parse YYYYMMDD date string to datetime."""
+    return datetime.strptime(date_str, "%Y%m%d")
 
 
 @dataclass
@@ -50,6 +56,12 @@ class DatasetConfig(ABC):
 
     # Output
     output_dir: Path = field(default_factory=Path)
+
+    # Cached data (lazy-loaded, not included in repr)
+    _responses: Optional[Dict[str, Dict[str, int]]] = field(default=None, repr=False)
+    _all_agents: Optional[List[str]] = field(default=None, repr=False)
+    _all_task_ids: Optional[List[str]] = field(default=None, repr=False)
+    _agent_dates: Optional[Dict[str, str]] = field(default=None, repr=False)
 
     @property
     @abstractmethod
@@ -105,3 +117,59 @@ class DatasetConfig(ABC):
             if not path.exists():
                 errors.append(f"{name} not found: {path}")
         return errors
+
+    # =========================================================================
+    # Lazy-loaded data properties (cached on first access)
+    # =========================================================================
+
+    @property
+    def responses(self) -> Dict[str, Dict[str, int]]:
+        """Load and cache response matrix.
+
+        Returns:
+            Dict mapping agent_id -> task_id -> 0|1
+        """
+        if self._responses is None:
+            # Import here to avoid circular imports
+            from experiment_b.shared.evaluate import load_responses_dict
+            self._responses = load_responses_dict(self.responses_path)
+        return self._responses
+
+    @property
+    def all_agents(self) -> List[str]:
+        """Get all agent IDs from response matrix (cached)."""
+        if self._all_agents is None:
+            self._all_agents = list(self.responses.keys())
+        return self._all_agents
+
+    @property
+    def all_task_ids(self) -> List[str]:
+        """Get all task IDs from response matrix (cached).
+
+        Returns union of all tasks across all agents, sorted.
+        """
+        if self._all_task_ids is None:
+            tasks: set[str] = set()
+            for agent_responses in self.responses.values():
+                tasks.update(agent_responses.keys())
+            self._all_task_ids = sorted(tasks)
+        return self._all_task_ids
+
+    @property
+    def agent_dates(self) -> Dict[str, str]:
+        """Get dates for all agents (cached).
+
+        Returns:
+            Dict mapping agent_id -> date string (YYYYMMDD)
+        """
+        if self._agent_dates is None:
+            self._agent_dates = self.get_agent_dates(self.all_agents)
+        return self._agent_dates
+
+    @property
+    def last_agent_date(self) -> Optional[str]:
+        """Get the latest agent date as YYYY-MM-DD string."""
+        if not self.agent_dates:
+            return None
+        all_dates = [_parse_date(d) for d in self.agent_dates.values()]
+        return max(all_dates).strftime("%Y-%m-%d")
