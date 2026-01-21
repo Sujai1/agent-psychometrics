@@ -101,6 +101,7 @@ class FeatureIRTPredictor:
         self._scaler: Optional[StandardScaler] = None
         self._is_fitted: bool = False
         self._training_loss_history: List[float] = []
+        self._loss_components: List[Dict[str, float]] = []
 
     @property
     def name(self) -> str:
@@ -228,6 +229,7 @@ class FeatureIRTPredictor:
         )
 
         self._training_loss_history = []
+        self._loss_components = []
         l2_w = self.l2_weight
         l2_r = self.l2_residual
         l2_a = self.l2_ability
@@ -248,15 +250,24 @@ class FeatureIRTPredictor:
             # Negative log-likelihood (only for valid responses)
             nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
 
-            # Regularization
-            reg = l2_w * torch.sum(w**2)
-            if residuals_tensor is not None:
-                reg = reg + l2_r * torch.sum(residuals_tensor**2)
-            # Identifiability: soft constraint on mean(theta) = 0
-            reg = reg + l2_a * (theta.mean() ** 2)
+            # Regularization components
+            weight_reg = l2_w * torch.sum(w**2)
+            residual_reg = l2_r * torch.sum(residuals_tensor**2) if residuals_tensor is not None else torch.tensor(0.0)
+            ability_reg = l2_a * (theta.mean() ** 2)
 
-            loss = nll + reg
+            loss = nll + weight_reg + residual_reg + ability_reg
             loss.backward()
+
+            # Track loss components for diagnostics
+            self._loss_components.append({
+                'iter': len(self._loss_components),
+                'nll': nll.item(),
+                'weight_reg': weight_reg.item(),
+                'residual_reg': residual_reg.item() if residuals_tensor is not None else 0.0,
+                'ability_reg': ability_reg.item(),
+                'total': loss.item(),
+            })
+
             return loss
 
         # Training loop
@@ -445,3 +456,85 @@ class FeatureIRTPredictor:
             )
             for name, weight in sorted_weights:
                 print(f"    {name}: {weight:+.4f}")
+
+    def get_training_diagnostics(self) -> Dict[str, Any]:
+        """Get training diagnostics including loss history and components.
+
+        Returns:
+            Dictionary with:
+            - loss_history: List of total loss values per iteration
+            - loss_components: List of dicts with per-iteration breakdown
+            - n_iterations: Number of training iterations
+            - final_loss: Final loss value
+        """
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit before getting diagnostics")
+
+        return {
+            "loss_history": self._training_loss_history,
+            "loss_components": self._loss_components,
+            "n_iterations": len(self._training_loss_history),
+            "final_loss": self._training_loss_history[-1] if self._training_loss_history else None,
+        }
+
+    def analyze_contributions(self) -> Dict[str, Any]:
+        """Analyze variance contributions from features vs residuals.
+
+        Computes what fraction of the predicted difficulty variance comes from
+        the feature-based component vs the residual component.
+
+        Returns:
+            Dictionary with:
+            - var_feature: Variance of feature component (X @ w)
+            - var_residual: Variance of residual component
+            - var_total: Variance of total difficulty
+            - feature_ratio: Var(features) / Var(total)
+            - residual_ratio: Var(residuals) / Var(total)
+            - covariance: Covariance between feature and residual components
+
+        Raises:
+            RuntimeError: If predictor is not fitted or residuals are not enabled.
+        """
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit before analyzing contributions")
+
+        if self._residuals is None:
+            raise RuntimeError(
+                "analyze_contributions() requires residuals to be enabled. "
+                "This predictor was fitted with use_residuals=False."
+            )
+
+        # Get scaled features for training tasks
+        features = self.source.get_features(self._train_task_ids)
+        features_scaled = self._scaler.transform(features)
+
+        # Compute feature-based difficulty component
+        feature_component = features_scaled @ self._weights
+
+        # Compute residual component
+        residual_component = np.array([
+            self._residuals[t] for t in self._train_task_ids
+        ])
+
+        # Total difficulty (excluding constant bias which doesn't affect variance)
+        total_difficulty = feature_component + residual_component
+
+        # Compute variances
+        var_feature = float(np.var(feature_component))
+        var_residual = float(np.var(residual_component))
+        var_total = float(np.var(total_difficulty))
+
+        # Compute covariance
+        if len(feature_component) > 1:
+            covariance = float(np.cov(feature_component, residual_component)[0, 1])
+        else:
+            covariance = 0.0
+
+        return {
+            "var_feature": var_feature,
+            "var_residual": var_residual,
+            "var_total": var_total,
+            "feature_ratio": var_feature / var_total if var_total > 0 else 0.0,
+            "residual_ratio": var_residual / var_total if var_total > 0 else 0.0,
+            "covariance": covariance,
+        }
