@@ -8,7 +8,7 @@ Predict difficulty of **frontier tasks** (tasks only solvable by newer models) u
 
 **Setting**:
 - **Date-based split**: Pre-frontier vs Post-frontier agents (by release date)
-- **Frontier tasks**: Tasks with ≤10% pass rate among pre-frontier agents, but >10% among post-frontier agents
+- **Frontier tasks** (IRT-based, default): Tasks where NO pre-frontier agent has `theta >= beta` (i.e., no agent before the cutoff can solve with 50% probability under Oracle IRT)
 - **No data leakage**: Predictions made using only pre-frontier information; post-frontier agents only used for evaluation
 
 ## Quick Start
@@ -188,7 +188,8 @@ experiment_b/
 
 **Data Splitting** (`data_splits.py`):
 - `split_agents_by_dates()`: Split by date cutoff
-- `identify_frontier_tasks()`: Tasks hard for pre-frontier, solved by post-frontier
+- `identify_frontier_tasks_irt()`: IRT-based frontier definition (no pre-frontier agent with theta >= beta)
+- `identify_frontier_tasks()`: Pass-rate based definition (use `--frontier_definition passrate`)
 - `identify_nontrivial_tasks()`: Anchor tasks (10-90% pass rate)
 
 **Evaluation** (`evaluate.py`):
@@ -241,6 +242,7 @@ class DatasetConfig:
 
 ```
 --dataset             Dataset to use: swebench (default) or terminalbench
+--frontier_definition Frontier task definition: 'irt' (default, 50% prob threshold) or 'passrate' (empirical)
 --output_csv          Save results to CSV file
 --train_on_all_tasks  Include frontier tasks in training (still uses baseline IRT)
 --grid_search         Run grid search over Feature-IRT hyperparameters
