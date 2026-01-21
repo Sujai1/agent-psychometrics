@@ -45,6 +45,7 @@ from experiment_a.shared.baselines import (
     ConstantPredictor,
     OraclePredictor,
     DifficultyPredictorAdapter,
+    FeatureIRTCVPredictor,
 )
 
 # Default SWE-bench LLM Judge features (all 9 semantic features)
@@ -126,7 +127,7 @@ def build_cv_predictors(
         )
     )
 
-    # Embedding predictor (wrapped with adapter)
+    # Embedding predictor (Ridge regression)
     if config.embeddings_path is not None:
         embeddings_path = root / config.embeddings_path
         if embeddings_path.exists():
@@ -143,7 +144,16 @@ def build_cv_predictors(
                 )
             )
 
-    # LLM Judge predictor (wrapped with adapter)
+            # Feature-IRT with embeddings (joint learning)
+            configs.append(
+                CVPredictorConfig(
+                    predictor=FeatureIRTCVPredictor(source, verbose=False),
+                    name="feature_irt_embedding",
+                    display_name="Feature-IRT (Embedding)",
+                )
+            )
+
+    # LLM Judge predictor (Ridge regression)
     if config.llm_judge_features_path is not None:
         llm_judge_path = root / config.llm_judge_features_path
         if llm_judge_path.exists():
@@ -158,6 +168,15 @@ def build_cv_predictors(
                     predictor=DifficultyPredictorAdapter(difficulty_predictor),
                     name="llm_judge_predictor",
                     display_name="LLM Judge",
+                )
+            )
+
+            # Feature-IRT with LLM Judge features (joint learning)
+            configs.append(
+                CVPredictorConfig(
+                    predictor=FeatureIRTCVPredictor(source, verbose=False),
+                    name="feature_irt_llm_judge",
+                    display_name="Feature-IRT (LLM Judge)",
                 )
             )
 

@@ -29,7 +29,7 @@ python -m experiment_a.terminalbench.train_evaluate
 python -m experiment_a.swebench.train_evaluate --dry_run
 ```
 
-## Results (2026-01-20)
+## Results (2026-01-21)
 
 ### SWE-bench Verified (5-Fold Cross-Validation)
 
@@ -40,6 +40,8 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 | Oracle (true b) | 0.9441 | 0.0045 |
 | Embedding | 0.8269 | 0.0070 |
 | LLM Judge | 0.8227 | 0.0118 |
+| Feature-IRT (LLM Judge) | 0.8224 | 0.0124 |
+| Feature-IRT (Embedding) | 0.8079 | 0.0145 |
 | Constant (mean b) | 0.7149 | 0.0108 |
 | Agent-only | 0.7150 | 0.0109 |
 
@@ -50,8 +52,10 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 | Method | Mean AUC | Std | Pass Rate MSE |
 |--------|----------|-----|---------------|
 | Oracle (true b) | 0.9037 | 0.0109 | 0.0540 |
+| Feature-IRT (LLM Judge) | 0.7896 | 0.0254 | 0.1139 |
 | LLM Judge | 0.7841 | 0.0278 | 0.1212 |
 | Embedding | 0.7829 | 0.0402 | 0.1240 |
+| Feature-IRT (Embedding) | 0.7714 | 0.0397 | 0.1316 |
 | Constant (mean b) | 0.7036 | 0.0123 | 0.1490 |
 | Agent-only | 0.7039 | 0.0125 | 0.1404 |
 
@@ -103,7 +107,7 @@ class CVPredictor(Protocol):
 |------|---------|
 | `pipeline.py` | `ExperimentSpec`, `CVPredictorConfig`, `run_experiment_main()` |
 | `cross_validation.py` | `CVPredictor` protocol, `run_cv()`, `k_fold_split_tasks()` |
-| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `AgentOnlyPredictor`, `DifficultyPredictorAdapter` |
+| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `AgentOnlyPredictor`, `DifficultyPredictorAdapter`, `FeatureIRTCVPredictor` |
 
 ### SWE-bench Specific (`experiment_a/swebench/`)
 
@@ -123,6 +127,36 @@ class CVPredictor(Protocol):
 | `data_loader.py` | Load task data from terminal-bench repo |
 | `binomial_metrics.py` | Pass rate MSE for binomial responses |
 | `sampling.py` | Stratified train/test splitting |
+
+## Methods
+
+### Ridge Regression (Embedding, LLM Judge)
+
+Standard approach: train Ridge regression to predict IRT difficulty from task features.
+
+```
+β̂_i = w^T f_i + bias
+```
+
+Uses ground truth difficulties from train-only IRT as targets. The adapter then uses IRT-trained abilities for probability computation.
+
+### Feature-IRT (Joint Learning)
+
+Jointly learns feature weights and agent abilities by maximizing IRT log-likelihood:
+
+```
+minimize: -Σ_ij log P(y_ij | θ_j, β_i) + λ_w ||w||² + λ_θ mean(θ)²
+
+where β_i = w^T f_i + bias  (task difficulty from features)
+      θ_j learned jointly    (agent ability)
+```
+
+Key differences from Ridge:
+- Learns from response patterns (IRT likelihood), not frozen IRT difficulties
+- Agent abilities are jointly optimized with feature weights
+- Supports both Bernoulli (binary) and Binomial (multi-trial) likelihoods
+
+**Note**: In Experiment A (task holdout), Feature-IRT performs similarly to Ridge because it must generalize to unseen test tasks using only feature weights. This is unlike Experiment B (agent holdout) where Feature-IRT can leverage jointly-learned abilities across all tasks.
 
 ## Feature Sources
 
