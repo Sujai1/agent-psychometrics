@@ -50,9 +50,10 @@ class SWEBenchConfig(DatasetConfig):
             "clean_data/swebench_verified_20251120_full/1d/abilities.csv"
         )
     )
-    baseline_irt_path: Optional[Path] = field(
-        default_factory=lambda: Path("chris_output/sad_irt/baseline_irt/items.csv")
-    )
+    # Baseline IRT is trained on-demand with proper cache validation
+    # The cache key includes (responses_file, pre_frontier_agents, cutoff_date)
+    # Setting a hardcoded path here would bypass cache validation and use stale data
+    baseline_irt_path: Optional[Path] = None
     embeddings_path: Optional[Path] = field(
         default_factory=lambda: Path(
             "chris_output/experiment_a/embeddings/"
@@ -66,7 +67,7 @@ class SWEBenchConfig(DatasetConfig):
     )
 
     # Frontier split settings
-    cutoff_date: str = "20250807"  # gpt-5-mini release date
+    cutoff_date: str = "20250401"  # Earlier cutoff for more post-frontier evaluation data
 
     # Output
     output_dir: Path = field(
