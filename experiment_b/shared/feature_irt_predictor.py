@@ -13,9 +13,9 @@ Example usage:
     from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
     from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
 
-    # With embeddings
+    # With embeddings (default: no residuals)
     source = EmbeddingFeatureSource(Path("embeddings.npz"))
-    predictor = FeatureIRTPredictor(source, use_residuals=True)
+    predictor = FeatureIRTPredictor(source)
 
     # Fit on pre-frontier agent responses (all tasks)
     predictor.fit(task_ids, ground_truth_b, pre_frontier_responses)
@@ -54,7 +54,7 @@ class FeatureIRTPredictor:
     def __init__(
         self,
         source: TaskFeatureSource,
-        use_residuals: bool = True,
+        use_residuals: bool = False,
         l2_weight: float = 0.01,
         l2_residual: float = 10.0,
         l2_ability: float = 0.01,
@@ -68,7 +68,9 @@ class FeatureIRTPredictor:
 
         Args:
             source: TaskFeatureSource providing features for tasks.
-            use_residuals: Include per-task residuals (strongly regularized).
+            use_residuals: Include per-task residuals. Default False because
+                residuals tend to overfit; the main benefit comes from joint
+                ability learning, not residuals.
             l2_weight: L2 regularization on feature weights.
             l2_residual: L2 regularization on residuals (high = encourage feature usage).
             l2_ability: L2 regularization on mean(abilities)² for identifiability.
