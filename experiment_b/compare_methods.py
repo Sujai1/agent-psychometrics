@@ -916,11 +916,14 @@ def main():
             if best_abilities is not None:
                 feature_irt_abilities[method_name] = best_abilities
 
-    # Date forecasting evaluation (enabled by default)
+    # Date forecasting setup (enabled by default)
     # NOTE: Date forecasting requires abilities from IRT methods to fit
     # the ability-over-time regression. Methods without their own IRT
     # (Embedding + Ridge, LLM Judge + Ridge) are skipped.
-    date_results = None
+    first_capable_dates = {}
+    ground_truth_days = {}
+    date_models = {}
+
     if not args.no_forecast_dates:
         print("\nRunning date forecasting evaluation...")
 
@@ -1002,40 +1005,17 @@ def main():
                         method_abilities["SAD-IRT (best)"] = theta_dict
                         print(f"  Using SAD-IRT run: {best_stem}")
 
-            # Evaluate date forecasting for each method with abilities
-            date_results = {}
-
-            for method_name, pred_beta in raw_predictions.items():
-                # Skip methods without their own IRT abilities
-                if method_name not in method_abilities:
-                    continue
-
+            # Pre-fit date models for each method (fit is the same for all frontier defs)
+            # The fit uses pre-frontier abilities, evaluation will use frontier tasks
+            date_models = {}
+            for method_name in method_abilities:
                 abilities = method_abilities[method_name]
-
                 try:
                     date_model = DateForecastModel()
                     fit_stats = date_model.fit(abilities, agent_dates)
-                    predictions = date_model.predict(pred_beta, post_cutoff_tasks)
-                    metrics = compute_date_forecast_metrics(
-                        predictions, ground_truth_days, post_cutoff_tasks
-                    )
-                    date_results[method_name] = {
-                        **metrics,
-                        "r_squared_fit": fit_stats["r_squared"],
-                    }
-                    print(f"  {method_name}: MAE={metrics['mae_days']:.1f} days, r={metrics['pearson_r']:.3f}")
+                    date_models[method_name] = (date_model, fit_stats)
                 except Exception as e:
-                    print(f"  Error forecasting dates for {method_name}: {e}")
-                    date_results[method_name] = {
-                        "mae_days": float("nan"),
-                        "pearson_r": float("nan"),
-                        "spearman_rho": float("nan"),
-                        "r_squared_fit": float("nan"),
-                        "n_tasks": 0,
-                    }
-        else:
-            print("  Warning: Too few post-cutoff tasks for date forecasting")
-            print(f"    Need >=3 post-cutoff tasks ({len(post_cutoff_tasks)})")
+                    print(f"  Warning: Could not fit date model for {method_name}: {e}")
 
     # =========================================================================
     # PHASE 2: Compute metrics and print tables for each frontier definition
@@ -1110,6 +1090,38 @@ def main():
 
         all_results[frontier_def] = results
 
+        # Compute date forecasting for this frontier definition
+        # Evaluate on frontier tasks that have ground truth (first capable agent exists)
+        date_results_for_def = None
+        if not args.no_forecast_dates and date_models:
+            # Find frontier tasks with ground truth
+            eval_tasks = [t for t in frontier_task_ids if t in first_capable_dates]
+
+            if len(eval_tasks) >= 3:
+                date_results_for_def = {}
+                for method_name, pred_beta in raw_predictions.items():
+                    if method_name not in date_models:
+                        continue
+
+                    date_model, fit_stats = date_models[method_name]
+                    try:
+                        predictions = date_model.predict(pred_beta, eval_tasks)
+                        metrics = compute_date_forecast_metrics(
+                            predictions, ground_truth_days, eval_tasks
+                        )
+                        date_results_for_def[method_name] = {
+                            **metrics,
+                            "r_squared_fit": fit_stats["r_squared"],
+                        }
+                    except Exception as e:
+                        date_results_for_def[method_name] = {
+                            "mae_days": float("nan"),
+                            "pearson_r": float("nan"),
+                            "spearman_rho": float("nan"),
+                            "r_squared_fit": float("nan"),
+                            "n_tasks": 0,
+                        }
+
         # Print comparison table for this frontier definition
         print()
         print_comparison_table(
@@ -1122,7 +1134,7 @@ def main():
             cutoff_date=cutoff_date,
             frontier_definition=frontier_def,
             irt_solve_prob=irt_solve_prob,
-            date_results=date_results,
+            date_results=date_results_for_def,
             last_agent_date=last_agent_date,
             verbose=args.verbose,
         )
