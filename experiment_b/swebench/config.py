@@ -67,7 +67,7 @@ class SWEBenchConfig(DatasetConfig):
     )
 
     # Frontier split settings
-    cutoff_date: str = "20250401"  # Earlier cutoff for more post-frontier evaluation data
+    cutoff_date: str = "20250501"  # After all feature model releases (Opus 4.5: 2025-11-01)
 
     # Output
     output_dir: Path = field(

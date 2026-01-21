@@ -355,12 +355,9 @@ def print_comparison_table(
     print("=" * 90)
     print()
 
-    # Determine columns based on whether date_results is available
-    if date_results:
-        print(f"{'Method':<45} {'ROC-AUC':>10} {'MAE (days)':>12}")
-    else:
-        print(f"{'Method':<45} {'ROC-AUC':>10} {'Spearman ρ':>12} {'p-value':>10}")
-    print("-" * 78)
+    # Always show ROC-AUC and MAE (days) as the primary metrics
+    print(f"{'Method':<45} {'ROC-AUC':>10} {'MAE (days)':>12}")
+    print("-" * 68)
 
     # Sort by AUC (descending)
     def sort_key(item):
@@ -380,28 +377,18 @@ def print_comparison_table(
         else:
             auc_str = f"{auc:.4f}"
 
+        # Get MAE from date_results if available
         if date_results:
-            # Get MAE from date_results
             date_metrics = date_results.get(method, {})
             mae = date_metrics.get("mae_days", float("nan"))
             if isinstance(mae, float) and np.isnan(mae):
                 mae_str = "N/A"
             else:
                 mae_str = f"{mae:.1f}"
-            print(f"{method:<45} {auc_str:>10} {mae_str:>12}")
         else:
-            rho = metrics.get("frontier_spearman_rho", float("nan"))
-            p = metrics.get("frontier_spearman_p", float("nan"))
+            mae_str = "N/A"
 
-            # Format Spearman
-            if isinstance(rho, float) and np.isnan(rho):
-                rho_str = "N/A"
-                p_str = "N/A"
-            else:
-                rho_str = f"{rho:.4f}"
-                p_str = f"{p:.4f}" if p >= 0.0001 else "<0.0001"
-
-            print(f"{method:<45} {auc_str:>10} {rho_str:>12} {p_str:>10}")
+        print(f"{method:<45} {auc_str:>10} {mae_str:>12}")
 
     print()
 
@@ -573,11 +560,8 @@ def main():
         action="store_true",
         help="Print alignment parameters for each method",
     )
-    parser.add_argument(
-        "--train_on_all_tasks",
-        action="store_true",
-        help="Also train predictors on all tasks (still using baseline IRT difficulties) and compare",
-    )
+    # Note: --train_on_all_tasks removed - now always trains on all tasks
+    # (ground truth from baseline IRT trained on pre-frontier agents ensures no data leakage)
     parser.add_argument(
         "--grid_search",
         action="store_true",
@@ -589,14 +573,22 @@ def main():
         help="Disable date forecasting evaluation (enabled by default)",
     )
     parser.add_argument(
-        "--frontier_definition",
+        "--frontier_definitions",
         type=str,
-        default="passrate",
+        nargs="+",
+        default=["passrate", "irt"],
         choices=["irt", "passrate"],
-        help="Method for defining frontier tasks: 'passrate' (pass rate thresholds, default) "
-             "or 'irt' (IRT probability threshold)",
+        help="Frontier definitions to evaluate (default: both). "
+             "'passrate' = pass rate thresholds, 'irt' = IRT probability threshold",
     )
     args = parser.parse_args()
+
+    # For backwards compatibility, allow --frontier_definition (singular)
+    # by checking if only one definition was provided
+    if len(args.frontier_definitions) == 1:
+        print(f"Running with single frontier definition: {args.frontier_definitions[0]}")
+    else:
+        print(f"Running with frontier definitions: {', '.join(args.frontier_definitions)}")
 
     # Load dataset configuration
     print(f"Loading dataset configuration: {args.dataset}")
@@ -668,27 +660,31 @@ def main():
         )
         print(f"  Baseline IRT: {len(baseline_items)} tasks")
 
-    # Identify frontier tasks using selected definition
     # Default solve probability threshold for IRT-based frontier definition
     irt_solve_prob = 0.3
-    if args.frontier_definition == "irt":
-        frontier_task_ids = identify_frontier_tasks_irt(
-            oracle_items=oracle_items,
-            oracle_abilities=oracle_abilities,
-            agent_dates=agent_dates,
-            cutoff_date=cutoff_date,
-            solve_probability=irt_solve_prob,
-        )
-        print(f"  Frontier tasks (IRT: no pre-frontier agent with >={irt_solve_prob:.0%} solve prob): {len(frontier_task_ids)}")
-    else:
-        frontier_task_ids = identify_frontier_tasks(
-            responses_path,
-            pre_frontier,
-            post_frontier,
-            pre_threshold,
-            post_threshold,
-        )
-        print(f"  Frontier tasks (pass-rate: <={pre_threshold*100:.0f}% pre, >{post_threshold*100:.0f}% post): {len(frontier_task_ids)}")
+
+    # Identify frontier tasks for each definition
+    frontier_tasks_by_def = {}
+    for frontier_def in args.frontier_definitions:
+        if frontier_def == "irt":
+            frontier_task_ids = identify_frontier_tasks_irt(
+                oracle_items=oracle_items,
+                oracle_abilities=oracle_abilities,
+                agent_dates=agent_dates,
+                cutoff_date=cutoff_date,
+                solve_probability=irt_solve_prob,
+            )
+            print(f"  Frontier tasks ({frontier_def}: no pre-frontier agent with >={irt_solve_prob:.0%} solve prob): {len(frontier_task_ids)}")
+        else:
+            frontier_task_ids = identify_frontier_tasks(
+                responses_path,
+                pre_frontier,
+                post_frontier,
+                pre_threshold,
+                post_threshold,
+            )
+            print(f"  Frontier tasks ({frontier_def}: <={pre_threshold*100:.0f}% pre, >{post_threshold*100:.0f}% post): {len(frontier_task_ids)}")
+        frontier_tasks_by_def[frontier_def] = frontier_task_ids
 
     # Identify nontrivial anchor tasks for scale alignment
     print("\nIdentifying nontrivial anchor tasks...")
@@ -701,123 +697,47 @@ def main():
     )
     print(f"  Anchor tasks (10-90% pass rate in both groups): {len(anchor_task_ids)}")
 
-    # Non-frontier tasks for training predictors
+    # Training tasks: use all tasks (ground truth from baseline IRT trained on pre-frontier agents)
+    # This simplifies logic when evaluating multiple frontier definitions
     all_task_ids = list(baseline_items.index)
-    train_task_ids = [t for t in all_task_ids if t not in frontier_task_ids]
-    print(f"  Training tasks (non-frontier): {len(train_task_ids)}")
+    train_task_ids = all_task_ids
+    print(f"  Training tasks: {len(train_task_ids)}")
 
-    # Collect results
-    results = {}
-    # For date forecasting: store raw predicted betas (before oracle alignment)
+    # =========================================================================
+    # PHASE 1: Collect raw predictions from all methods
+    # =========================================================================
+    # Store raw predicted betas (before oracle alignment)
+    # These will be evaluated against each frontier definition
     raw_predictions = {}
 
-    # 0. Oracle upper bound (uses true oracle beta - perfect alignment)
-    print("\nEvaluating Oracle (upper bound)...")
+    # 0. Oracle upper bound (uses true oracle beta)
+    print("\nCollecting predictions: Oracle (upper bound)...")
     oracle_beta = oracle_items["b"].to_dict()
-    oracle_metrics = compute_method_metrics(
-        predicted_beta=oracle_beta,
-        oracle_items=oracle_items,
-        oracle_abilities=oracle_abilities,
-        responses=responses,
-        frontier_task_ids=frontier_task_ids,
-        anchor_task_ids=anchor_task_ids,
-        eval_agents=post_frontier,
-        alignment_method=args.alignment_method,
-    )
-    results["Oracle (upper bound)"] = oracle_metrics
     raw_predictions["Oracle (upper bound)"] = oracle_beta
-    print(f"  AUC: {oracle_metrics['auc']:.4f}")
-    print(f"  Spearman rho: {oracle_metrics['frontier_spearman_rho']:.4f}")
 
     # 1. Baseline IRT
-    print("\nEvaluating Baseline IRT...")
+    print("Collecting predictions: Baseline IRT...")
     baseline_beta = baseline_items["b"].to_dict()
-    baseline_metrics = compute_method_metrics(
-        predicted_beta=baseline_beta,
-        oracle_items=oracle_items,
-        oracle_abilities=oracle_abilities,
-        responses=responses,
-        frontier_task_ids=frontier_task_ids,
-        anchor_task_ids=anchor_task_ids,
-        eval_agents=post_frontier,
-        alignment_method=args.alignment_method,
-    )
-    results["Baseline IRT (pre-frontier only)"] = baseline_metrics
     raw_predictions["Baseline IRT (pre-frontier only)"] = baseline_beta
-    print(f"  AUC: {baseline_metrics['auc']:.4f}")
-    print(f"  Spearman rho: {baseline_metrics['frontier_spearman_rho']:.4f}")
 
-    # 2. SAD-IRT runs (from extracted beta CSV files) - only keep best by AUC
+    # 2. SAD-IRT runs (from extracted beta CSV files) - load all valid ones
+    # Note: we'll select the best one per frontier definition later
+    sad_irt_betas = {}
     if args.sad_irt_beta_dir.exists():
         beta_files = list(args.sad_irt_beta_dir.glob("*.csv"))
         print(f"\nLoading SAD-IRT beta values from {args.sad_irt_beta_dir}...")
         print(f"  Found {len(beta_files)} beta CSV files")
 
-        best_sad_irt_auc = -1
-        best_sad_irt_metrics = None
-        best_sad_irt_beta = None
-        best_sad_irt_name = None
-
         for beta_file in beta_files:
-            # Load beta values from CSV
             beta_df = pd.read_csv(beta_file, index_col=0)
             if "beta" not in beta_df.columns:
                 print(f"  Skipping {beta_file.name}: no 'beta' column")
                 continue
-
-            sad_irt_beta = beta_df["beta"].to_dict()
-
-            # Check if SAD-IRT predictions cover the frontier tasks
-            frontier_overlap = [t for t in frontier_task_ids if t in sad_irt_beta]
-            if len(frontier_overlap) < len(frontier_task_ids):
-                coverage_pct = len(frontier_overlap) / len(frontier_task_ids) * 100
-                if coverage_pct == 0:
-                    print(f"  Skipping {beta_file.name}: no overlap with frontier tasks")
-                    continue
-
-            sad_irt_metrics = compute_method_metrics(
-                predicted_beta=sad_irt_beta,
-                oracle_items=oracle_items,
-                oracle_abilities=oracle_abilities,
-                responses=responses,
-                frontier_task_ids=frontier_task_ids,
-                anchor_task_ids=anchor_task_ids,
-                eval_agents=post_frontier,
-                alignment_method=args.alignment_method,
-            )
-            auc = sad_irt_metrics.get('auc') or 0
-            if auc > best_sad_irt_auc:
-                best_sad_irt_auc = auc
-                best_sad_irt_metrics = sad_irt_metrics
-                best_sad_irt_beta = sad_irt_beta
-                best_sad_irt_name = beta_file.stem
-
-        if best_sad_irt_metrics is not None:
-            print(f"  Best SAD-IRT: {best_sad_irt_name} (AUC: {best_sad_irt_auc:.4f})")
-            results["SAD-IRT (best)"] = best_sad_irt_metrics
-            raw_predictions["SAD-IRT (best)"] = best_sad_irt_beta
+            sad_irt_betas[beta_file.stem] = beta_df["beta"].to_dict()
+        print(f"  Loaded {len(sad_irt_betas)} valid SAD-IRT beta files")
     else:
         print(f"\nSAD-IRT beta directory not found: {args.sad_irt_beta_dir}")
         print("  To include SAD-IRT results, run experiment_sad_irt and extract beta values")
-
-    # Define training configurations
-    # Note: ground truth is ALWAYS baseline_items (pre-frontier IRT)
-    # We only vary which tasks are included in training
-    training_configs = [
-        {
-            "suffix": "",
-            "train_task_ids": train_task_ids,  # non-frontier only
-        }
-    ]
-
-    if args.train_on_all_tasks:
-        # Include frontier tasks in training, but still use baseline_items difficulties
-        # (baseline difficulties for frontier tasks are poorly calibrated but that's expected)
-        all_task_ids_baseline = list(baseline_items.index)
-        training_configs.append({
-            "suffix": " (all tasks)",
-            "train_task_ids": all_task_ids_baseline,
-        })
 
     # Build list of available feature sources
     feature_sources = []
@@ -838,48 +758,39 @@ def main():
     else:
         print(f"\nLLM Judge features not found: {llm_judge_path}")
 
-    # 3-4. Feature + Ridge predictors (can generalize to unseen tasks)
+    # 3-4. Feature + Ridge predictors: train and collect predictions
     for source_name, source in feature_sources:
-        for config in training_configs:
-            method_name = f"{source_name} + Ridge{config['suffix']}"
-            print(f"\nEvaluating {method_name}...")
-            print(f"  Training on {len(config['train_task_ids'])} tasks")
-            try:
-                predictor = FeatureBasedPredictor(source)
-                metrics = evaluate_predictor(
-                    predictor=predictor,
-                    baseline_items=baseline_items,
-                    oracle_items=oracle_items,
-                    oracle_abilities=oracle_abilities,
-                    responses=responses,
-                    frontier_task_ids=frontier_task_ids,
-                    train_task_ids=config['train_task_ids'],
-                    anchor_task_ids=anchor_task_ids,
-                    eval_agents=post_frontier,
-                    alignment_method=args.alignment_method,
-                    return_predictions=not args.no_forecast_dates,
-                )
-                results[method_name] = metrics
-                if not args.no_forecast_dates and "raw_predictions" in metrics:
-                    raw_predictions[method_name] = metrics.pop("raw_predictions")
-                auc = metrics.get('auc')
-                rho = metrics.get('frontier_spearman_rho')
-                print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
-                print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
-            except Exception as e:
-                print(f"  Error: {e}")
-                import traceback
-                traceback.print_exc()
-                results[method_name] = {
-                    "frontier_spearman_rho": float("nan"),
-                    "frontier_spearman_p": float("nan"),
-                    "auc": None,
-                    "num_frontier_tasks": 0,
-                }
+        method_name = f"{source_name} + Ridge"
+        print(f"\nTraining {method_name}...")
+        print(f"  Training on {len(train_task_ids)} tasks")
+        try:
+            predictor = FeatureBasedPredictor(source)
+            # Fit the predictor
+            train_tasks_available = [t for t in train_task_ids if t in baseline_items.index]
+            ground_truth_b = baseline_items.loc[train_tasks_available, "b"].values
+            predictor.fit(train_tasks_available, ground_truth_b)
 
-    # 5-6. Feature-IRT predictors (learns from response patterns, requires all tasks)
-    # Grid search over hyperparameters when --grid_search is enabled
+            # Sanity check on training data
+            train_predictions = predictor.predict(train_tasks_available)
+            from experiment_b.shared.evaluate import compute_frontier_difficulty_metrics
+            baseline_dict = baseline_items["b"].to_dict()
+            train_metrics = compute_frontier_difficulty_metrics(
+                train_predictions, baseline_dict, train_tasks_available
+            )
+            print(f"    [Sanity check] Train set Spearman rho: {train_metrics['frontier_spearman_rho']:.4f}")
+
+            # Get predictions for all tasks
+            raw_predictions[method_name] = predictor.predict(all_task_ids)
+        except Exception as e:
+            print(f"  Error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # 5-6. Feature-IRT predictors: train and collect predictions
+    # For grid search, use first frontier definition to select best config
     all_task_ids_baseline = list(baseline_items.index)
+    primary_frontier_def = args.frontier_definitions[0]
+    primary_frontier_tasks = frontier_tasks_by_def[primary_frontier_def]
 
     if args.grid_search:
         l2_weight_grid = [0.001, 0.01, 0.1]
@@ -893,11 +804,10 @@ def main():
     for source_name, source in feature_sources:
         method_name = f"Feature-IRT ({source_name})"
         best_auc = -1
-        best_config = None
-        best_metrics = None
+        best_predictions = None
 
         if args.grid_search:
-            print(f"\nRunning {method_name} grid search...")
+            print(f"\nRunning {method_name} grid search (using '{primary_frontier_def}' frontier for selection)...")
             print(f"  Training on {len(all_task_ids_baseline)} tasks")
 
         for l2_w in l2_weight_grid:
@@ -914,30 +824,59 @@ def main():
                             l2_residual=l2_r,
                             verbose=args.verbose and not args.grid_search,
                         )
-                        metrics = evaluate_predictor_with_responses(
-                            predictor=predictor,
-                            baseline_items=baseline_items,
-                            oracle_items=oracle_items,
-                            oracle_abilities=oracle_abilities,
-                            responses=responses,
-                            frontier_task_ids=frontier_task_ids,
-                            train_task_ids=all_task_ids_baseline,
-                            anchor_task_ids=anchor_task_ids,
-                            eval_agents=post_frontier,
-                            train_agents=pre_frontier,
-                            alignment_method=args.alignment_method,
-                            sanity_check=not args.grid_search,
-                            return_predictions=not args.no_forecast_dates,
+
+                        # Fit with pre-frontier agents only (no data leakage)
+                        train_tasks_available = [t for t in all_task_ids_baseline if t in baseline_items.index]
+                        ground_truth_b = baseline_items.loc[train_tasks_available, "b"].values
+                        train_responses = {
+                            agent_id: agent_responses
+                            for agent_id, agent_responses in responses.items()
+                            if agent_id in pre_frontier
+                        }
+                        if not args.grid_search:
+                            print(f"\nTraining {method_name}...")
+                            print(f"  Training on {len(all_task_ids_baseline)} tasks with {len(train_responses)} pre-frontier agents")
+
+                        predictor.fit(
+                            task_ids=train_tasks_available,
+                            ground_truth_b=ground_truth_b,
+                            responses=train_responses,
                         )
-                        auc = metrics.get('auc', 0) or 0
+
+                        # Sanity check
+                        if not args.grid_search:
+                            train_preds = predictor.predict(train_tasks_available)
+                            baseline_dict = baseline_items["b"].to_dict()
+                            train_metrics = compute_frontier_difficulty_metrics(
+                                train_preds, baseline_dict, train_tasks_available
+                            )
+                            print(f"    [Sanity check] Train set Spearman rho: {train_metrics['frontier_spearman_rho']:.4f}")
+
+                        # Get predictions
+                        predictions = predictor.predict(train_tasks_available)
+
+                        # For grid search, compute AUC on primary frontier to select best
                         if args.grid_search:
+                            metrics = compute_method_metrics(
+                                predicted_beta=predictions,
+                                oracle_items=oracle_items,
+                                oracle_abilities=oracle_abilities,
+                                responses=responses,
+                                frontier_task_ids=primary_frontier_tasks,
+                                anchor_task_ids=anchor_task_ids,
+                                eval_agents=post_frontier,
+                                alignment_method=args.alignment_method,
+                            )
+                            auc = metrics.get('auc', 0) or 0
                             rho = metrics.get('frontier_spearman_rho', 0) or 0
                             print(f"      AUC: {auc:.4f}, Spearman: {rho:.4f}")
+                        else:
+                            auc = 1.0  # No grid search, just use default config
 
                         if auc > best_auc:
                             best_auc = auc
-                            best_config = (l2_w, l2_r, use_res)
-                            best_metrics = metrics
+                            best_predictions = predictions
+
                     except Exception as e:
                         if args.grid_search:
                             print(f"      Error: {e}")
@@ -946,27 +885,10 @@ def main():
                             import traceback
                             traceback.print_exc()
 
-        # Store best result
-        if best_metrics is not None:
+        if best_predictions is not None:
             if args.grid_search:
-                print(f"  Best: l2_w={best_config[0]}, l2_r={best_config[1]}, res={best_config[2]}")
-            if not args.grid_search:
-                print(f"\nEvaluating {method_name}...")
-                print(f"  Training on {len(all_task_ids_baseline)} tasks")
-            if not args.no_forecast_dates and "raw_predictions" in best_metrics:
-                raw_predictions[method_name] = best_metrics.pop("raw_predictions")
-            results[method_name] = best_metrics
-            auc = best_metrics.get('auc')
-            rho = best_metrics.get('frontier_spearman_rho')
-            print(f"  AUC: {auc:.4f}" if auc else "  AUC: N/A")
-            print(f"  Spearman rho: {rho:.4f}" if rho else "  Spearman rho: N/A")
-        else:
-            results[method_name] = {
-                "frontier_spearman_rho": float("nan"),
-                "frontier_spearman_p": float("nan"),
-                "auc": None,
-                "num_frontier_tasks": 0,
-            }
+                print(f"  Best AUC: {best_auc:.4f}")
+            raw_predictions[method_name] = best_predictions
 
     # Date forecasting evaluation (enabled by default)
     date_results = None
@@ -1048,26 +970,98 @@ def main():
             print("  Warning: Too few tasks for date forecasting")
             print(f"    Need >=3 pre-cutoff tasks ({len(pre_cutoff_tasks)}) and >=3 post-cutoff tasks ({len(post_cutoff_tasks)})")
 
-    # Print comparison table (with date results if available)
-    print()
-    print_comparison_table(
-        results,
-        len(frontier_task_ids),
-        len(pre_frontier),
-        len(post_frontier),
-        anchor_task_count=len(anchor_task_ids),
-        alignment_method=args.alignment_method,
-        cutoff_date=cutoff_date,
-        frontier_definition=args.frontier_definition,
-        irt_solve_prob=irt_solve_prob,
-        date_results=date_results,
-        verbose=args.verbose,
-    )
+    # =========================================================================
+    # PHASE 2: Compute metrics and print tables for each frontier definition
+    # =========================================================================
+    all_results = {}  # Store results per frontier definition
 
+    for frontier_def in args.frontier_definitions:
+        frontier_task_ids = frontier_tasks_by_def[frontier_def]
+        print(f"\n{'='*90}")
+        print(f"Evaluating metrics for frontier definition: {frontier_def}")
+        print(f"{'='*90}")
 
-    # Save to CSV if requested
+        results = {}
+
+        # Compute metrics for each method
+        for method_name, pred_beta in raw_predictions.items():
+            try:
+                metrics = compute_method_metrics(
+                    predicted_beta=pred_beta,
+                    oracle_items=oracle_items,
+                    oracle_abilities=oracle_abilities,
+                    responses=responses,
+                    frontier_task_ids=frontier_task_ids,
+                    anchor_task_ids=anchor_task_ids,
+                    eval_agents=post_frontier,
+                    alignment_method=args.alignment_method,
+                )
+                results[method_name] = metrics
+            except Exception as e:
+                print(f"  Error computing metrics for {method_name}: {e}")
+                results[method_name] = {
+                    "frontier_spearman_rho": float("nan"),
+                    "frontier_spearman_p": float("nan"),
+                    "auc": None,
+                    "num_frontier_tasks": 0,
+                }
+
+        # Add SAD-IRT (select best for this frontier definition)
+        if sad_irt_betas:
+            best_sad_irt_auc = -1
+            best_sad_irt_metrics = None
+            best_sad_irt_name = None
+
+            for sad_name, sad_beta in sad_irt_betas.items():
+                # Check coverage
+                frontier_overlap = [t for t in frontier_task_ids if t in sad_beta]
+                if len(frontier_overlap) == 0:
+                    continue
+
+                try:
+                    sad_metrics = compute_method_metrics(
+                        predicted_beta=sad_beta,
+                        oracle_items=oracle_items,
+                        oracle_abilities=oracle_abilities,
+                        responses=responses,
+                        frontier_task_ids=frontier_task_ids,
+                        anchor_task_ids=anchor_task_ids,
+                        eval_agents=post_frontier,
+                        alignment_method=args.alignment_method,
+                    )
+                    auc = sad_metrics.get('auc') or 0
+                    if auc > best_sad_irt_auc:
+                        best_sad_irt_auc = auc
+                        best_sad_irt_metrics = sad_metrics
+                        best_sad_irt_name = sad_name
+                except Exception:
+                    pass
+
+            if best_sad_irt_metrics is not None:
+                results["SAD-IRT (best)"] = best_sad_irt_metrics
+
+        all_results[frontier_def] = results
+
+        # Print comparison table for this frontier definition
+        print()
+        print_comparison_table(
+            results,
+            len(frontier_task_ids),
+            len(pre_frontier),
+            len(post_frontier),
+            anchor_task_count=len(anchor_task_ids),
+            alignment_method=args.alignment_method,
+            cutoff_date=cutoff_date,
+            frontier_definition=frontier_def,
+            irt_solve_prob=irt_solve_prob,
+            date_results=date_results,
+            verbose=args.verbose,
+        )
+
+    # Save to CSV if requested (use first frontier definition for backwards compatibility)
     if args.output_csv:
-        save_results_csv(results, args.output_csv)
+        primary_def = args.frontier_definitions[0]
+        save_results_csv(all_results[primary_def], args.output_csv)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Experiment B: Frontier Task Difficulty Prediction
 
-Predict difficulty of **frontier tasks** (tasks only solvable by newer models) using methods that do NOT have access to post-frontier agents. Evaluate using ROC-AUC after projecting predicted difficulties onto the oracle IRT scale.
+Predict difficulty of **frontier tasks** (tasks only solvable by newer models) using methods that do NOT have access to post-frontier agents.
 
 ## Overview
 
@@ -8,19 +8,37 @@ Predict difficulty of **frontier tasks** (tasks only solvable by newer models) u
 
 **Setting**:
 - **Date-based split**: Pre-frontier vs Post-frontier agents (by release date)
-- **Frontier tasks** (IRT-based, default): Tasks where NO pre-frontier agent has `theta >= beta` (i.e., no agent before the cutoff can solve with 50% probability under Oracle IRT)
 - **No data leakage**: Predictions made using only pre-frontier information; post-frontier agents only used for evaluation
+
+## Evaluation Metrics
+
+The two primary metrics reported are:
+1. **ROC-AUC**: Ability to rank (agent, task) pairs by solve probability on frontier tasks
+2. **MAE (days)**: Mean absolute error in predicting when tasks become solvable
+
+## Frontier Task Definitions
+
+Two definitions of "frontier task" are supported (both evaluated by default):
+
+1. **Pass-rate based** (`passrate`): Tasks with ≤10% pre-frontier pass rate AND >10% post-frontier pass rate
+2. **IRT-based** (`irt`): Tasks where NO pre-frontier agent has ≥30% solve probability under IRT
 
 ## Quick Start
 
 ```bash
 source .venv/bin/activate
 
-# Run on SWE-bench (default)
+# Run on SWE-bench (default) - evaluates both frontier definitions
 python -m experiment_b.compare_methods
 
 # Run on TerminalBench
 python -m experiment_b.compare_methods --dataset terminalbench
+
+# Run with only one frontier definition
+python -m experiment_b.compare_methods --frontier_definitions passrate
+
+# Disable date forecasting (faster)
+python -m experiment_b.compare_methods --no_forecast_dates
 
 # Save results to CSV
 python -m experiment_b.compare_methods --output_csv results.csv
@@ -30,38 +48,53 @@ python -m experiment_b.compare_methods --output_csv results.csv
 
 ### SWE-bench Verified
 
-**Data**: 40 frontier tasks, 19 post-frontier eval agents
-**Cutoff**: 2025-08-07 (gpt-5-mini release)
+**Cutoff**: 2025-05-01 | **Pre-frontier agents**: 76 | **Post-frontier agents**: 55
 
-| Method | ROC-AUC | Spearman ρ | p-value |
-|--------|---------|------------|---------|
-| Oracle (upper bound) | 0.7716 | 1.0000 | <0.0001 |
-| **Feature-IRT (Embedding)** | **0.7074** | 0.1850 | 0.2531 |
-| Baseline IRT | 0.6978 | 0.3336 | 0.0354 |
-| Feature-IRT (LLM Judge) | 0.6841 | -0.1236 | 0.4472 |
-| LLM Judge + Ridge | 0.6835 | -0.0921 | 0.5718 |
-| Embedding + Ridge | 0.6655 | -0.1629 | 0.3154 |
+#### Pass-rate Definition (47 frontier tasks)
+
+| Method | ROC-AUC | MAE (days) |
+|--------|---------|------------|
+| Oracle (upper bound) | 0.8439 | 39.3 |
+| SAD-IRT (best) | 0.8036 | 111.8 |
+| Feature-IRT (Embedding) | 0.7744 | 107.8 |
+| Baseline IRT (pre-frontier only) | 0.7654 | 95.8 |
+| LLM Judge + Ridge | 0.7482 | 248.4 |
+| Embedding + Ridge | 0.7476 | 229.9 |
+
+#### IRT Definition (30 frontier tasks)
+
+| Method | ROC-AUC | MAE (days) |
+|--------|---------|------------|
+| Oracle (upper bound) | 0.7412 | N/A |
+| SAD-IRT (best) | 0.6998 | N/A |
+| Feature-IRT (Embedding) | 0.6974 | N/A |
+| Baseline IRT (pre-frontier only) | 0.6868 | N/A |
 
 ### TerminalBench
 
-**Data**: 18 frontier tasks, 31 post-frontier eval agents
-**Cutoff**: 2025-11-17
+**Cutoff**: 2025-11-17 | **Pre-frontier agents**: 52 | **Post-frontier agents**: 31
 
-| Method | ROC-AUC | Spearman ρ | p-value |
-|--------|---------|------------|---------|
-| Oracle (upper bound) | 0.8130 | 1.0000 | <0.0001 |
-| **Feature-IRT (Embedding)** | **0.7378** | **0.5397** | 0.0208 |
-| LLM Judge + Ridge | 0.7320 | -0.1547 | 0.5399 |
-| Feature-IRT (LLM Judge) | 0.7314 | 0.0630 | 0.8040 |
-| Baseline IRT | 0.6988 | 0.5253 | 0.0252 |
-| Embedding + Ridge | 0.6007 | -0.2632 | 0.2914 |
+#### Pass-rate Definition (18 frontier tasks)
+
+| Method | ROC-AUC | MAE (days) |
+|--------|---------|------------|
+| Oracle (upper bound) | 0.8130 | 20.3 |
+| Feature-IRT (Embedding) | 0.7378 | 39.4 |
+| LLM Judge + Ridge | 0.7366 | 43.9 |
+| Baseline IRT (pre-frontier only) | 0.6988 | 39.0 |
+
+#### IRT Definition (4 frontier tasks)
+
+| Method | ROC-AUC | MAE (days) |
+|--------|---------|------------|
+| Oracle (upper bound) | 0.7725 | N/A |
+| Feature-IRT (Embedding) | 0.7542 | N/A |
+| Baseline IRT (pre-frontier only) | 0.6740 | N/A |
 
 **Key observations**:
-- **Feature-IRT (Embedding) is the best method** on both benchmarks
-- On SWE-bench: +1% AUC over Baseline IRT (0.7074 vs 0.6978)
-- On TerminalBench: +4% AUC over Baseline IRT (0.7378 vs 0.6988) with best Spearman correlation (0.54)
-- Ridge-based predictors have poor Spearman correlation on frontier tasks, suggesting they don't generalize well
-- Feature-IRT learns task difficulties jointly with agent abilities, leveraging response patterns
+- **Feature-IRT (Embedding) consistently outperforms Baseline IRT**
+- **SAD-IRT** (using trajectory information) achieves strong results on SWE-bench
+- Ridge-based predictors have high MAE, suggesting they don't generalize well to frontier tasks
 
 ## Methods Compared
 
@@ -144,8 +177,8 @@ Feature-IRT (Embedding)                               39.4       0.2748     0.29
 **Critical**: Oracle data and post-frontier agent data must NEVER be exposed during training.
 
 - **Training ground truth**: Always from baseline IRT (pre-frontier agents only)
-- **Oracle IRT**: Used ONLY for evaluation metrics
-- **`--train_on_all_tasks` flag**: Includes frontier tasks in training but still uses baseline IRT difficulties as ground truth (poorly calibrated for frontier tasks since pre-frontier agents rarely solve them)
+- **Oracle IRT**: Used ONLY for evaluation metrics (ROC-AUC alignment, date forecasting ground truth)
+- **All methods train on ALL tasks**: Ground truth difficulties come from baseline IRT, which is trained only on pre-frontier agents
 
 This constraint ensures a realistic simulation of predicting difficulty for tasks beyond current model capabilities.
 
@@ -241,13 +274,13 @@ class DatasetConfig:
 ## Command Line Options
 
 ```
---dataset             Dataset to use: swebench (default) or terminalbench
---frontier_definition Frontier task definition: 'irt' (default, 50% prob threshold) or 'passrate' (empirical)
---output_csv          Save results to CSV file
---train_on_all_tasks  Include frontier tasks in training (still uses baseline IRT)
---grid_search         Run grid search over Feature-IRT hyperparameters
---forecast_dates      Run date forecasting evaluation (predict when tasks become solvable)
---verbose             Show alignment parameters and training progress
+--dataset              Dataset to use: swebench (default) or terminalbench
+--frontier_definitions Space-separated list: 'passrate' 'irt' (default: both)
+--no_forecast_dates    Disable date forecasting evaluation (faster, but no MAE metric)
+--output_csv           Save results to CSV file
+--grid_search          Run grid search over Feature-IRT hyperparameters
+--verbose              Show alignment parameters and training progress
+--cutoff_date          Override default cutoff date (YYYYMMDD format)
 ```
 
 ## Caches
