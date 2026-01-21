@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from shared.dataset import stable_split_tasks
+from experiment_ab_shared.dataset import stable_split_tasks
 
 
 def get_split_cache_dir(

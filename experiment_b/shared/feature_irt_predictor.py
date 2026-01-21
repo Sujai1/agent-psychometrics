@@ -10,7 +10,7 @@ This predictor is designed for Experiment B where:
 - Evaluation uses post-frontier agents on frontier tasks
 
 Example usage:
-    from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+    from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
     from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
 
     # With embeddings
@@ -30,7 +30,7 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
-from shared.feature_source import TaskFeatureSource
+from experiment_ab_shared.feature_source import TaskFeatureSource
 
 
 class FeatureIRTPredictor:

@@ -6,7 +6,7 @@ This module provides the core abstractions for difficulty prediction:
 - DifficultyPredictorBase: Abstract base for all predictors
 """
 
-from shared.dataset import (
+from experiment_ab_shared.dataset import (
     ExperimentData,
     BinaryExperimentData,
     BinomialExperimentData,
@@ -15,7 +15,7 @@ from shared.dataset import (
     stable_split_tasks,
     filter_unsolved_tasks,
 )
-from shared.evaluator import (
+from experiment_ab_shared.evaluator import (
     compute_auc,
     compute_irt_probability,
     convert_numpy,
@@ -24,36 +24,36 @@ from shared.evaluator import (
     PredictorConfig,
     PredictorResult,
 )
-from shared.baselines import (
+from experiment_ab_shared.baselines import (
     agent_only_baseline,
     random_baseline,
     verify_random_baseline_sanity,
 )
-from shared.cross_validation import (
+from experiment_ab_shared.cross_validation import (
     CrossValidationResult,
     k_fold_split_tasks,
     run_cv_for_predictor,
     run_cv_for_baseline,
 )
-from shared.binomial_metrics import (
+from experiment_ab_shared.binomial_metrics import (
     BinomialMetricsResult,
     compute_binomial_metrics,
 )
-from shared.feature_source import (
+from experiment_ab_shared.feature_source import (
     TaskFeatureSource,
     EmbeddingFeatureSource,
     CSVFeatureSource,
     ConcatenatedFeatureSource,
 )
-from shared.feature_predictor import (
+from experiment_ab_shared.feature_predictor import (
     FeatureBasedPredictor,
 )
-from shared.predictor_base import (
+from experiment_ab_shared.predictor_base import (
     DifficultyPredictorBase,
     ConstantPredictor,
     GroundTruthPredictor,
 )
-from shared.train_irt_split import (
+from experiment_ab_shared.train_irt_split import (
     get_or_train_split_irt,
     get_split_cache_dir,
     check_cached_irt,

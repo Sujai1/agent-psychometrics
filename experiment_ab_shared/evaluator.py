@@ -13,8 +13,8 @@ import numpy as np
 from scipy.special import expit as sigmoid
 from sklearn.metrics import roc_auc_score
 
-from shared.dataset import ExperimentData
-from shared.predictor_base import DifficultyPredictorBase
+from experiment_ab_shared.dataset import ExperimentData
+from experiment_ab_shared.predictor_base import DifficultyPredictorBase
 
 
 def compute_irt_probability(theta: float, beta: float) -> float:
@@ -235,8 +235,8 @@ def run_evaluation_pipeline(
 
             # Compute binomial metrics if requested
             if compute_binomial and result.predictions:
-                from shared.binomial_metrics import compute_binomial_metrics
-                from shared.dataset import BinomialExperimentData
+                from experiment_ab_shared.binomial_metrics import compute_binomial_metrics
+                from experiment_ab_shared.dataset import BinomialExperimentData
                 if isinstance(data, BinomialExperimentData):
                     binom_result = compute_binomial_metrics(
                         data, result.predictions, use_full_abilities=config.use_full_abilities

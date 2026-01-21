@@ -9,7 +9,7 @@ Entry points:
 """
 
 # Re-export core classes from shared modules for convenience
-from shared import (
+from experiment_ab_shared import (
     DifficultyPredictorBase,
     ConstantPredictor,
     GroundTruthPredictor,

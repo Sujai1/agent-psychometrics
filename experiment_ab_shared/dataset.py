@@ -267,7 +267,7 @@ def load_dataset(
     Returns:
         BinaryExperimentData or BinomialExperimentData
     """
-    from shared.train_irt_split import get_or_train_split_irt
+    from experiment_ab_shared.train_irt_split import get_or_train_split_irt
 
     # Load full IRT parameters (ONLY for oracle baseline)
     full_abilities = _load_abilities(abilities_path)
@@ -378,7 +378,7 @@ def load_dataset_for_fold(
     Returns:
         BinaryExperimentData or BinomialExperimentData
     """
-    from shared.train_irt_split import get_or_train_split_irt
+    from experiment_ab_shared.train_irt_split import get_or_train_split_irt
 
     # Load full IRT parameters (ONLY for oracle baseline)
     full_abilities = _load_abilities(abilities_path)

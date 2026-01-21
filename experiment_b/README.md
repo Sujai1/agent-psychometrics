@@ -203,11 +203,11 @@ This constraint ensures a realistic simulation of predicting difficulty for task
 
 ## Architecture
 
-Uses the shared `shared/` infrastructure for predictors:
+Uses the shared `experiment_ab_shared/` infrastructure for predictors:
 
 ```python
-from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
-from shared.feature_predictor import FeatureBasedPredictor
+from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
 from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
 
 # Ridge-based predictor
@@ -224,7 +224,7 @@ predictor.fit(task_ids, ground_truth_b, responses)  # responses = pre-frontier o
 ```
 experiment_b/
 ├── compare_methods.py        # Main entry point
-├── shared/
+├── experiment_ab_shared/
 │   ├── data_splits.py        # Agent/task splitting utilities
 │   ├── evaluate.py           # Evaluation metrics (Spearman, AUC, alignment)
 │   ├── baseline_irt.py       # Baseline IRT training with caching

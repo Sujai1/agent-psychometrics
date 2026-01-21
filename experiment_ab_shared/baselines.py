@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 import numpy as np
 from sklearn.metrics import roc_auc_score
 
-from shared.dataset import ExperimentData
+from experiment_ab_shared.dataset import ExperimentData
 
 
 def agent_only_baseline(
@@ -84,7 +84,7 @@ def agent_only_baseline(
 
     # Optionally compute binomial metrics for agent-only baseline
     if compute_binomial:
-        from shared.dataset import BinomialExperimentData
+        from experiment_ab_shared.dataset import BinomialExperimentData
 
         if isinstance(data, BinomialExperimentData):
             # Compute binomial metrics using agent success rates as predicted probs

@@ -29,7 +29,7 @@ from experiment_b.shared.data_splits import (
 )
 from experiment_b.shared.evaluate import load_responses_dict
 from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
-from shared.feature_source import EmbeddingFeatureSource
+from experiment_ab_shared.feature_source import EmbeddingFeatureSource
 
 
 def extract_submission_date(agent_name: str) -> datetime | None:

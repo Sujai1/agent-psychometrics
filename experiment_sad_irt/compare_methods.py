@@ -46,9 +46,9 @@ from experiment_b.shared.evaluate import (
 )
 
 # Import from shared
-from shared.predictor_base import DifficultyPredictorBase
-from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
-from shared.feature_predictor import FeatureBasedPredictor
+from experiment_ab_shared.predictor_base import DifficultyPredictorBase
+from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
 
 
 def compute_method_metrics(

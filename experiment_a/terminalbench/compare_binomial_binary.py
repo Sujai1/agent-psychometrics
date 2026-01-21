@@ -36,7 +36,7 @@ if str(ROOT) not in sys.path:
 from experiment_a.terminalbench.config import TerminalBenchConfig
 from experiment_a.terminalbench.data_loader import load_task_data_from_repo
 from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
-from shared.sampling import (
+from experiment_ab_shared.sampling import (
     sample_binary_from_binomial,
     load_binomial_responses,
     save_binary_responses,

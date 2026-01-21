@@ -63,9 +63,9 @@ from experiment_b.shared.date_forecasting import (
 )
 
 # Import predictors from shared module
-from shared.predictor_base import DifficultyPredictorBase
-from shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
-from shared.feature_predictor import FeatureBasedPredictor
+from experiment_ab_shared.predictor_base import DifficultyPredictorBase
+from experiment_ab_shared.feature_source import EmbeddingFeatureSource, CSVFeatureSource
+from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
 from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
 
 
