@@ -13,6 +13,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
+import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 
@@ -143,6 +145,56 @@ def identify_frontier_tasks(
             frontier_tasks.append(task_id)
 
     return frontier_tasks
+
+
+def identify_frontier_tasks_irt(
+    oracle_items: pd.DataFrame,
+    oracle_abilities: pd.DataFrame,
+    agent_dates: Dict[str, str],
+    cutoff_date: str,
+) -> List[str]:
+    """Identify frontier tasks using IRT 50% probability threshold.
+
+    A task is frontier if NO agent before the cutoff date has theta >= beta
+    (i.e., no pre-frontier agent can solve it with at least 50% probability).
+
+    This differs from identify_frontier_tasks() which uses empirical pass rates.
+    The IRT-based definition is more principled since P(success) = 0.5 when theta = beta.
+
+    Args:
+        oracle_items: DataFrame with 'b' column (oracle task difficulties)
+        oracle_abilities: DataFrame with 'theta' column (oracle agent abilities)
+        agent_dates: Dict mapping agent_id -> date string (YYYYMMDD)
+        cutoff_date: Cutoff date string (YYYYMMDD). Tasks where the first capable
+                     agent appears ON or AFTER this date are frontier tasks.
+
+    Returns:
+        List of task_ids that are frontier tasks (excludes tasks with no capable agent)
+    """
+    from experiment_b.shared.date_forecasting import (
+        compute_first_capable_dates,
+        split_tasks_by_first_capable_date,
+        parse_date,
+    )
+
+    # Compute first capable date for each task (when first agent has theta >= beta)
+    result = compute_first_capable_dates(oracle_items, oracle_abilities, agent_dates)
+
+    # Split by cutoff: tasks where first capable agent is on/after cutoff are "frontier"
+    cutoff_datetime = parse_date(cutoff_date)
+    pre_cutoff_tasks, post_cutoff_tasks = split_tasks_by_first_capable_date(
+        result.first_capable_dates, cutoff_datetime
+    )
+
+    # Exclude tasks with no capable agent (no ground truth for evaluation)
+    # These are logged for visibility
+    if result.tasks_without_capable_agent:
+        logger.info(
+            f"Excluding {len(result.tasks_without_capable_agent)} tasks with no capable agent "
+            f"(no agent has theta >= beta)"
+        )
+
+    return post_cutoff_tasks
 
 
 def identify_nontrivial_tasks(
