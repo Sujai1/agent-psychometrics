@@ -19,9 +19,16 @@ from experiment_b.shared.date_forecasting import (
     split_tasks_by_first_capable_date,
     DateForecastModel,
     compute_date_forecast_metrics,
+    compute_dates_from_predicted_difficulties,
+    compute_frontier_ability_intervals,
     parse_date,
 )
-from experiment_b.shared.evaluation import compute_method_metrics
+import pandas as pd
+from experiment_b.shared.evaluation import (
+    compute_method_metrics,
+    compute_scale_offset,
+    shift_to_oracle_scale,
+)
 
 
 # =============================================================================
@@ -41,6 +48,7 @@ class DateForecastingData:
     gt_date_min: str  # YYYY-MM-DD (min ground truth date for eval set)
     gt_date_max: str  # YYYY-MM-DD (max ground truth date for eval set)
     tasks_without_capable: int  # Count of tasks without any capable agent
+    oracle_abilities: pd.DataFrame  # Oracle abilities for direct date lookup
 
 
 # =============================================================================
@@ -84,6 +92,13 @@ def setup_date_forecasting(
     print(f"  Post-cutoff tasks (for evaluation): {len(post_cutoff_tasks)}")
     print(f"  Tasks without any capable agent: {len(tasks_without_capable)}")
 
+    # Compute frontier ability interval statistics
+    intervals = compute_frontier_ability_intervals(
+        data.oracle_abilities, data.config.agent_dates
+    )
+    print(f"  Frontier model intervals: mean={intervals['mean_days']:.1f}, median={intervals['median_days']:.1f}, "
+          f"range={intervals['min_days']:.0f}-{intervals['max_days']:.0f} days ({intervals['n_frontier_jumps']} jumps)")
+
     if len(post_cutoff_tasks) < 3:
         print("  Not enough post-cutoff tasks for date forecasting")
         return None
@@ -115,6 +130,7 @@ def setup_date_forecasting(
         gt_date_min=gt_date_min,
         gt_date_max=gt_date_max,
         tasks_without_capable=len(tasks_without_capable),
+        oracle_abilities=data.oracle_abilities,
     )
 
 
@@ -185,13 +201,45 @@ def evaluate_all_frontier_definitions(
 
         # Compute date forecasting for this frontier definition
         date_results_for_def: Optional[Dict[str, Dict[str, Any]]] = None
-        if date_info is not None and date_info.date_models:
+        oracle_date_results_for_def: Optional[Dict[str, Dict[str, Any]]] = None
+        if date_info is not None:
             # Only evaluate on frontier tasks that have a capable agent (ground truth exists)
             eval_tasks = [t for t in frontier_task_ids if t in date_info.first_capable_dates]
 
             if len(eval_tasks) >= 3:
                 date_results_for_def = {}
+                oracle_date_results_for_def = {}
+
+                # Get oracle beta for alignment
+                oracle_beta = data.oracle_items["b"].to_dict()
+
                 for method_name, pred_beta in raw_predictions.items():
+                    # Align predictions to oracle scale for Oracle MAE computation
+                    # This ensures predicted β values are on the same scale as Oracle θ
+                    alignment_params = compute_scale_offset(
+                        pred_beta, oracle_beta, data.anchor_task_ids, method="affine"
+                    )
+                    aligned_beta = shift_to_oracle_scale(pred_beta, alignment_params)
+
+                    # Compute Oracle MAE for all methods (direct lookup using Oracle abilities)
+                    try:
+                        oracle_predictions = compute_dates_from_predicted_difficulties(
+                            predicted_beta=aligned_beta,
+                            oracle_abilities=date_info.oracle_abilities,
+                            agent_dates=data.config.agent_dates,
+                            task_ids=eval_tasks,
+                        )
+                        oracle_metrics = compute_date_forecast_metrics(
+                            oracle_predictions, date_info.ground_truth_days, eval_tasks
+                        )
+                        oracle_date_results_for_def[method_name] = oracle_metrics
+                    except Exception:
+                        oracle_date_results_for_def[method_name] = {
+                            "mae_days": float("nan"),
+                            "n_tasks": 0,
+                        }
+
+                    # Compute regular MAE (regression-based) only for methods with date models
                     if method_name not in date_info.date_models:
                         continue
 
@@ -244,6 +292,17 @@ def evaluate_all_frontier_definitions(
                 else:
                     consolidated_date_results[method_name] = date_metrics
 
+        # Consolidate Oracle date results similarly
+        consolidated_oracle_date_results: Optional[Dict[str, Dict[str, Any]]] = None
+        if oracle_date_results_for_def:
+            consolidated_oracle_date_results = {}
+            for method_name, date_metrics in oracle_date_results_for_def.items():
+                if method_name.startswith("SAD-IRT ("):
+                    if method_name == best_sad_irt_name:
+                        consolidated_oracle_date_results["SAD-IRT (best)"] = date_metrics
+                else:
+                    consolidated_oracle_date_results[method_name] = date_metrics
+
         print()
         print_comparison_table(
             consolidated_results,
@@ -256,6 +315,7 @@ def evaluate_all_frontier_definitions(
             frontier_definition=frontier_def,
             irt_solve_prob=data.config.irt_solve_probability,
             date_results=consolidated_date_results,
+            oracle_date_results=consolidated_oracle_date_results,
             last_agent_date=data.config.last_agent_date,
             verbose=verbose,
             dataset_name=data.config.name,

@@ -361,6 +361,152 @@ class DateForecastModel:
         return result
 
 
+def compute_dates_from_predicted_difficulties(
+    predicted_beta: Dict[str, float],
+    oracle_abilities: pd.DataFrame,
+    agent_dates: Dict[str, str],
+    task_ids: List[str],
+    solve_probability: float = 0.5,
+) -> Dict[str, Tuple[float, datetime]]:
+    """For each task, find earliest Oracle agent with ability >= predicted difficulty.
+
+    This bypasses ability-over-time regression entirely - directly looks up
+    when an agent existed that could solve the task at the predicted difficulty.
+
+    Args:
+        predicted_beta: Predicted difficulties from any method
+        oracle_abilities: DataFrame with 'theta' column (Oracle agent abilities)
+        agent_dates: Dict mapping agent_id -> date string (YYYYMMDD)
+        task_ids: Tasks to compute dates for
+        solve_probability: Threshold for capability (default 0.5)
+
+    Returns:
+        Dict mapping task_id -> (days_since_earliest, date)
+        Tasks where no Oracle agent is capable are excluded from result.
+    """
+    if "theta" not in oracle_abilities.columns:
+        raise ValueError("oracle_abilities must have 'theta' column")
+
+    # Build agent -> (theta, date) mapping
+    agent_info = {}
+    for agent_id in oracle_abilities.index:
+        if agent_id not in agent_dates:
+            continue
+        theta = oracle_abilities.loc[agent_id, "theta"]
+        date = parse_date(agent_dates[agent_id])
+        agent_info[agent_id] = (theta, date)
+
+    if not agent_info:
+        raise ValueError("No agents found with both abilities and dates")
+
+    # Get earliest date as reference
+    all_dates = [info[1] for info in agent_info.values()]
+    earliest_agent_date = min(all_dates)
+
+    # Compute threshold offset: logit(p) = log(p / (1-p))
+    # For p=0.5, this is 0; for p=0.3, this is ~-0.847
+    threshold_offset = np.log(solve_probability / (1 - solve_probability))
+
+    result: Dict[str, Tuple[float, datetime]] = {}
+
+    for task_id in task_ids:
+        if task_id not in predicted_beta:
+            continue
+
+        beta = predicted_beta[task_id]
+        required_theta = beta + threshold_offset
+
+        # Find all capable agents (theta >= required_theta)
+        capable_agents = [
+            (agent_id, info[1])  # (agent_id, date)
+            for agent_id, info in agent_info.items()
+            if info[0] >= required_theta
+        ]
+
+        if capable_agents:
+            # Find earliest by date
+            earliest = min(capable_agents, key=lambda x: x[1])
+            earliest_date = earliest[1]
+            days_since_earliest = (earliest_date - earliest_agent_date).days
+            result[task_id] = (float(days_since_earliest), earliest_date)
+        # If no capable agent, task is excluded from result
+
+    return result
+
+
+def compute_frontier_ability_intervals(
+    oracle_abilities: pd.DataFrame,
+    agent_dates: Dict[str, str],
+) -> Dict[str, float]:
+    """Compute time intervals between new frontier ability models.
+
+    Uses cumulative max to identify points where the frontier ability improved.
+
+    Args:
+        oracle_abilities: DataFrame with 'theta' column (Oracle agent abilities)
+        agent_dates: Dict mapping agent_id -> date string (YYYYMMDD)
+
+    Returns:
+        Dict with: mean_days, median_days, min_days, max_days, n_frontier_jumps
+    """
+    # Build dataframe of agents with dates
+    agent_data = []
+    for agent_id in oracle_abilities.index:
+        if agent_id not in agent_dates:
+            continue
+        theta = oracle_abilities.loc[agent_id, "theta"]
+        date = parse_date(agent_dates[agent_id])
+        agent_data.append({"agent_id": agent_id, "theta": theta, "date": date})
+
+    if len(agent_data) < 2:
+        return {
+            "mean_days": float("nan"),
+            "median_days": float("nan"),
+            "min_days": float("nan"),
+            "max_days": float("nan"),
+            "n_frontier_jumps": 0,
+        }
+
+    df = pd.DataFrame(agent_data)
+    df = df.sort_values("date")
+
+    # Group by date, take max ability per date
+    df_grouped = df.groupby("date").agg({"theta": "max"}).reset_index()
+    df_grouped = df_grouped.sort_values("date")
+
+    # Compute cumulative max (frontier trajectory)
+    df_grouped["frontier_theta"] = df_grouped["theta"].cummax()
+
+    # Find points where frontier improved (strictly greater than previous)
+    frontier_changes = df_grouped[df_grouped["frontier_theta"].diff().fillna(1) > 0].copy()
+
+    if len(frontier_changes) < 2:
+        return {
+            "mean_days": float("nan"),
+            "median_days": float("nan"),
+            "min_days": float("nan"),
+            "max_days": float("nan"),
+            "n_frontier_jumps": 0,
+        }
+
+    # Compute intervals between consecutive frontier jumps
+    frontier_dates = frontier_changes["date"].tolist()
+    intervals = []
+    for i in range(1, len(frontier_dates)):
+        delta = (frontier_dates[i] - frontier_dates[i - 1]).days
+        intervals.append(delta)
+
+    intervals_arr = np.array(intervals)
+
+    return {
+        "mean_days": float(np.mean(intervals_arr)),
+        "median_days": float(np.median(intervals_arr)),
+        "min_days": float(np.min(intervals_arr)),
+        "max_days": float(np.max(intervals_arr)),
+        "n_frontier_jumps": len(frontier_changes),
+    }
+
+
 def compute_date_forecast_metrics(
     predicted: Dict[str, Tuple[float, datetime]],
     ground_truth_days: Dict[str, float],

@@ -24,6 +24,7 @@ def print_comparison_table(
     frontier_definition: str = "passrate",
     irt_solve_prob: float = 0.5,
     date_results: Optional[Dict[str, Dict]] = None,
+    oracle_date_results: Optional[Dict[str, Dict]] = None,
     last_agent_date: Optional[str] = None,
     verbose: bool = False,
     dataset_name: str = "",
@@ -104,9 +105,15 @@ def print_comparison_table(
     print("=" * 90)
     print()
 
-    # Always show ROC-AUC and MAE (days) as the primary metrics
-    print(f"{'Method':<45} {'ROC-AUC':>10} {'MAE (days)':>12}")
-    print("-" * 68)
+    # Always show ROC-AUC and MAE metrics
+    # Oracle MAE uses Oracle abilities for date lookup (isolates difficulty prediction error)
+    has_oracle_mae = oracle_date_results is not None and len(oracle_date_results) > 0
+    if has_oracle_mae:
+        print(f"{'Method':<40} {'ROC-AUC':>10} {'MAE (days)':>12} {'Oracle MAE†':>12}")
+        print("-" * 76)
+    else:
+        print(f"{'Method':<45} {'ROC-AUC':>10} {'MAE (days)':>12}")
+        print("-" * 68)
 
     # Sort by AUC (descending)
     def sort_key(item):
@@ -137,7 +144,22 @@ def print_comparison_table(
         else:
             mae_str = "N/A"
 
-        print(f"{method:<45} {auc_str:>10} {mae_str:>12}")
+        # Get Oracle MAE if available
+        if has_oracle_mae:
+            oracle_metrics = oracle_date_results.get(method, {})
+            oracle_mae = oracle_metrics.get("mae_days", float("nan"))
+            if isinstance(oracle_mae, float) and np.isnan(oracle_mae):
+                oracle_mae_str = "N/A"
+            else:
+                oracle_mae_str = f"{oracle_mae:.1f}"
+            print(f"{method:<40} {auc_str:>10} {mae_str:>12} {oracle_mae_str:>12}")
+        else:
+            print(f"{method:<45} {auc_str:>10} {mae_str:>12}")
+
+    # Print footnote for Oracle MAE if present
+    if has_oracle_mae:
+        print()
+        print("† Oracle MAE: Earliest Oracle agent with θ ≥ predicted β (bypasses regression)")
 
     print()
 

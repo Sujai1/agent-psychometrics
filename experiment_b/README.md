@@ -187,6 +187,42 @@ python -m experiment_b.compare_methods
 python -m experiment_b.compare_methods --no_forecast_dates
 ```
 
+### 4. Oracle MAE (Difficulty Prediction Quality)
+
+In addition to the end-to-end MAE (which uses each method's ability-over-time regression), we report **Oracle MAE** to isolate difficulty prediction quality from ability modeling error.
+
+**How it works:**
+- For each method's predicted difficulty β (after scale alignment to Oracle):
+- Directly look up the earliest Oracle agent with ability θ ≥ β
+- Compare this date to ground truth (no regression involved)
+
+**Interpretation:**
+- **Oracle MAE = 0** for the Oracle method (sanity check - predicted β matches Oracle β exactly)
+- **Low Oracle MAE, high regular MAE**: Difficulty predictions are good, but ability-over-time regression adds error
+- **Both MAEs high**: Difficulty predictions themselves are poor
+
+**Example output:**
+```
+Method                                      ROC-AUC   MAE (days)  Oracle MAE†
+----------------------------------------------------------------------------
+Oracle (upper bound)                         0.8439         22.1          0.0
+SAD-IRT (best)                               0.8036         92.4         53.1
+Feature-IRT (Embedding)                      0.7747         53.1         44.9
+Baseline IRT (pre-frontier only)             0.7600        103.6         43.8
+
+† Oracle MAE: Earliest Oracle agent with θ ≥ predicted β (bypasses regression)
+```
+
+### 5. Frontier Model Intervals
+
+The experiment also reports statistics on how frequently new frontier-capability models appear:
+
+```
+Frontier model intervals: mean=24.0, median=13.5, range=1-175 days (31 jumps)
+```
+
+This helps contextualize prediction errors relative to how often frontier ability actually advances.
+
 ## Data Leakage Constraints
 
 **Critical**: Oracle data and post-frontier agent data must NEVER be exposed during training.
