@@ -1,0 +1,23 @@
+{
+  "agent_results": "/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/gso.jsonl",
+  "auc": 0.6259986162185669,
+  "dataset_name": "gso-bench/gso",
+  "dataset_path": null,
+  "eval_mode": "ood",
+  "items_predicted": 102,
+  "labels_neg": 333,
+  "labels_pos": 789,
+  "normalize_item_ids": true,
+  "obs_scored": 1122,
+  "obs_scored_assumed_scaffold": 1122,
+  "obs_scored_model_only": 0,
+  "obs_skipped_bad_score": 0,
+  "obs_skipped_no_item": 0,
+  "obs_skipped_no_theta": 306,
+  "obs_total": 1428,
+  "split": "test",
+  "subjects_total": 14,
+  "subjects_used": 11,
+  "subjects_used_assumed_scaffold": 11,
+  "subjects_used_model_only": 0
+}

@@ -14,6 +14,4 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 
 python predict_question_difficulty_multi_benchmark.py \
   --trust_remote_code \
-  --overwrite \
-  --eval_mode "ID" \
-  --out_dir out/multi_benchmark_id
+  --overwrite
