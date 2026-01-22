@@ -23,10 +23,10 @@ The rest of the pipeline is identical:
   - Default: split items once into train vs zero-success, train IRT on train,
     fit a regressor from embeddings -> item difficulty, and **save learned weights**
     (no evaluation).
-  - Optional (`--eval_mode=ID`): K-fold CV over items. For each fold,
+  - Optional (`--eval_mode=id`): K-fold CV over items. For each fold,
     train IRT on train-fold items only (no leakage), fit a regressor, predict held-out
     item difficulties, and evaluate held-out AUROC using the fold's IRT abilities.
-  - Optional (`--eval_mode=OOD`, default): do the default training-only flow, then
+  - Optional (`--eval_mode=ood`, default): do the default training-only flow, then
     additionally evaluate ROC-AUC on a 4th benchmark using the learned shared IRT
     (model+scaffold) abilities and the learned regressor weights.
 """
@@ -164,6 +164,7 @@ def evaluate_ood_auroc(
     ood_agent_results_jsonl: str,
     ood_normalize_item_ids: bool,
     ood_treat_as_pro: bool,
+    ood_default_scaffold: Optional[str],
     z_by_item: Dict[str, float],
     theta_by_model: Dict[str, float],
     theta_by_scaffold: Dict[str, float],
@@ -173,54 +174,132 @@ def evaluate_ood_auroc(
       p(success) = sigmoid((theta_model + theta_scaffold) - z_item_pred)
     """
     filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
+    split_mod = _import_swebench_irt_module("split_agents_model_scaffold")
 
     scores: List[float] = []
     labels: List[int] = []
     n_subjects_total = 0
     n_subjects_used = 0
+    n_subjects_used_model_only = 0
+    n_subjects_used_assumed_scaffold = 0
     n_obs_total = 0
     n_obs_scored = 0
+    n_obs_scored_model_only = 0
+    n_obs_scored_assumed_scaffold = 0
     n_obs_skipped_no_theta = 0
     n_obs_skipped_no_item = 0
+    n_obs_skipped_bad_score = 0
 
     for sid, resp in iter_subject_responses_jsonl_generic(
         str(ood_agent_results_jsonl), normalize_item_ids=bool(ood_normalize_item_ids)
     ):
         n_subjects_total += 1
+
+        assume_scaffold = str(ood_default_scaffold or "").strip()
+
+        # Prefer using the canonical (model, scaffold) parsing from the IRT scripts,
+        # but fall back to "model-only" for OOD benchmarks that store subject_id as
+        # just the base model name (e.g. GSO), where scaffold is unavailable.
+        used_model_only = False
+        used_assumed_scaffold = False
+        th: Optional[float] = None
+
+        # If caller requests a fixed scaffold (e.g. GSO => OpenHands), treat the subject_id
+        # as a model string and canonicalize it using shared parsing rules.
+        if assume_scaffold:
+            try:
+                model_canon = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
+                scaffold_canon = str(split_mod._canonical_scaffold(str(assume_scaffold)))  # type: ignore[attr-defined]
+            except Exception:
+                model_canon = str(sid)
+                scaffold_canon = str(assume_scaffold)
+
+            tm = theta_by_model.get(model_canon, None)
+            ts = theta_by_scaffold.get(scaffold_canon, None)
+            if ts is None:
+                raise ValueError(
+                    f"OOD assumed scaffold {scaffold_canon!r} not found in theta_by_scaffold "
+                    f"(available={sorted(list(theta_by_scaffold.keys()))[:50]} ...)"
+                )
+            if tm is not None:
+                th = float(tm) + float(ts)
+                used_assumed_scaffold = True
+
+        # Otherwise try to parse subject_id as (model, scaffold).
         m = filt._model_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
         sc = filt._scaffold_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
-        if m is None or sc is None:
-            # Treat as "no theta" (unsplittable).
+        if th is None and m is not None and sc is not None:
+            tm = theta_by_model.get(str(m), None)
+            ts = theta_by_scaffold.get(str(sc), None)
+            if tm is not None and ts is not None:
+                th = float(tm) + float(ts)
+
+        # Final fallback: if we couldn't parse scaffold, treat subject_id as a model string.
+        # Canonicalize the model and (if possible) use OpenHands scaffold (GSO convention),
+        # otherwise fall back to model-only.
+        if th is None:
+            try:
+                model_canon = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
+            except Exception:
+                model_canon = str(sid)
+
+            tm = theta_by_model.get(model_canon, None)
+            if tm is not None:
+                # Prefer OpenHands when it exists in the trained scaffold list.
+                ts = theta_by_scaffold.get("OpenHands", None)
+                if ts is not None:
+                    th = float(tm) + float(ts)
+                    used_assumed_scaffold = True
+                else:
+                    th = float(tm)
+                    used_model_only = True
+
+        if th is None:
             n_obs_skipped_no_theta += int(len(resp))
             n_obs_total += int(len(resp))
             continue
-        tm = theta_by_model.get(str(m), None)
-        ts = theta_by_scaffold.get(str(sc), None)
-        if tm is None or ts is None:
-            n_obs_skipped_no_theta += int(len(resp))
-            n_obs_total += int(len(resp))
-            continue
-        th = float(tm) + float(ts)
+
         n_subjects_used += 1
+        if used_model_only:
+            n_subjects_used_model_only += 1
+        if used_assumed_scaffold:
+            n_subjects_used_assumed_scaffold += 1
         for item_id, y_obs in resp.items():
             n_obs_total += 1
             z = z_by_item.get(str(item_id), None)
             if z is None:
                 n_obs_skipped_no_item += 1
                 continue
-            scores.append(_sigmoid(th - float(z)))
+            s = _sigmoid(th - float(z))
+            if not math.isfinite(float(s)):
+                n_obs_skipped_bad_score += 1
+                continue
+            scores.append(float(s))
             labels.append(int(y_obs))
             n_obs_scored += 1
+            if used_model_only:
+                n_obs_scored_model_only += 1
+            if used_assumed_scaffold:
+                n_obs_scored_assumed_scaffold += 1
 
     auc = float(base._compute_binary_auroc(scores, labels))
+    n_pos = int(sum(int(x) for x in labels))
+    n_neg = int(len(labels) - n_pos)
     meta = {
-        "ood_subjects_total": int(n_subjects_total),
-        "ood_subjects_used": int(n_subjects_used),
-        "ood_items_predicted": int(len(z_by_item)),
-        "ood_obs_total": int(n_obs_total),
-        "ood_obs_scored": int(n_obs_scored),
-        "ood_obs_skipped_no_theta": int(n_obs_skipped_no_theta),
-        "ood_obs_skipped_no_item": int(n_obs_skipped_no_item),
+        "subjects_total": int(n_subjects_total),
+        "subjects_used": int(n_subjects_used),
+        "subjects_used_model_only": int(n_subjects_used_model_only),
+        "subjects_used_assumed_scaffold": int(n_subjects_used_assumed_scaffold),
+        "items_predicted": int(len(z_by_item)),
+        "obs_total": int(n_obs_total),
+        "obs_scored": int(n_obs_scored),
+        "obs_scored_model_only": int(n_obs_scored_model_only),
+        "obs_scored_assumed_scaffold": int(n_obs_scored_assumed_scaffold),
+        "obs_skipped_no_theta": int(n_obs_skipped_no_theta),
+        "obs_skipped_no_item": int(n_obs_skipped_no_item),
+        "obs_skipped_bad_score": int(n_obs_skipped_bad_score),
+        "labels_pos": int(n_pos),
+        "labels_neg": int(n_neg),
     }
     return auc, meta
 
@@ -734,8 +813,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--eval_mode",
         type=str,
-        default="OOD",
-        choices=["ID", "OOD"],
+        default="ood",
+        choices=["id", "ood"],
         help=(
             "Evaluation mode. ID runs the existing in-distribution K-fold CV + AUROC pipeline (previously "
             "--evaluate_in_distribution). OOD (default) runs the default training-only flow, then additionally "
@@ -775,7 +854,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default="gso-bench/gso",
         help=(
             "HF dataset repo for the 4th (OOD) benchmark tasks. Ignored if --ood_dataset_path is set. "
-            "Used only when --eval_mode=OOD."
+            "Used only when --eval_mode=ood."
         ),
     )
     p.add_argument(
@@ -784,7 +863,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default="",
         help=(
             "Optional local JSON/JSONL dataset path for the 4th (OOD) benchmark tasks. If set, loads via "
-            "datasets('json', data_files=..., split='train'). Used only when --eval_mode=OOD."
+            "datasets('json', data_files=..., split='train'). Used only when --eval_mode=ood."
         ),
     )
     p.add_argument("--ood_split", type=str, default="test", help="Split name for --ood_dataset_name (OOD mode only).")
@@ -1083,11 +1162,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         raise AssertionError(f"Unhandled regressor: {regressor_name}")
 
-    eval_mode = str(args.eval_mode or "OOD").strip().upper()
-    if eval_mode not in {"ID", "OOD"}:
+    # Normalize early; argparse choices are lowercase.
+    eval_mode = str(args.eval_mode or "ood").strip().lower()
+    if eval_mode not in {"id", "ood"}:
         raise ValueError(f"Unknown --eval_mode: {args.eval_mode!r}")
 
-    if eval_mode == "ID":
+    if eval_mode == "id":
         # -----------------------------
         # K-fold CV over items (existing in-distribution evaluation)
         # -----------------------------
@@ -1208,7 +1288,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 ridge_alpha = None
 
         metrics = {
-            "eval_mode": "ID",
+            "eval_mode": "id",
             "n_items_total": int(len(task_ids)),
             "n_items_with_responses": int(len(overlap_ids)),
             "n_items_eligible_cv_irt": int(len(eligible)),
@@ -1260,7 +1340,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         }
 
         weights_meta = {
-            "eval_mode": "ID",
+            "eval_mode": "id",
             "script": os.path.abspath(__file__),
             "backbone": str(args.backbone),
             "trust_remote_code": bool(args.trust_remote_code),
@@ -1440,10 +1520,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # -----------------------------
     # OOD evaluation: 4th benchmark AUROC using learned thetas + regressor
     # -----------------------------
-    if eval_mode == "OOD":
+    if eval_mode == "ood":
         ood_agent_results = str(args.ood_agent_results or "").strip()
         if not ood_agent_results:
-            raise ValueError("--ood_agent_results is empty (required for --eval_mode=OOD).")
+            raise ValueError("--ood_agent_results is empty (required for --eval_mode=ood).")
         if not os.path.exists(ood_agent_results):
             raise FileNotFoundError(f"OOD agent results JSONL not found: {ood_agent_results}")
 
@@ -1468,6 +1548,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if ood_dataset_name and ood_dataset_path:
             raise ValueError("Provide only one of --ood_dataset_name or --ood_dataset_path (OOD mode).")
         ood_treat_as_pro = _is_swebench_pro_benchmark(dataset_name=ood_dataset_name, dataset_path=ood_dataset_path)
+        # Heuristic: GSO exports use subject_id as a model name only; assume OpenHands scaffold for all.
+        ood_default_scaffold: Optional[str] = None
+        hint = " ".join([ood_dataset_name.lower(), os.path.basename(ood_agent_results).lower()])
+        if "gso" in hint:
+            ood_default_scaffold = "OpenHands"
 
         ood_items, ood_missing = load_ood_items_by_ids(
             dataset_name=ood_dataset_name,
@@ -1505,21 +1590,43 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ood_agent_results_jsonl=ood_agent_results,
             ood_normalize_item_ids=bool(args.ood_normalize_item_ids),
             ood_treat_as_pro=bool(ood_treat_as_pro),
+            ood_default_scaffold=ood_default_scaffold,
             z_by_item=z_by_item,
             theta_by_model=theta_by_model,
             theta_by_scaffold=theta_by_scaffold,
         )
         print(f"OOD ROC-AUC (4th benchmark): {ood_auc}  (agent_results={ood_agent_results})")
+        try:
+            print(
+                "OOD eval details: "
+                f"subjects_used={int(ood_meta.get('subjects_used', 0))} "
+                f"(assumed_scaffold={int(ood_meta.get('subjects_used_assumed_scaffold', 0))}, "
+                f"model_only={int(ood_meta.get('subjects_used_model_only', 0))}) "
+                f"obs_scored={int(ood_meta.get('obs_scored', 0))} "
+                f"(assumed_scaffold={int(ood_meta.get('obs_scored_assumed_scaffold', 0))}, "
+                f"model_only={int(ood_meta.get('obs_scored_model_only', 0))}) "
+                f"labels_pos={int(ood_meta.get('labels_pos', 0))} "
+                f"labels_neg={int(ood_meta.get('labels_neg', 0))} "
+                f"skipped_no_theta={int(ood_meta.get('obs_skipped_no_theta', 0))} "
+                f"skipped_no_item={int(ood_meta.get('obs_skipped_no_item', 0))}"
+            )
+            if not (ood_auc == ood_auc):
+                if int(ood_meta.get("obs_scored", 0)) <= 0:
+                    print("NOTE: OOD ROC-AUC is NaN because 0 observations were scored (no usable thetas for subjects).")
+                elif int(ood_meta.get("labels_pos", 0)) == 0 or int(ood_meta.get("labels_neg", 0)) == 0:
+                    print("NOTE: OOD ROC-AUC is NaN because only one label class was present among scored observations.")
+        except Exception:
+            pass
         base.save_json(
-            os.path.join(str(args.out_dir), "metrics_ood.json"),
+            os.path.join(str(args.out_dir), "metrics.json"),
             {
-                "eval_mode": "OOD",
-                "ood_auc": float(ood_auc),
-                "ood_agent_results": str(ood_agent_results),
-                "ood_dataset_name": (ood_dataset_name or None),
-                "ood_dataset_path": (ood_dataset_path or None),
-                "ood_split": str(args.ood_split),
-                "ood_normalize_item_ids": bool(args.ood_normalize_item_ids),
+                "eval_mode": "ood",
+                "auc": float(ood_auc),
+                "agent_results": str(ood_agent_results),
+                "dataset_name": (ood_dataset_name or None),
+                "dataset_path": (ood_dataset_path or None),
+                "split": str(args.ood_split),
+                "normalize_item_ids": bool(args.ood_normalize_item_ids),
                 **ood_meta,
             },
         )
