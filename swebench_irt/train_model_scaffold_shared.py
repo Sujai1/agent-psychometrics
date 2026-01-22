@@ -405,16 +405,21 @@ class ModelScaffold1PL:
         self.num_items = num_items
 
     def model(self, m_idx, s_idx, items, y):
-        sigma_theta_m = pyro.sample("sigma_theta_model", dist.HalfNormal(1.0))
-        sigma_theta_s = pyro.sample("sigma_theta_scaffold", dist.HalfNormal(1.0))
-        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(1.0))
+        # IMPORTANT: keep all tensors on the same device as observations `y`.
+        # Otherwise, indexing (theta[m_idx]) can fail when obs/indices are on CUDA.
+        one = y.new_tensor(1.0)
+        zero = y.new_tensor(0.0)
+
+        sigma_theta_m = pyro.sample("sigma_theta_model", dist.HalfNormal(one))
+        sigma_theta_s = pyro.sample("sigma_theta_scaffold", dist.HalfNormal(one))
+        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(one))
 
         with pyro.plate("models", self.num_models):
-            theta_m_raw = pyro.sample("theta_model_raw", dist.Normal(0.0, sigma_theta_m))
+            theta_m_raw = pyro.sample("theta_model_raw", dist.Normal(zero, sigma_theta_m))
         with pyro.plate("scaffolds", self.num_scaffolds):
-            theta_s_raw = pyro.sample("theta_scaffold_raw", dist.Normal(0.0, sigma_theta_s))
+            theta_s_raw = pyro.sample("theta_scaffold_raw", dist.Normal(zero, sigma_theta_s))
         with pyro.plate("items", self.num_items):
-            b = pyro.sample("b", dist.Normal(0.0, sigma_b))
+            b = pyro.sample("b", dist.Normal(zero, sigma_b))
 
         theta_m = theta_m_raw - theta_m_raw.mean()
         theta_s = theta_s_raw - theta_s_raw.mean()
@@ -424,30 +429,33 @@ class ModelScaffold1PL:
             pyro.sample("y", dist.Bernoulli(logits=logits), obs=y)
 
     def guide(self, m_idx, s_idx, items, y):
-        sigma_theta_m_q = pyro.param("sigma_theta_model_q", torch.tensor(1.0), constraint=constraints.positive)
-        sigma_theta_s_q = pyro.param(
-            "sigma_theta_scaffold_q", torch.tensor(1.0), constraint=constraints.positive
+        dev = y.device
+        sigma_theta_m_q = pyro.param(
+            "sigma_theta_model_q", torch.tensor(1.0, device=dev), constraint=constraints.positive
         )
-        sigma_b_q = pyro.param("sigma_b_q", torch.tensor(1.0), constraint=constraints.positive)
+        sigma_theta_s_q = pyro.param(
+            "sigma_theta_scaffold_q", torch.tensor(1.0, device=dev), constraint=constraints.positive
+        )
+        sigma_b_q = pyro.param("sigma_b_q", torch.tensor(1.0, device=dev), constraint=constraints.positive)
 
         pyro.sample("sigma_theta_model", dist.Delta(sigma_theta_m_q))
         pyro.sample("sigma_theta_scaffold", dist.Delta(sigma_theta_s_q))
         pyro.sample("sigma_b", dist.Delta(sigma_b_q))
 
-        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models))
+        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models, device=dev))
         scale_theta_m = pyro.param(
             "scale_theta_model_raw",
-            torch.ones(self.num_models),
+            torch.ones(self.num_models, device=dev),
             constraint=constraints.positive,
         )
-        loc_theta_s = pyro.param("loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds))
+        loc_theta_s = pyro.param("loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds, device=dev))
         scale_theta_s = pyro.param(
             "scale_theta_scaffold_raw",
-            torch.ones(self.num_scaffolds),
+            torch.ones(self.num_scaffolds, device=dev),
             constraint=constraints.positive,
         )
-        loc_b = pyro.param("loc_b", torch.zeros(self.num_items))
-        scale_b = pyro.param("scale_b", torch.ones(self.num_items), constraint=constraints.positive)
+        loc_b = pyro.param("loc_b", torch.zeros(self.num_items, device=dev))
+        scale_b = pyro.param("scale_b", torch.ones(self.num_items, device=dev), constraint=constraints.positive)
 
         with pyro.plate("models", self.num_models):
             pyro.sample("theta_model_raw", dist.Normal(loc_theta_m, scale_theta_m))
@@ -466,18 +474,21 @@ class ModelScaffold2PL:
         self.num_items = num_items
 
     def model(self, m_idx, s_idx, items, y):
-        sigma_theta_m = pyro.sample("sigma_theta_model", dist.HalfNormal(1.0))
-        sigma_theta_s = pyro.sample("sigma_theta_scaffold", dist.HalfNormal(1.0))
-        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(1.0))
-        mu_log_a = pyro.sample("mu_log_a", dist.Normal(0.0, 1.0))
-        sigma_log_a = pyro.sample("sigma_log_a", dist.HalfNormal(1.0))
+        one = y.new_tensor(1.0)
+        zero = y.new_tensor(0.0)
+
+        sigma_theta_m = pyro.sample("sigma_theta_model", dist.HalfNormal(one))
+        sigma_theta_s = pyro.sample("sigma_theta_scaffold", dist.HalfNormal(one))
+        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(one))
+        mu_log_a = pyro.sample("mu_log_a", dist.Normal(zero, one))
+        sigma_log_a = pyro.sample("sigma_log_a", dist.HalfNormal(one))
 
         with pyro.plate("models", self.num_models):
-            theta_m_raw = pyro.sample("theta_model_raw", dist.Normal(0.0, sigma_theta_m))
+            theta_m_raw = pyro.sample("theta_model_raw", dist.Normal(zero, sigma_theta_m))
         with pyro.plate("scaffolds", self.num_scaffolds):
-            theta_s_raw = pyro.sample("theta_scaffold_raw", dist.Normal(0.0, sigma_theta_s))
+            theta_s_raw = pyro.sample("theta_scaffold_raw", dist.Normal(zero, sigma_theta_s))
         with pyro.plate("items", self.num_items):
-            b = pyro.sample("b", dist.Normal(0.0, sigma_b))
+            b = pyro.sample("b", dist.Normal(zero, sigma_b))
             a = pyro.sample("a", dist.LogNormal(mu_log_a, sigma_log_a))
 
         theta_m = theta_m_raw - theta_m_raw.mean()
@@ -488,14 +499,17 @@ class ModelScaffold2PL:
             pyro.sample("y", dist.Bernoulli(logits=logits), obs=y)
 
     def guide(self, m_idx, s_idx, items, y):
-        sigma_theta_m_q = pyro.param("sigma_theta_model_q", torch.tensor(1.0), constraint=constraints.positive)
-        sigma_theta_s_q = pyro.param(
-            "sigma_theta_scaffold_q", torch.tensor(1.0), constraint=constraints.positive
+        dev = y.device
+        sigma_theta_m_q = pyro.param(
+            "sigma_theta_model_q", torch.tensor(1.0, device=dev), constraint=constraints.positive
         )
-        sigma_b_q = pyro.param("sigma_b_q", torch.tensor(1.0), constraint=constraints.positive)
-        loc_mu_log_a = pyro.param("loc_mu_log_a", torch.tensor(0.0))
-        scale_mu_log_a = pyro.param("scale_mu_log_a", torch.tensor(1.0), constraint=constraints.positive)
-        sigma_log_a_q = pyro.param("sigma_log_a_q", torch.tensor(1.0), constraint=constraints.positive)
+        sigma_theta_s_q = pyro.param(
+            "sigma_theta_scaffold_q", torch.tensor(1.0, device=dev), constraint=constraints.positive
+        )
+        sigma_b_q = pyro.param("sigma_b_q", torch.tensor(1.0, device=dev), constraint=constraints.positive)
+        loc_mu_log_a = pyro.param("loc_mu_log_a", torch.tensor(0.0, device=dev))
+        scale_mu_log_a = pyro.param("scale_mu_log_a", torch.tensor(1.0, device=dev), constraint=constraints.positive)
+        sigma_log_a_q = pyro.param("sigma_log_a_q", torch.tensor(1.0, device=dev), constraint=constraints.positive)
 
         pyro.sample("sigma_theta_model", dist.Delta(sigma_theta_m_q))
         pyro.sample("sigma_theta_scaffold", dist.Delta(sigma_theta_s_q))
@@ -503,23 +517,23 @@ class ModelScaffold2PL:
         pyro.sample("mu_log_a", dist.Normal(loc_mu_log_a, scale_mu_log_a))
         pyro.sample("sigma_log_a", dist.Delta(sigma_log_a_q))
 
-        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models))
+        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models, device=dev))
         scale_theta_m = pyro.param(
             "scale_theta_model_raw",
-            torch.ones(self.num_models),
+            torch.ones(self.num_models, device=dev),
             constraint=constraints.positive,
         )
-        loc_theta_s = pyro.param("loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds))
+        loc_theta_s = pyro.param("loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds, device=dev))
         scale_theta_s = pyro.param(
             "scale_theta_scaffold_raw",
-            torch.ones(self.num_scaffolds),
+            torch.ones(self.num_scaffolds, device=dev),
             constraint=constraints.positive,
         )
-        loc_b = pyro.param("loc_b", torch.zeros(self.num_items))
-        scale_b = pyro.param("scale_b", torch.ones(self.num_items), constraint=constraints.positive)
+        loc_b = pyro.param("loc_b", torch.zeros(self.num_items, device=dev))
+        scale_b = pyro.param("scale_b", torch.ones(self.num_items, device=dev), constraint=constraints.positive)
 
-        loc_a = pyro.param("loc_log_a", torch.zeros(self.num_items))
-        scale_a = pyro.param("scale_log_a", torch.ones(self.num_items), constraint=constraints.positive)
+        loc_a = pyro.param("loc_log_a", torch.zeros(self.num_items, device=dev))
+        scale_a = pyro.param("scale_log_a", torch.ones(self.num_items, device=dev), constraint=constraints.positive)
 
         with pyro.plate("models", self.num_models):
             pyro.sample("theta_model_raw", dist.Normal(loc_theta_m, scale_theta_m))
@@ -543,13 +557,18 @@ class ModelScaffold2D1PL:
 
     def model(self, m_idx, s_idx, items, y):
         # Dimension-wise hierarchical scales (independent across dims).
+        #
+        # IMPORTANT: keep priors on the same device as `y`. Otherwise when the guide
+        # proposes CUDA values (via Delta over CUDA params), the model's prior
+        # log_prob can error with "found at least two devices, cuda:0 and cpu!".
+        one = y.new_tensor(1.0)
         sigma_theta_m = pyro.sample(
-            "sigma_theta_model", dist.HalfNormal(1.0).expand([self.dims]).to_event(1)
+            "sigma_theta_model", dist.HalfNormal(one).expand([self.dims]).to_event(1)
         )
         sigma_theta_s = pyro.sample(
-            "sigma_theta_scaffold", dist.HalfNormal(1.0).expand([self.dims]).to_event(1)
+            "sigma_theta_scaffold", dist.HalfNormal(one).expand([self.dims]).to_event(1)
         )
-        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(1.0).expand([self.dims]).to_event(1))
+        sigma_b = pyro.sample("sigma_b", dist.HalfNormal(one).expand([self.dims]).to_event(1))
 
         zero = y.new_zeros(self.dims)
         with pyro.plate("models", self.num_models):
@@ -569,32 +588,37 @@ class ModelScaffold2D1PL:
             pyro.sample("y", dist.Bernoulli(logits=logits), obs=y)
 
     def guide(self, m_idx, s_idx, items, y):
+        dev = y.device
         sigma_theta_m_q = pyro.param(
-            "sigma_theta_model_q", torch.ones(self.dims), constraint=constraints.positive
+            "sigma_theta_model_q", torch.ones(self.dims, device=dev), constraint=constraints.positive
         )
         sigma_theta_s_q = pyro.param(
-            "sigma_theta_scaffold_q", torch.ones(self.dims), constraint=constraints.positive
+            "sigma_theta_scaffold_q", torch.ones(self.dims, device=dev), constraint=constraints.positive
         )
-        sigma_b_q = pyro.param("sigma_b_q", torch.ones(self.dims), constraint=constraints.positive)
+        sigma_b_q = pyro.param("sigma_b_q", torch.ones(self.dims, device=dev), constraint=constraints.positive)
 
         pyro.sample("sigma_theta_model", dist.Delta(sigma_theta_m_q).to_event(1))
         pyro.sample("sigma_theta_scaffold", dist.Delta(sigma_theta_s_q).to_event(1))
         pyro.sample("sigma_b", dist.Delta(sigma_b_q).to_event(1))
 
-        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models, self.dims))
+        loc_theta_m = pyro.param("loc_theta_model_raw", torch.zeros(self.num_models, self.dims, device=dev))
         scale_theta_m = pyro.param(
             "scale_theta_model_raw",
-            torch.ones(self.num_models, self.dims),
+            torch.ones(self.num_models, self.dims, device=dev),
             constraint=constraints.positive,
         )
-        loc_theta_s = pyro.param("loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds, self.dims))
+        loc_theta_s = pyro.param(
+            "loc_theta_scaffold_raw", torch.zeros(self.num_scaffolds, self.dims, device=dev)
+        )
         scale_theta_s = pyro.param(
             "scale_theta_scaffold_raw",
-            torch.ones(self.num_scaffolds, self.dims),
+            torch.ones(self.num_scaffolds, self.dims, device=dev),
             constraint=constraints.positive,
         )
-        loc_b = pyro.param("loc_b", torch.zeros(self.num_items, self.dims))
-        scale_b = pyro.param("scale_b", torch.ones(self.num_items, self.dims), constraint=constraints.positive)
+        loc_b = pyro.param("loc_b", torch.zeros(self.num_items, self.dims, device=dev))
+        scale_b = pyro.param(
+            "scale_b", torch.ones(self.num_items, self.dims, device=dev), constraint=constraints.positive
+        )
 
         with pyro.plate("models", self.num_models):
             pyro.sample("theta_model_raw", dist.Normal(loc_theta_m, scale_theta_m).to_event(1))

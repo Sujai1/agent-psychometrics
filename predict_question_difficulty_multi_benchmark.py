@@ -647,6 +647,7 @@ def build_multibench_obs_for_items(
 def train_irt_model_scaffold_1pl(
     *,
     obs_train,
+    irt_model: str,
     epochs: int,
     device: str,
     seed: int,
@@ -654,7 +655,11 @@ def train_irt_model_scaffold_1pl(
     out_dir: str,
 ) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float]]:
     """
-    Train shared model+scaffold 1PL on `obs_train`.
+    Train shared model+scaffold 1PL (Rasch) on `obs_train`.
+
+    Supports:
+      - 1D 1PL: p = sigmoid((theta_model + theta_scaffold) - b_item)
+      - 2D 1PL: p = sigmoid(sum_d (theta_model[d] + theta_scaffold[d] - b_item[d]))
 
     Returns:
       - theta_by_model
@@ -698,29 +703,63 @@ def train_irt_model_scaffold_1pl(
         agent_split_df=obs.agent_split_df,
     )
 
-    model_obj = ms.ModelScaffold1PL(len(obs_dev.model_ids), len(obs_dev.scaffold_ids), len(obs_dev.item_ids))
+    irt_model_norm = str(irt_model or "1d_1pl").strip().lower()
+    if irt_model_norm == "1d_1pl":
+        model_obj = ms.ModelScaffold1PL(len(obs_dev.model_ids), len(obs_dev.scaffold_ids), len(obs_dev.item_ids))
+        model_type = "1pl"
+    elif irt_model_norm == "2d_1pl":
+        model_obj = ms.ModelScaffold2D1PL(len(obs_dev.model_ids), len(obs_dev.scaffold_ids), len(obs_dev.item_ids), dims=2)
+        model_type = "2d_1pl"
+    else:
+        raise ValueError(f"Unknown IRT model: {irt_model!r} (expected '1d_1pl' or '2d_1pl').")
+
     _ = ms.train_svi(model_obj.model, model_obj.guide, obs_dev, epochs=int(epochs), lr=float(lr))
 
     # Save fold artifacts in the same spirit as the single-benchmark script.
     outp = Path(str(out_dir))
     outp.mkdir(parents=True, exist_ok=True)
-    ms.save_outputs(out_dir=outp, obs=obs_dev, model_type="1pl")
+    ms.save_outputs(out_dir=outp, obs=obs_dev, model_type=model_type)
     try:
         obs_dev.agent_split_df.to_csv(outp / "agent_splits.csv", index=False)
     except Exception:
         pass
 
     # Extract centered abilities + item difficulties.
+    #
+    # Note: downstream scoring code expects *scalar* thetas and item difficulties.
+    # For 2D 1PL we use the equal-weight sum over dimensions, matching the model
+    # definition in `swebench_irt/train_model_scaffold_shared.py`.
     theta_m_raw = pyro.param("loc_theta_model_raw").detach().cpu()
     theta_s_raw = pyro.param("loc_theta_scaffold_raw").detach().cpu()
-    theta_m = (theta_m_raw - theta_m_raw.mean()).numpy().tolist()
-    theta_s = (theta_s_raw - theta_s_raw.mean()).numpy().tolist()
+    if theta_m_raw.ndim == 1:
+        theta_m_vec = theta_m_raw - theta_m_raw.mean()
+    elif theta_m_raw.ndim == 2:
+        theta_m_vec = (theta_m_raw - theta_m_raw.mean(dim=0, keepdim=True)).sum(dim=1)
+    else:
+        raise ValueError(f"Unexpected loc_theta_model_raw ndim={int(theta_m_raw.ndim)} for IRT model {irt_model_norm!r}")
 
-    b_loc = pyro.param("loc_b").detach().cpu().numpy().tolist()
+    if theta_s_raw.ndim == 1:
+        theta_s_vec = theta_s_raw - theta_s_raw.mean()
+    elif theta_s_raw.ndim == 2:
+        theta_s_vec = (theta_s_raw - theta_s_raw.mean(dim=0, keepdim=True)).sum(dim=1)
+    else:
+        raise ValueError(f"Unexpected loc_theta_scaffold_raw ndim={int(theta_s_raw.ndim)} for IRT model {irt_model_norm!r}")
+
+    b_loc = pyro.param("loc_b").detach().cpu()
+    if b_loc.ndim == 1:
+        b_vec = b_loc
+    elif b_loc.ndim == 2:
+        b_vec = b_loc.sum(dim=1)
+    else:
+        raise ValueError(f"Unexpected loc_b ndim={int(b_loc.ndim)} for IRT model {irt_model_norm!r}")
+
+    theta_m = theta_m_vec.numpy().tolist()
+    theta_s = theta_s_vec.numpy().tolist()
+    b_out = b_vec.numpy().tolist()
 
     theta_by_model: Dict[str, float] = {str(mid): float(theta_m[i]) for i, mid in enumerate(obs_dev.model_ids)}
     theta_by_scaffold: Dict[str, float] = {str(sid): float(theta_s[i]) for i, sid in enumerate(obs_dev.scaffold_ids)}
-    diff_by_item: Dict[str, float] = {str(iid): float(b_loc[i]) for i, iid in enumerate(obs_dev.item_ids)}
+    diff_by_item: Dict[str, float] = {str(iid): float(b_out[i]) for i, iid in enumerate(obs_dev.item_ids)}
     return theta_by_model, theta_by_scaffold, diff_by_item
 
 
@@ -771,6 +810,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--irt_epochs", type=int, default=5000)
     p.add_argument("--irt_device", type=str, default="cuda", help="Device for IRT training (cuda or cpu).")
     p.add_argument("--irt_lr", type=float, default=0.01, help="Learning rate for Pyro SVI (shared model+scaffold IRT).")
+    p.add_argument(
+        "--irt_model",
+        type=str,
+        default="1d_1pl",
+        choices=["1d_1pl", "2d_1pl"],
+        help="IRT model family for training. Default is 1D 1PL (Rasch).",
+    )
 
     # -----------------------------
     # Embedding model settings
@@ -885,6 +931,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = p.parse_args(argv)
     base.ensure_dir(args.out_dir)
     base.seed_everything(int(args.seed), deterministic=True)
+
+    irt_model = str(args.irt_model or "1d_1pl").strip().lower()
+    if irt_model not in {"1d_1pl", "2d_1pl"}:
+        raise ValueError(f"Unknown --irt_model: {args.irt_model!r}")
+
+    def _irt_out_dir_name(model_name: str) -> str:
+        m = str(model_name or "").strip().lower()
+        if m == "1d_1pl":
+            # Preserve historical output directory for default behavior.
+            return "irt_model_scaffold_1pl"
+        if m == "2d_1pl":
+            return "irt_model_scaffold_2d_1pl"
+        return f"irt_model_scaffold_{m}"
+
+    irt_model_label = f"model+scaffold {irt_model.replace('_', ' ')} (shared)"
 
     verified_agent_results_raw = str(args.verified_agent_results)
     pro_agent_results_raw = str(args.pro_agent_results)
@@ -1199,11 +1260,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             obs_train = build_multibench_obs_for_items(obs_full=obs_full, keep_item_ids=train_items)
             theta_by_model, theta_by_scaffold, diff_by_item = train_irt_model_scaffold_1pl(
                 obs_train=obs_train,
+                irt_model=str(irt_model),
                 epochs=int(args.irt_epochs),
                 device=str(args.irt_device),
                 seed=int(args.seed),
                 lr=float(args.irt_lr),
-                out_dir=os.path.join(fold_root, "irt_model_scaffold_1pl"),
+                out_dir=os.path.join(fold_root, _irt_out_dir_name(irt_model)),
             )
 
             # Restore determinism for downstream sklearn/regression steps.
@@ -1309,7 +1371,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "irt_epochs": int(args.irt_epochs),
             "irt_device": str(args.irt_device),
             "irt_lr": float(args.irt_lr),
-            "irt_model": "model+scaffold 1pl (shared)",
+            "irt_model": str(irt_model_label),
             "regressor": regressor_name,
             "ridge_alpha": ridge_alpha,
             "ridge_alphas_searched": [float(x) for x in base.np.asarray(alphas).tolist()],
@@ -1365,7 +1427,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "ridge_alpha": ridge_alpha,
             "ridge_alphas_searched": [float(x) for x in base.np.asarray(alphas).tolist()],
             "inner_splits": int(args.inner_splits),
-            "irt_model": "model+scaffold 1pl (shared)",
+            "irt_model": str(irt_model_label),
         }
         weights_json, weights_npz = base.save_regression_weights(
             out_dir=str(args.out_dir),
@@ -1445,11 +1507,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     obs_train = build_multibench_obs_for_items(obs_full=obs_full, keep_item_ids=train_items)
     theta_by_model, theta_by_scaffold, diff_by_item = train_irt_model_scaffold_1pl(
         obs_train=obs_train,
+        irt_model=str(irt_model),
         epochs=int(args.irt_epochs),
         device=str(args.irt_device),
         seed=int(args.seed),
         lr=float(args.irt_lr),
-        out_dir=os.path.join(str(args.out_dir), "irt_model_scaffold_1pl"),
+        out_dir=os.path.join(str(args.out_dir), _irt_out_dir_name(irt_model)),
     )
     base.set_torch_determinism(True)
 
@@ -1497,7 +1560,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "irt_epochs": int(args.irt_epochs),
         "irt_device": str(args.irt_device),
         "irt_lr": float(args.irt_lr),
-        "irt_model": "model+scaffold 1pl (shared)",
+        "irt_model": str(irt_model_label),
         "regressor": regressor_name,
         "ridge_alpha": ridge_alpha,
         "ridge_alphas_searched": [float(x) for x in base.np.asarray(alphas).tolist()],
