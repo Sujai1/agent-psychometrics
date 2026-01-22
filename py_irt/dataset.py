@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import Set, Dict, List, Union
+from typing import Set, Dict, List, Union, Optional
 from pathlib import Path
 from pydantic import BaseModel
 from py_irt.io import read_jsonlines

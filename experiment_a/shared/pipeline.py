@@ -301,32 +301,35 @@ def run_cross_validation(
     print(f"SUMMARY: {spec.name} ({k}-FOLD CROSS-VALIDATION)")
     print("=" * 60)
 
-    # Get display order from predictor configs
-    display_order = [(pc.display_name, pc.name) for pc in predictor_configs]
+    # Sort by mean AUC descending
+    display_order = [
+        (pc.display_name, pc.name, cv_results[pc.name].mean_auc or 0.0)
+        for pc in predictor_configs
+        if pc.name in cv_results
+    ]
+    display_order.sort(key=lambda x: x[2], reverse=True)
 
     if compute_pass_rate_mse:
         print(f"\n{'Method':<25} {'Mean AUC':>10} {'Std':>8} {'Pass Rate MSE':>14}")
         print("-" * 62)
 
-        for name, key in display_order:
-            if key in cv_results:
-                result = cv_results[key]
-                if result.mean_auc is not None:
-                    mse_str = f"{result.mean_pass_rate_mse:.4f}" if result.mean_pass_rate_mse is not None else "N/A"
-                    print(f"{name:<25} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mse_str:>14}")
-                else:
-                    print(f"{name:<25} {'N/A':>10} {'N/A':>8} {'N/A':>14}")
+        for name, key, _ in display_order:
+            result = cv_results[key]
+            if result.mean_auc is not None:
+                mse_str = f"{result.mean_pass_rate_mse:.4f}" if result.mean_pass_rate_mse is not None else "N/A"
+                print(f"{name:<25} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mse_str:>14}")
+            else:
+                print(f"{name:<25} {'N/A':>10} {'N/A':>8} {'N/A':>14}")
     else:
         print(f"\n{'Method':<30} {'Mean AUC':>10} {'Std':>8}")
         print("-" * 50)
 
-        for name, key in display_order:
-            if key in cv_results:
-                result = cv_results[key]
-                if result.mean_auc is not None:
-                    print(f"{name:<30} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
-                else:
-                    print(f"{name:<30} {'N/A':>10} {'N/A':>8}")
+        for name, key, _ in display_order:
+            result = cv_results[key]
+            if result.mean_auc is not None:
+                print(f"{name:<30} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
+            else:
+                print(f"{name:<30} {'N/A':>10} {'N/A':>8}")
 
     # Return results as dict
     return {
