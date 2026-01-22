@@ -34,6 +34,9 @@ python -m experiment_b.compare_methods
 # Run on TerminalBench
 python -m experiment_b.compare_methods --dataset terminalbench
 
+# Run on SWE-bench Pro
+python -m experiment_b.compare_methods --dataset swebench_pro
+
 # Run with only one frontier definition
 python -m experiment_b.compare_methods --frontier_definitions passrate
 
@@ -73,6 +76,21 @@ python -m experiment_b.compare_methods --output_csv results.csv
 | Embedding + Ridge | 0.7291 |
 | Feature-IRT (Embedding) | 0.7284 |
 | Baseline IRT (pre-frontier only) | 0.6966 ± 0.014 |
+
+### SWE-bench Pro
+
+**Cutoff**: 2025-09-01 | **Pre-frontier agents**: 10 | **Post-frontier agents**: 4
+
+#### Pass-rate Definition (60 frontier tasks)
+
+| Method | ROC-AUC |
+|--------|---------|
+| Oracle (upper bound) | 0.7975 |
+| Embedding + Ridge | 0.7412 |
+| Baseline IRT (pre-frontier only) | 0.6500 |
+| LLM Judge + Ridge | TBD (see Phase 2) |
+
+**Note**: SWE-bench Pro uses public release dates for agents (stored in `data/swebench_pro_agent_dates.json`) since agent names don't follow the YYYYMMDD prefix convention. LLM judge features are pending extraction (see `PHASE2_SWEBENCH_PRO_PROMPT.md`).
 
 ### TerminalBench
 
@@ -266,7 +284,9 @@ experiment_b/
 │   ├── diagnostics.py        # Feature-IRT diagnostic plots
 │   └── date_forecasting.py   # Date prediction utilities
 ├── swebench/
-│   └── config.py             # SWE-bench dataset configuration
+│   └── config.py             # SWE-bench Verified dataset configuration
+├── swebench_pro/
+│   └── config.py             # SWE-bench Pro dataset configuration
 └── terminalbench/
     └── config.py             # TerminalBench dataset configuration
 ```
@@ -304,7 +324,7 @@ experiment_b/
 
 ## Data Paths
 
-### SWE-bench
+### SWE-bench Verified
 
 | File | Purpose |
 |------|---------|
@@ -312,6 +332,16 @@ experiment_b/
 | `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl` | Response matrix |
 | `chris_output/experiment_a/embeddings/` | Task embeddings |
 | `chris_output/experiment_a/llm_judge_features/` | LLM judge features |
+
+### SWE-bench Pro
+
+| File | Purpose |
+|------|---------|
+| `chris_output/swebench_pro_irt/1d/items.csv` | Oracle IRT difficulties |
+| `out/chris_irt/swebench_pro.jsonl` | Response matrix (730 tasks, 14 agents) |
+| `out/swebench_pro/embeddings__deepseek-ai__...npz` | Task embeddings |
+| `chris_output/experiment_a_swebench_pro/llm_judge_features/` | LLM judge features (pending) |
+| `data/swebench_pro_agent_dates.json` | Agent release dates (public announcements) |
 
 ### TerminalBench
 
@@ -324,7 +354,7 @@ experiment_b/
 
 ## Configuration
 
-Dataset configs in `swebench/config.py` and `terminalbench/config.py`:
+Dataset configs in `swebench/config.py`, `swebench_pro/config.py`, and `terminalbench/config.py`:
 
 ```python
 @dataclass
@@ -367,7 +397,7 @@ class DatasetConfig(ABC):
 ## Command Line Options
 
 ```
---dataset              Dataset to use: swebench (default) or terminalbench
+--dataset              Dataset to use: swebench (default), swebench_pro, or terminalbench
 --frontier_definitions Space-separated list: 'passrate' 'irt' (default: both)
 --no_forecast_dates    Disable date forecasting evaluation (faster, but no MAE metric)
 --output_csv           Save results to CSV file
