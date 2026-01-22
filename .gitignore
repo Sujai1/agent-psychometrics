@@ -188,3 +188,9 @@ chris_output/figures/*.pdf
 
 # Binomial IRT outputs for TerminalBench (regenerable)
 chris_output/terminal_bench_2.0_binomial/
+
+# SWE-bench Pro IRT outputs (regenerable)
+chris_output/swebench_pro_irt/
+
+# SWE-bench Pro Experiment B outputs (regenerable)
+chris_output/experiment_b/swebench_pro/

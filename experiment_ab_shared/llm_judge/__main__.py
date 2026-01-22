@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # Default output directories per dataset
 DEFAULT_OUTPUT_DIRS = {
     "swebench": Path("chris_output/experiment_a/llm_judge_features"),
+    "swebench_pro": Path("chris_output/experiment_a_swebench_pro/llm_judge_features"),
     "terminalbench": Path("chris_output/experiment_a_terminalbench/llm_judge_features"),
 }
 
@@ -72,6 +73,49 @@ def load_swebench_tasks() -> List[Dict[str, Any]]:
             "hints_text": item["hints_text"],
             "FAIL_TO_PASS": item["FAIL_TO_PASS"],
             "PASS_TO_PASS": item["PASS_TO_PASS"],
+        })
+
+    print(f"Loaded {len(tasks)} tasks")
+    return tasks
+
+
+def load_swebench_pro_tasks() -> List[Dict[str, Any]]:
+    """Load SWE-bench Pro dataset from HuggingFace.
+
+    Data source: ScaleAI/SWE-bench_Pro
+
+    Returns:
+        List of task dictionaries with fields:
+        - instance_id: Task identifier
+        - repo: Repository name
+        - problem_statement: Issue description
+        - patch: Gold solution patch
+        - fail_to_pass: Tests that should pass after fix
+        - pass_to_pass: Regression tests
+    """
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        raise ImportError(
+            "datasets package required for SWE-bench Pro. Install with: pip install datasets"
+        )
+
+    print("Loading SWE-bench Pro dataset from HuggingFace (ScaleAI/SWE-bench_Pro)...")
+    ds = load_dataset("ScaleAI/SWE-bench_Pro", split="test")
+
+    tasks = []
+    for item in ds:
+        tasks.append({
+            "instance_id": item["instance_id"],
+            "repo": item["repo"],
+            "problem_statement": item["problem_statement"],
+            "patch": item["patch"],
+            "test_patch": item.get("test_patch", ""),
+            "version": item.get("version", "unknown"),
+            "hints_text": item.get("hints_text", ""),
+            # SWE-bench Pro uses lowercase field names
+            "fail_to_pass": item.get("fail_to_pass", "[]"),
+            "pass_to_pass": item.get("pass_to_pass", "[]"),
         })
 
     print(f"Loaded {len(tasks)} tasks")
@@ -224,6 +268,8 @@ def load_tasks_for_dataset(
     """Load tasks for a built-in dataset."""
     if dataset == "swebench":
         return load_swebench_tasks()
+    elif dataset == "swebench_pro":
+        return load_swebench_pro_tasks()
     elif dataset == "terminalbench":
         return load_terminalbench_tasks(items_path, repo_path)
     else:

@@ -7,11 +7,13 @@ from typing import Dict, List
 
 from experiment_ab_shared.llm_judge.prompt_config import PromptConfig
 from experiment_ab_shared.llm_judge.prompts.swebench import SWEBENCH_CONFIG
+from experiment_ab_shared.llm_judge.prompts.swebench_pro import SWEBENCH_PRO_CONFIG
 from experiment_ab_shared.llm_judge.prompts.terminalbench import TERMINALBENCH_CONFIG
 
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench": SWEBENCH_CONFIG,
+    "swebench_pro": SWEBENCH_PRO_CONFIG,
     "terminalbench": TERMINALBENCH_CONFIG,
 }
 
@@ -65,5 +67,6 @@ __all__ = [
     "list_datasets",
     "register_prompt_config",
     "SWEBENCH_CONFIG",
+    "SWEBENCH_PRO_CONFIG",
     "TERMINALBENCH_CONFIG",
 ]

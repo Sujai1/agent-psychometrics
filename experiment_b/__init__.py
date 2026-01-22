@@ -23,6 +23,7 @@ See README.md for full documentation.
 """
 
 from experiment_b.swebench.config import SWEBenchConfig
+from experiment_b.swebench_pro.config import SWEBenchProConfig
 from experiment_b.terminalbench.config import TerminalBenchConfig
 from experiment_b.shared.config_base import DatasetConfig
 
@@ -30,6 +31,7 @@ from experiment_b.shared.config_base import DatasetConfig
 # Registry of available dataset configurations
 DATASET_CONFIGS = {
     "swebench": SWEBenchConfig,
+    "swebench_pro": SWEBenchProConfig,
     "terminalbench": TerminalBenchConfig,
 }
 
@@ -61,6 +63,7 @@ def list_datasets() -> list:
 __all__ = [
     "DatasetConfig",
     "SWEBenchConfig",
+    "SWEBenchProConfig",
     "TerminalBenchConfig",
     "get_dataset_config",
     "list_datasets",
