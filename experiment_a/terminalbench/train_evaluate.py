@@ -1,6 +1,10 @@
 """Main training and evaluation pipeline for Experiment A (TerminalBench).
 
 This is a thin wrapper around the shared pipeline in experiment_a.shared.pipeline.
+
+Supports two modes:
+- Binary (default): Uses collapsed binary (any success = 1)
+- Binomial (--binomial flag): Uses k/n successes per agent-task pair
 """
 
 from pathlib import Path
@@ -26,13 +30,35 @@ TERMINALBENCH_LLM_JUDGE_FEATURES = [
     "atypicality",
 ]
 
-# Experiment specification for TerminalBench
-SPEC = ExperimentSpec(
-    name="TerminalBench",
-    is_binomial=True,  # TerminalBench uses binomial (successes/trials) responses
-    irt_cache_dir=ROOT / "chris_output" / "experiment_a_terminalbench" / "irt_splits",
-    llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
-)
+
+def get_spec(use_binary: bool) -> ExperimentSpec:
+    """Get experiment specification based on binary/binomial mode.
+
+    Args:
+        use_binary: If True, use binary mode (any success = 1).
+                   If False, use binomial mode (k/n successes).
+
+    Returns:
+        ExperimentSpec configured for the appropriate mode.
+    """
+    if use_binary:
+        return ExperimentSpec(
+            name="TerminalBench (Binary)",
+            is_binomial=False,  # Use binary IRT
+            irt_cache_dir=ROOT / "chris_output" / "experiment_a_terminalbench_binary" / "irt_splits",
+            llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
+        )
+    else:
+        return ExperimentSpec(
+            name="TerminalBench",
+            is_binomial=True,  # Use binomial IRT
+            irt_cache_dir=ROOT / "chris_output" / "experiment_a_terminalbench" / "irt_splits",
+            llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
+        )
+
+
+# Default spec (binary mode)
+SPEC = get_spec(use_binary=True)
 
 
 def create_metadata_loader(config: TerminalBenchConfig):
@@ -53,9 +79,17 @@ def create_metadata_loader(config: TerminalBenchConfig):
 
 
 def main():
-    """Run Experiment A on TerminalBench."""
+    """Run Experiment A on TerminalBench.
+
+    Default is binary mode (collapsed any success = 1).
+    Use --binomial flag to use full k/n successes per agent-task pair.
+    """
     run_experiment_main(
-        TerminalBenchConfig, SPEC, ROOT, metadata_loader_factory=create_metadata_loader
+        TerminalBenchConfig,
+        SPEC,  # Default spec (binary) - will be overridden if spec_factory is used
+        ROOT,
+        metadata_loader_factory=create_metadata_loader,
+        spec_factory=get_spec,  # Pass the factory for dynamic spec selection
     )
 
 

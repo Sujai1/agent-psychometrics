@@ -1,18 +1,35 @@
 """Configuration for Experiment A on TerminalBench."""
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 
+# Binary mode paths (collapsed: any success out of 5 = 1)
+_BINARY_ABILITIES_PATH = Path("chris_output/terminal_bench_2.0/1d/abilities.csv")
+_BINARY_ITEMS_PATH = Path("chris_output/terminal_bench_2.0/1d/items.csv")
+_BINARY_RESPONSES_PATH = Path("data/terminal_bench/terminal_bench_2.0.jsonl")
+
+# Binomial mode paths (default: k successes out of n trials)
+_BINOMIAL_ABILITIES_PATH = Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/abilities.csv")
+_BINOMIAL_ITEMS_PATH = Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv")
+_BINOMIAL_RESPONSES_PATH = Path("data/terminal_bench/terminal_bench_2.0_raw.jsonl")
+
+
 @dataclass
 class TerminalBenchConfig:
-    """Configuration for Experiment A on TerminalBench with binomial data.
+    """Configuration for Experiment A on TerminalBench.
+
+    Supports two modes controlled by use_binary:
+    - use_binary=True (default): Collapsed binary data where any success = 1
+    - use_binary=False: Binomial data with k successes out of n trials
 
     Attributes:
+        use_binary: If True (default), use collapsed binary data (any success = 1).
+                   If False, use binomial data (k/n successes).
         abilities_path: Path to 1PL abilities.csv (agent theta values)
         items_path: Path to 1PL items.csv (ground truth difficulty b)
-        responses_path: Path to binomial response matrix JSONL
+        responses_path: Path to response matrix JSONL
         repo_path: Path to cloned terminal-bench repo (for task.yaml + solution.sh)
         output_dir: Directory for output files
         test_fraction: Fraction of tasks to hold out for testing
@@ -23,12 +40,18 @@ class TerminalBenchConfig:
         llm_judge_ridge_alpha: Ridge alpha for LLM judge predictor
     """
 
-    # Data paths (1PL binomial model outputs)
-    abilities_path: Path = Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/abilities.csv")
-    items_path: Path = Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv")
-    responses_path: Path = Path("data/terminal_bench/terminal_bench_2.0_raw.jsonl")
+    # Binary vs binomial mode
+    # Binary (default): Collapsed any success out of 5 = 1
+    # Binomial: Full k/n successes information
+    use_binary: bool = True
+
+    # Data paths - defaults are for binary mode (the default)
+    # __post_init__ switches to binomial paths when use_binary=False
+    abilities_path: Path = field(default_factory=lambda: _BINARY_ABILITIES_PATH)
+    items_path: Path = field(default_factory=lambda: _BINARY_ITEMS_PATH)
+    responses_path: Path = field(default_factory=lambda: _BINARY_RESPONSES_PATH)
     repo_path: Path = Path("terminal-bench")  # Cloned terminal-bench repo
-    output_dir: Path = Path("chris_output/experiment_a_terminalbench")
+    output_dir: Path = Path("chris_output/experiment_a_terminalbench_binary")
 
     # Train/test splitting
     test_fraction: float = 0.2
@@ -51,6 +74,25 @@ class TerminalBenchConfig:
 
     # Task filtering
     exclude_unsolved: bool = False  # Exclude tasks no agent solved
+
+    def __post_init__(self):
+        """Switch data paths based on use_binary mode.
+
+        Default paths are for binary mode. When use_binary=False,
+        switch them to the binomial data paths.
+        """
+        if not self.use_binary:
+            # Switch from binary (default) to binomial paths
+            # Only switch if paths are at default binary values (allows CLI overrides)
+            if self.abilities_path == _BINARY_ABILITIES_PATH:
+                self.abilities_path = _BINOMIAL_ABILITIES_PATH
+            if self.items_path == _BINARY_ITEMS_PATH:
+                self.items_path = _BINOMIAL_ITEMS_PATH
+            if self.responses_path == _BINARY_RESPONSES_PATH:
+                self.responses_path = _BINOMIAL_RESPONSES_PATH
+            # Also update output_dir to keep results separate
+            if self.output_dir == Path("chris_output/experiment_a_terminalbench_binary"):
+                self.output_dir = Path("chris_output/experiment_a_terminalbench")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""

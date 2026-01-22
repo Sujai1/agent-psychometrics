@@ -22,8 +22,11 @@ source .venv/bin/activate
 # Run SWE-bench experiment
 python -m experiment_a.swebench.train_evaluate
 
-# Run TerminalBench experiment
+# Run TerminalBench experiment (binary mode - default)
 python -m experiment_a.terminalbench.train_evaluate
+
+# Run TerminalBench experiment (binomial mode - k/n successes)
+python -m experiment_a.terminalbench.train_evaluate --binomial
 
 # Dry run to check config
 python -m experiment_a.swebench.train_evaluate --dry_run
@@ -47,17 +50,35 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 
 ### TerminalBench (5-Fold Cross-Validation)
 
-**Data**: 89 tasks, 83 agents (binomial responses)
+TerminalBench supports two data modes:
+- **Binary** (default): Collapses to any success = 1 (single observation per pair)
+- **Binomial** (`--binomial`): Models k successes out of 5 trials per agent-task pair
+
+#### Binary Mode (Default)
+
+**Data**: 89 tasks, 83 agents (any success = 1)
+
+| Method | Mean AUC | Std |
+|--------|----------|-----|
+| Oracle (true b) | 0.9295 | 0.0113 |
+| LLM Judge | 0.7860 | 0.0243 |
+| Embedding | 0.7787 | 0.0541 |
+| Constant (mean b) | 0.6902 | 0.0163 |
+| Agent-only | 0.6903 | 0.0166 |
+
+#### Binomial Mode (`--binomial`)
+
+**Data**: 89 tasks, 83 agents, 5 trials each
 
 | Method | Mean AUC | Std | Pass Rate MSE |
 |--------|----------|-----|---------------|
 | Oracle (true b) | 0.9037 | 0.0109 | 0.0540 |
-| Feature-IRT (Embedding) | 0.7899 | 0.0423 | 0.1139 |
-| Feature-IRT (LLM Judge) | 0.7892 | 0.0243 | 0.1134 |
 | LLM Judge | 0.7841 | 0.0278 | 0.1212 |
 | Embedding | 0.7829 | 0.0402 | 0.1240 |
 | Constant (mean b) | 0.7036 | 0.0123 | 0.1490 |
 | Agent-only | 0.7039 | 0.0125 | 0.1404 |
+
+**Summary**: Binary mode (default) shows higher oracle AUC and is consistent with SWE-bench's single-trial format. Binomial mode preserves more information about task difficulty gradations but gives similar predictor AUCs.
 
 ## Evaluation Protocol
 

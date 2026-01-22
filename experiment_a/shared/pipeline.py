@@ -424,6 +424,12 @@ def create_main_parser(experiment_name: str, default_output_dir: str) -> argpars
         action="store_true",
         help="Include Feature-IRT joint learning methods (slower, minimal improvement over Ridge)",
     )
+    parser.add_argument(
+        "--binomial",
+        action="store_true",
+        help="Use binomial data (k/n successes) instead of collapsed binary (any success = 1). "
+             "Only applies to TerminalBench experiments.",
+    )
     return parser
 
 
@@ -432,15 +438,19 @@ def run_experiment_main(
     spec: ExperimentSpec,
     root: Path,
     metadata_loader_factory: Optional[Callable[[Any], Callable[[List[str]], Dict[str, Any]]]] = None,
+    spec_factory: Optional[Callable[[bool], ExperimentSpec]] = None,
 ) -> None:
     """Shared main entry point for experiments.
 
     Args:
         config_class: The config class (ExperimentAConfig or TerminalBenchConfig)
-        spec: Experiment specification
+        spec: Experiment specification (used if spec_factory is None)
         root: Root directory for the project
         metadata_loader_factory: Optional factory that takes config and returns a metadata loader.
             This is used by TerminalBench to create a loader that uses config.repo_path.
+        spec_factory: Optional factory that takes use_binary flag and returns ExperimentSpec.
+            If provided, this is used instead of the static spec parameter. This allows
+            TerminalBench to dynamically choose between binomial and binary modes.
     """
     parser = create_main_parser(spec.name, str(config_class().output_dir))
     args = parser.parse_args()
@@ -451,6 +461,11 @@ def run_experiment_main(
         "output_dir": Path(args.output_dir),
         "exclude_unsolved": args.exclude_unsolved,
     }
+
+    # Handle --binomial flag for TerminalBench (default is binary)
+    if hasattr(args, "binomial") and args.binomial:
+        config_kwargs["use_binary"] = False
+
     # Only override paths if explicitly provided via CLI
     if args.embeddings_path is not None:
         config_kwargs["embeddings_path"] = Path(args.embeddings_path)
@@ -464,6 +479,12 @@ def run_experiment_main(
         config_kwargs["abilities_path"] = Path(args.abilities_path)
 
     config = config_class(**config_kwargs)
+
+    # Get the appropriate spec (dynamic if factory provided, static otherwise)
+    # Default is binary (use_binary=True), --binomial flag switches to binomial mode
+    if spec_factory is not None and hasattr(args, "binomial"):
+        use_binary = not args.binomial
+        spec = spec_factory(use_binary)
 
     if args.dry_run:
         print("DRY RUN - Configuration:")
