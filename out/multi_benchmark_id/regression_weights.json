@@ -8,7 +8,7 @@
   "deterministic": true,
   "device_map": "auto",
   "embedding_layer": -1,
-  "evaluate_in_distribution": true,
+  "eval_mode": "ID",
   "feature_dim": 5120,
   "id_normalization": "Verified/Pro: strip instance_ prefix; strip -v.* suffix. Terminal-Bench: identity.",
   "inner_splits": 5,
@@ -40,5 +40,5 @@
   "torch_dtype": "bfloat16",
   "trust_remote_code": true,
   "uses_scaler": true,
-  "weights_npz": "out/multi_benchmark_eval/regression_weights.npz"
+  "weights_npz": "out/multi_benchmark_id/regression_weights.npz"
 }

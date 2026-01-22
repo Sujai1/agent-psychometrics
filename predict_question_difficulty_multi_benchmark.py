@@ -23,9 +23,12 @@ The rest of the pipeline is identical:
   - Default: split items once into train vs zero-success, train IRT on train,
     fit a regressor from embeddings -> item difficulty, and **save learned weights**
     (no evaluation).
-  - Optional (`--evaluate_in_distribution`): K-fold CV over items. For each fold,
+  - Optional (`--eval_mode=ID`): K-fold CV over items. For each fold,
     train IRT on train-fold items only (no leakage), fit a regressor, predict held-out
     item difficulties, and evaluate held-out AUROC using the fold's IRT abilities.
+  - Optional (`--eval_mode=OOD`, default): do the default training-only flow, then
+    additionally evaluate ROC-AUC on a 4th benchmark using the learned shared IRT
+    (model+scaffold) abilities and the learned regressor weights.
 """
 
 from __future__ import annotations
@@ -60,6 +63,41 @@ def _iter_jsonl(path: str) -> Iterator[dict]:
                 yield json.loads(s)
             except Exception:
                 continue
+
+
+def iter_subject_responses_jsonl_generic(
+    path: str, *, normalize_item_ids: bool
+) -> Iterator[Tuple[str, Dict[str, int]]]:
+    """
+    Yield (subject_id, responses) from a response-matrix JSONL:
+      {"subject_id": "...", "responses": {"<item_id>": 0/1, ...}}
+
+    If normalize_item_ids=True, normalizes ids with `base.normalize_swebench_item_id`.
+    """
+    p = str(path or "").strip()
+    if not p:
+        return
+    if not os.path.exists(p):
+        raise FileNotFoundError(f"Agent results JSONL not found: {p}")
+    for obj in _iter_jsonl(p):
+        sid = str(obj.get("subject_id", "") or "").strip()
+        resp = obj.get("responses", {}) or {}
+        if not sid or not isinstance(resp, dict):
+            continue
+        out: Dict[str, int] = {}
+        for raw_id, v in resp.items():
+            tid_raw = str(raw_id or "").strip()
+            if not tid_raw:
+                continue
+            tid = base.normalize_swebench_item_id(tid_raw) if bool(normalize_item_ids) else tid_raw
+            if not tid:
+                continue
+            try:
+                out[tid] = int(v)
+            except Exception:
+                out[tid] = 1 if v else 0
+        if out:
+            yield sid, out
 
 
 def iter_subject_responses_jsonl_terminal(path: str) -> Iterator[Tuple[str, Dict[str, int]]]:
@@ -104,6 +142,181 @@ def load_all_responses_terminal(path: str) -> List[Tuple[str, Dict[str, int]]]:
         if resp:
             out.append((sid, resp))
     return out
+
+
+def _sigmoid(x: float) -> float:
+    # Stable enough for typical theta/z ranges in this repo.
+    return 1.0 / (1.0 + math.exp(-float(x)))
+
+
+def _is_swebench_pro_benchmark(*, dataset_name: str, dataset_path: str) -> bool:
+    """
+    Only SWE-bench Pro should be "treated as Pro" for subject_id parsing.
+
+    Heuristic is intentionally strict: it only returns True for obviously Pro identifiers.
+    """
+    s = " ".join([str(dataset_name or ""), str(dataset_path or "")]).lower()
+    return ("swe-bench_pro" in s) or ("swebench_pro" in s) or ("swe_bench_pro" in s)
+
+
+def evaluate_ood_auroc(
+    *,
+    ood_agent_results_jsonl: str,
+    ood_normalize_item_ids: bool,
+    ood_treat_as_pro: bool,
+    z_by_item: Dict[str, float],
+    theta_by_model: Dict[str, float],
+    theta_by_scaffold: Dict[str, float],
+) -> Tuple[float, dict]:
+    """
+    Evaluate ROC-AUC on an out-of-distribution response matrix using:
+      p(success) = sigmoid((theta_model + theta_scaffold) - z_item_pred)
+    """
+    filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
+
+    scores: List[float] = []
+    labels: List[int] = []
+    n_subjects_total = 0
+    n_subjects_used = 0
+    n_obs_total = 0
+    n_obs_scored = 0
+    n_obs_skipped_no_theta = 0
+    n_obs_skipped_no_item = 0
+
+    for sid, resp in iter_subject_responses_jsonl_generic(
+        str(ood_agent_results_jsonl), normalize_item_ids=bool(ood_normalize_item_ids)
+    ):
+        n_subjects_total += 1
+        m = filt._model_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
+        sc = filt._scaffold_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
+        if m is None or sc is None:
+            # Treat as "no theta" (unsplittable).
+            n_obs_skipped_no_theta += int(len(resp))
+            n_obs_total += int(len(resp))
+            continue
+        tm = theta_by_model.get(str(m), None)
+        ts = theta_by_scaffold.get(str(sc), None)
+        if tm is None or ts is None:
+            n_obs_skipped_no_theta += int(len(resp))
+            n_obs_total += int(len(resp))
+            continue
+        th = float(tm) + float(ts)
+        n_subjects_used += 1
+        for item_id, y_obs in resp.items():
+            n_obs_total += 1
+            z = z_by_item.get(str(item_id), None)
+            if z is None:
+                n_obs_skipped_no_item += 1
+                continue
+            scores.append(_sigmoid(th - float(z)))
+            labels.append(int(y_obs))
+            n_obs_scored += 1
+
+    auc = float(base._compute_binary_auroc(scores, labels))
+    meta = {
+        "ood_subjects_total": int(n_subjects_total),
+        "ood_subjects_used": int(n_subjects_used),
+        "ood_items_predicted": int(len(z_by_item)),
+        "ood_obs_total": int(n_obs_total),
+        "ood_obs_scored": int(n_obs_scored),
+        "ood_obs_skipped_no_theta": int(n_obs_skipped_no_theta),
+        "ood_obs_skipped_no_item": int(n_obs_skipped_no_item),
+    }
+    return auc, meta
+
+
+_OOD_PROMPT_TEMPLATE = """I’ve uploaded a python code repository in the directory workspace_dir_name. Consider the
+following test script showing an example usage of the repository:
+<test_script>
+{SPEC_TEST}
+</test_script>
+Can you help me implement the necessary changes to the repository so that the runtime of
+the <test_script> is optimized? Basic guidelines:
+1. Your task is to make changes to non-test files in the /workspace directory to improve the
+performance of the <test_script>.
+2. Make changes while ensuring the repository is functionally equivalent to the original.
+3. Do not overoptimize for just the specific inputs in <test_script>. Make general perfor-
+mance improvements for the usage scenario shown.
+4. You may need to rebuild the repo for your changes to take effect before testing. Some
+rebuilds may take time to run, so be patient with running them.
+Follow these steps to improve performance:
+1. As a first step, explore the repository structure.
+2. Create a script in the /workspace directory (e.g., /workspace/test_opt.py) to reproduce and
+time the example, then execute it with python /workspace/<filename.py>.
+3. Edit the source code of the repository to improve performance.
+4. Rebuild and rerun your script to confirm that performance has improved.
+"""
+
+
+def _wrap_ood_problem_statement(prob_script: str) -> str:
+    return _OOD_PROMPT_TEMPLATE.format(SPEC_TEST=str(prob_script or "").strip())
+
+
+def load_ood_items_by_ids(
+    *,
+    dataset_name: str,
+    split: str,
+    dataset_path: str,
+    item_ids: Sequence[str],
+    normalize_item_ids: bool,
+) -> Tuple[List[base.ItemRecord], List[str]]:
+    """
+    Load OOD tasks where:
+      - problem statement is in column `prob_script`
+      - gold solution is in column `gt_diff`
+
+    The problem statement is wrapped into the fixed "spec test" prompt template.
+    """
+    want = [base.normalize_swebench_item_id(x) for x in list(item_ids)] if bool(normalize_item_ids) else [str(x) for x in list(item_ids)]
+    want = [x for x in want if str(x).strip()]
+    want_set = set(want)
+    if not want:
+        return [], []
+
+    dataset_name = str(dataset_name or "").strip()
+    dataset_path = str(dataset_path or "").strip()
+    if bool(dataset_name) and bool(dataset_path):
+        raise ValueError("Provide only one of dataset_name or dataset_path (OOD mode).")
+    if not dataset_name and not dataset_path:
+        raise ValueError("No dataset provided for OOD (set dataset_name or dataset_path).")
+
+    if dataset_path:
+        ds = base.load_dataset("json", data_files=str(dataset_path), split="train")
+    else:
+        ds = base.load_dataset(str(dataset_name), split=str(split))
+
+    n_total = int(len(ds))
+    if n_total == 0:
+        raise RuntimeError(f"Loaded empty OOD dataset: {dataset_name or dataset_path} split={split}")
+
+    id_keys = ["instance_id", "task_id", "id"]
+    found: Dict[str, base.ItemRecord] = {}
+    for i in range(n_total):
+        row = ds[int(i)]
+        raw_id = ""
+        for k in id_keys:
+            v = row.get(k, None)
+            if v is None:
+                continue
+            s = str(v).strip()
+            if s:
+                raw_id = s
+                break
+        if not raw_id:
+            continue
+        item_id = base.normalize_swebench_item_id(raw_id) if bool(normalize_item_ids) else str(raw_id).strip()
+        if not item_id or item_id not in want_set or item_id in found:
+            continue
+
+        qs = _wrap_ood_problem_statement(str(row.get("prob_script", "") or ""))
+        sol = str(row.get("gt_diff", "") or "")
+        found[item_id] = base.ItemRecord(item_id=item_id, question_statement=qs, solution=sol)
+        if len(found) >= len(want_set):
+            break
+
+    items = [found[tid] for tid in want if tid in found]
+    missing = [tid for tid in want if tid not in found]
+    return items, missing
 
 
 def _import_swebench_irt_module(module_name: str):
@@ -436,22 +649,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p = argparse.ArgumentParser()
 
     # -----------------------------
-    # Multi-benchmark item sources
+    # Global settings
     # -----------------------------
-    p.add_argument("--verified_dataset_name", type=str, default="princeton-nlp/SWE-bench_Verified")
-    p.add_argument("--verified_dataset_path", type=str, default="")
-    p.add_argument("--verified_split", type=str, default="test")
-
-    p.add_argument("--pro_dataset_name", type=str, default="ScaleAI/SWE-bench_Pro")
-    p.add_argument("--pro_dataset_path", type=str, default="")
-    p.add_argument("--pro_split", type=str, default="test")
-
-    p.add_argument(
-        "--terminal_bench_tasks_jsonl",
-        type=str,
-        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/terminal_bench_tasks.jsonl",
-        help="Terminal-Bench tasks JSONL with fields: task_id, problem_statement, patch.",
-    )
+    p.add_argument("--out_dir", type=str, default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/multi_benchmark_ood")
+    p.add_argument("--embeddings_cache", type=str, default="", help="Optional path to existing embeddings cache (.npz).")
+    p.add_argument("--overwrite", action="store_true")
     p.add_argument(
         "--min_models_per_scaffold",
         type=int,
@@ -461,11 +663,38 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "before embeddings + ridge + IRT. Set to 0 to disable."
         ),
     )
-
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument(
+        "--include_zero_success",
+        action="store_true",
+        help="Include items with 0 successes in CV/IRT (not recommended; can destabilize IRT).",
+    )
 
     # -----------------------------
-    # Embedding model settings (identical)
+    # Multi-benchmark item sources
+    # -----------------------------
+    p.add_argument("--verified_dataset_name", type=str, default="princeton-nlp/SWE-bench_Verified")
+    p.add_argument("--verified_dataset_path", type=str, default="")
+    p.add_argument("--verified_split", type=str, default="test")
+    p.add_argument("--pro_dataset_name", type=str, default="ScaleAI/SWE-bench_Pro")
+    p.add_argument("--pro_dataset_path", type=str, default="")
+    p.add_argument("--pro_split", type=str, default="test")
+    p.add_argument(
+        "--terminal_bench_tasks_jsonl",
+        type=str,
+        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/terminal_bench_tasks.jsonl",
+        help="Terminal-Bench tasks JSONL with fields: task_id, problem_statement, patch.",
+    )
+
+    # -----------------------------
+    # IRT model settings
+    # -----------------------------
+    p.add_argument("--irt_epochs", type=int, default=5000)
+    p.add_argument("--irt_device", type=str, default="cuda", help="Device for IRT training (cuda or cpu).")
+    p.add_argument("--irt_lr", type=float, default=0.01, help="Learning rate for Pyro SVI (shared model+scaffold IRT).")
+
+    # -----------------------------
+    # Embedding model settings
     # -----------------------------
     p.add_argument("--backbone", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B")
     p.add_argument("--trust_remote_code", action="store_true")
@@ -482,12 +711,41 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     p.add_argument("--instruction", type=str, default=base.DIFFICULTY_INSTRUCTION, help="Instruction text appended last in the embedding input.")
 
-    p.add_argument("--out_dir", type=str, default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/multi_benchmark")
-    p.add_argument("--embeddings_cache", type=str, default="", help="Optional path to existing embeddings cache (.npz).")
-    p.add_argument("--overwrite", action="store_true")
+    # -----------------------------
+    # Regressor settings
+    # -----------------------------
+    p.add_argument(
+        "--regressor",
+        type=str,
+        default="ridge_cv",
+        choices=["linear", "ridge", "ridge_cv"],
+        help="Regression model (same options as single-benchmark script).",
+    )
+    p.add_argument("--ridge_alpha", type=float, default=10000.0)
+    p.add_argument("--ridge_alphas", type=str, default="1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
+    p.add_argument("--cv_folds", type=int, default=5)
+    p.add_argument(
+        "--inner_splits",
+        type=int,
+        default=5,
+        help="Inner CV splits for RidgeCV (used when --regressor=ridge_cv). Will be capped by train size; must be >=2.",
+    )
+
+    p.add_argument(
+        "--eval_mode",
+        type=str,
+        default="OOD",
+        choices=["ID", "OOD"],
+        help=(
+            "Evaluation mode. ID runs the existing in-distribution K-fold CV + AUROC pipeline (previously "
+            "--evaluate_in_distribution). OOD (default) runs the default training-only flow, then additionally "
+            "evaluates AUROC on a 4th benchmark specified by --ood_* flags using the learned shared IRT abilities "
+            "and regressor weights."
+        ),
+    )
 
     # -----------------------------
-    # Multi-benchmark response matrices (for IRT + evaluation)
+    # ID eval
     # -----------------------------
     p.add_argument(
         "--verified_agent_results",
@@ -508,40 +766,43 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Terminal-Bench response-matrix JSONL: {'subject_id': ..., 'responses': {'task_id': 0/1, ...}}",
     )
 
+    # -----------------------------
+    # OOD eval
+    # -----------------------------
     p.add_argument(
-        "--include_zero_success",
-        action="store_true",
-        help="Include items with 0 successes in CV/IRT (not recommended; can destabilize IRT).",
-    )
-    p.add_argument(
-        "--evaluate_in_distribution",
-        action="store_true",
+        "--ood_dataset_name",
+        type=str,
+        default="gso-bench/gso",
         help=(
-            "If set, run the existing in-distribution K-fold CV + AUROC evaluation pipeline. "
-            "If not set (default), do a single split into train vs zero-success, train IRT + regressor on train, "
-            "and only save the learned regression weights (no evaluation / predictions)."
+            "HF dataset repo for the 4th (OOD) benchmark tasks. Ignored if --ood_dataset_path is set. "
+            "Used only when --eval_mode=OOD."
         ),
     )
-    p.add_argument("--irt_epochs", type=int, default=5000)
-    p.add_argument("--irt_device", type=str, default="cuda", help="Device for IRT training (cuda or cpu).")
-    p.add_argument("--irt_lr", type=float, default=0.01, help="Learning rate for Pyro SVI (shared model+scaffold IRT).")
     p.add_argument(
-        "--regressor",
+        "--ood_dataset_path",
         type=str,
-        default="ridge_cv",
-        choices=["linear", "ridge", "ridge_cv"],
-        help="Regression model (same options as single-benchmark script).",
+        default="",
+        help=(
+            "Optional local JSON/JSONL dataset path for the 4th (OOD) benchmark tasks. If set, loads via "
+            "datasets('json', data_files=..., split='train'). Used only when --eval_mode=OOD."
+        ),
     )
-    p.add_argument("--ridge_alpha", type=float, default=10000.0)
-    p.add_argument("--ridge_alphas", type=str, default="1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
-    p.add_argument("--cv_folds", type=int, default=5)
+    p.add_argument("--ood_split", type=str, default="test", help="Split name for --ood_dataset_name (OOD mode only).")
     p.add_argument(
-        "--inner_splits",
-        type=int,
-        default=5,
-        help="Inner CV splits for RidgeCV (used when --regressor=ridge_cv). Will be capped by train size; must be >=2.",
+        "--ood_agent_results",
+        type=str,
+        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/gso.jsonl",
+        help="OOD response-matrix JSONL: {'subject_id': ..., 'responses': {'item_id': 0/1, ...}} (OOD mode only).",
     )
-
+    p.add_argument(
+        "--ood_no_normalize_item_ids",
+        dest="ood_normalize_item_ids",
+        action="store_false",
+        default=True,
+        help="Disable normalization of OOD item ids (default is to normalize). Useful for Terminal-Bench-style ids.",
+    )
+    
+    
     args = p.parse_args(argv)
     base.ensure_dir(args.out_dir)
     base.seed_everything(int(args.seed), deterministic=True)
@@ -822,7 +1083,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         raise AssertionError(f"Unhandled regressor: {regressor_name}")
 
-    if bool(args.evaluate_in_distribution):
+    eval_mode = str(args.eval_mode or "OOD").strip().upper()
+    if eval_mode not in {"ID", "OOD"}:
+        raise ValueError(f"Unknown --eval_mode: {args.eval_mode!r}")
+
+    if eval_mode == "ID":
         # -----------------------------
         # K-fold CV over items (existing in-distribution evaluation)
         # -----------------------------
@@ -943,7 +1208,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 ridge_alpha = None
 
         metrics = {
-            "evaluate_in_distribution": True,
+            "eval_mode": "ID",
             "n_items_total": int(len(task_ids)),
             "n_items_with_responses": int(len(overlap_ids)),
             "n_items_eligible_cv_irt": int(len(eligible)),
@@ -995,7 +1260,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         }
 
         weights_meta = {
-            "evaluate_in_distribution": True,
+            "eval_mode": "ID",
             "script": os.path.abspath(__file__),
             "backbone": str(args.backbone),
             "trust_remote_code": bool(args.trust_remote_code),
@@ -1086,7 +1351,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # -----------------------------
     if bool(args.include_zero_success):
         print(
-            "NOTE: --include_zero_success is ignored when --evaluate_in_distribution is not set. "
+            "NOTE: --include_zero_success is ignored when --eval_mode is not ID. "
             "Training-only mode always splits into train vs zero-success and trains only on the train split."
         )
 
@@ -1098,7 +1363,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     base.set_torch_determinism(False)
     base.seed_everything(int(args.seed), deterministic=False)
     obs_train = build_multibench_obs_for_items(obs_full=obs_full, keep_item_ids=train_items)
-    _, _, diff_by_item = train_irt_model_scaffold_1pl(
+    theta_by_model, theta_by_scaffold, diff_by_item = train_irt_model_scaffold_1pl(
         obs_train=obs_train,
         epochs=int(args.irt_epochs),
         device=str(args.irt_device),
@@ -1130,7 +1395,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ridge_alpha = None
 
     weights_meta = {
-        "evaluate_in_distribution": False,
+        "eval_mode": str(eval_mode),
         "script": os.path.abspath(__file__),
         "backbone": str(args.backbone),
         "trust_remote_code": bool(args.trust_remote_code),
@@ -1171,6 +1436,93 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         feature_dim=int(Xy.shape[1]),
         metadata=weights_meta,
     )
+
+    # -----------------------------
+    # OOD evaluation: 4th benchmark AUROC using learned thetas + regressor
+    # -----------------------------
+    if eval_mode == "OOD":
+        ood_agent_results = str(args.ood_agent_results or "").strip()
+        if not ood_agent_results:
+            raise ValueError("--ood_agent_results is empty (required for --eval_mode=OOD).")
+        if not os.path.exists(ood_agent_results):
+            raise FileNotFoundError(f"OOD agent results JSONL not found: {ood_agent_results}")
+
+        # Collect OOD item ids from the response matrix (so we embed only what's needed).
+        ood_item_ids: List[str] = []
+        ood_item_set: Set[str] = set()
+        for _, resp in iter_subject_responses_jsonl_generic(
+            ood_agent_results, normalize_item_ids=bool(args.ood_normalize_item_ids)
+        ):
+            for tid in resp.keys():
+                if tid not in ood_item_set:
+                    ood_item_set.add(tid)
+                    ood_item_ids.append(tid)
+        if not ood_item_ids:
+            raise RuntimeError(f"OOD agent results had 0 items after parsing: {ood_agent_results}")
+
+        # Load OOD tasks (statement+solution) for those ids.
+        ood_dataset_name = str(args.ood_dataset_name or "").strip()
+        ood_dataset_path = str(args.ood_dataset_path or "").strip()
+        if not ood_dataset_name and not ood_dataset_path:
+            raise ValueError("OOD mode requires --ood_dataset_name or --ood_dataset_path to load the 4th benchmark tasks.")
+        if ood_dataset_name and ood_dataset_path:
+            raise ValueError("Provide only one of --ood_dataset_name or --ood_dataset_path (OOD mode).")
+        ood_treat_as_pro = _is_swebench_pro_benchmark(dataset_name=ood_dataset_name, dataset_path=ood_dataset_path)
+
+        ood_items, ood_missing = load_ood_items_by_ids(
+            dataset_name=ood_dataset_name,
+            split=str(args.ood_split),
+            dataset_path=ood_dataset_path,
+            item_ids=ood_item_ids,
+            normalize_item_ids=bool(args.ood_normalize_item_ids),
+        )
+        if ood_missing:
+            print(f"WARNING: OOD benchmark: {len(ood_missing)}/{len(ood_item_ids)} item_ids were not found in the dataset. Example: {ood_missing[:10]}")
+        if not ood_items:
+            raise RuntimeError("OOD benchmark: loaded 0 items to embed; cannot evaluate AUROC.")
+
+        # Embed OOD items using the same backbone/settings.
+        ood_ids_sorted, ood_emb_by_id, _, _ = base.embed_items(
+            items=list(ood_items),
+            backbone=str(args.backbone),
+            trust_remote_code=bool(args.trust_remote_code),
+            max_length=int(args.max_length),
+            batch_size=int(args.batch_size),
+            device_map=str(args.device_map),
+            torch_dtype=str(args.torch_dtype),
+            attn_implementation=str(args.attn_implementation),
+            instruction=str(args.instruction),
+            embedding_layer=int(args.embedding_layer),
+        )
+        if not ood_ids_sorted:
+            raise RuntimeError("OOD benchmark: embeddings produced 0 ids (unexpected).")
+
+        X_ood = base.np.stack([ood_emb_by_id[iid] for iid in ood_ids_sorted], axis=0).astype(base.np.float32)
+        z_pred = model.predict(X_ood).astype(base.np.float64)
+        z_by_item = {iid: float(z) for iid, z in zip(ood_ids_sorted, z_pred.tolist())}
+
+        ood_auc, ood_meta = evaluate_ood_auroc(
+            ood_agent_results_jsonl=ood_agent_results,
+            ood_normalize_item_ids=bool(args.ood_normalize_item_ids),
+            ood_treat_as_pro=bool(ood_treat_as_pro),
+            z_by_item=z_by_item,
+            theta_by_model=theta_by_model,
+            theta_by_scaffold=theta_by_scaffold,
+        )
+        print(f"OOD ROC-AUC (4th benchmark): {ood_auc}  (agent_results={ood_agent_results})")
+        base.save_json(
+            os.path.join(str(args.out_dir), "metrics_ood.json"),
+            {
+                "eval_mode": "OOD",
+                "ood_auc": float(ood_auc),
+                "ood_agent_results": str(ood_agent_results),
+                "ood_dataset_name": (ood_dataset_name or None),
+                "ood_dataset_path": (ood_dataset_path or None),
+                "ood_split": str(args.ood_split),
+                "ood_normalize_item_ids": bool(args.ood_normalize_item_ids),
+                **ood_meta,
+            },
+        )
     return 0
 
 
