@@ -182,12 +182,13 @@ def _canonical_model(m: str) -> str:
         return low.replace("gpt-5", "GPT-5")
 
     # Keep GPT-5, GPT-5.1, GPT-5.2 distinct.
-    if re.match(r"gpt-?5[-_]?1(?:$|[-_])", low):
+    # Accept ".", "-" or "_" as the version separator (e.g. "gpt-5.1", "gpt-5_1", "gpt-5-1").
+    if re.match(r"gpt-?5(?:[-_.]?1)(?:$|[-_])", low):
         gpt5_base = "GPT-5.1"
-    elif re.match(r"gpt-?5[-_]?2(?:$|[-_])", low):
+    elif re.match(r"gpt-?5(?:[-_.]?2)(?:$|[-_])", low):
         gpt5_base = "GPT-5.2"
     # Treat any other GPT-5-* prefix as base GPT-5 (e.g. "gpt-5-codex").
-    elif re.match(r"gpt-?5(?:$|[-_])", low) or low == "gpt5":
+    elif re.match(r"gpt-?5(?:$|[-_\\.])", low) or low == "gpt5":
         gpt5_base = "GPT-5"
     else:
         gpt5_base = None
@@ -217,11 +218,28 @@ def _canonical_model(m: str) -> str:
         return "claude-sonnet-4-5"
     if re.fullmatch(r"claude-haiku-4-5", low):
         return "Claude 4.5 Haiku"
-    # Opus variants seen in Terminal-Bench exports
-    if re.fullmatch(r"claude-opus-4-5", low):
-        return "claude-4-opus"
+    # Opus variants seen in Terminal-Bench / OOD exports.
+    # IMPORTANT: keep 4 vs 4.5 distinct.
+    if re.fullmatch(r"claude-opus-4", low):
+        return "Claude 4 Opus"
+    if re.fullmatch(r"claude-opus-4-5(?:[-_]?\\d{8})?", low) or re.fullmatch(r"claude-opus-4\.5", low):
+        return "Claude 4.5 Opus"
     if re.fullmatch(r"claude-opus-4-1", low) or re.fullmatch(r"claude-opus-4\.1", low):
         return "Claude Opus 4.1"
+
+    # Claude 4 Sonnet naming variants seen in OOD exports (e.g. GSO)
+    if re.fullmatch(r"claude-sonnet-4", low):
+        return "Claude 4 Sonnet"
+
+    # Claude Sonnet 4.5 dot variant (e.g. "claude-sonnet-4.5")
+    if re.fullmatch(r"claude-sonnet-4\.5", low):
+        return "claude-sonnet-4-5"
+
+    # Gemini 3 naming variants in some OOD exports
+    if low == "gemini-3-flash":
+        return "gemini-3-flash-preview"
+    if low == "gemini-3-pro":
+        return "gemini-3-pro-preview"
 
     # Gemini 2.5 Pro naming in Terminal-Bench exports
     if re.fullmatch(r"gemini-2(?:-|\.|\s)?5-pro", low) or re.fullmatch(r"gemini-2-5-pro", low):
@@ -234,6 +252,10 @@ def _canonical_model(m: str) -> str:
         return "Qwen3-Coder-480B-A35B-Instruct"
     if re.fullmatch(r"qwen3-coder-30b-a3b-instruct(?:-fp8)?", low):
         return "Qwen3-Coder-30B-A3B-Instruct"
+    # Some OOD exports use a coarse family token ("qwen3-coder") without size/suffix.
+    # For our purposes, merge it into the strongest/most-common Terminal-Bench variant.
+    if low == "qwen3-coder":
+        return "Qwen3-Coder-480B-A35B-Instruct-FP8"
 
     # GLM fireworks naming (e.g. "glm-4p6" -> glm4-6)
     # Merge GLM-4.5 variants (human label vs compact token)
