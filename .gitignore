@@ -185,3 +185,6 @@ chris_output/feature_irt_grid_search.png
 # Generated figures (regenerable, but keep .py scripts)
 chris_output/figures/*.png
 chris_output/figures/*.pdf
+
+# Binomial IRT outputs for TerminalBench (regenerable)
+chris_output/terminal_bench_2.0_binomial/
