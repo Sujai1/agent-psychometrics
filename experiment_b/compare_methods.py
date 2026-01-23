@@ -100,6 +100,12 @@ def parse_args() -> argparse.Namespace:
         help="Path to LLM judge features CSV (overrides dataset default)",
     )
     parser.add_argument(
+        "--trajectory_features_path",
+        type=Path,
+        default=None,
+        help="Path to trajectory features CSV (overrides dataset default)",
+    )
+    parser.add_argument(
         "--sad_irt_beta_dir",
         type=Path,
         default=Path("chris_output/sad_irt_beta_values"),
@@ -227,6 +233,7 @@ def main():
         config,
         embeddings_path_override=args.embeddings_path,
         llm_judge_path_override=args.llm_judge_path,
+        trajectory_features_path_override=args.trajectory_features_path,
     )
     raw_predictions.update(
         collect_ridge_predictions(

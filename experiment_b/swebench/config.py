@@ -65,6 +65,11 @@ class SWEBenchConfig(DatasetConfig):
             "chris_output/experiment_a/llm_judge_features/llm_judge_features.csv"
         )
     )
+    trajectory_features_path: Optional[Path] = field(
+        default_factory=lambda: Path(
+            "chris_output/trajectory_features/aggregated_features.csv"
+        )
+    )
 
     # Frontier split settings
     cutoff_date: str = "20250501"  # After all feature model releases (Opus 4.5: 2025-11-01)
@@ -110,3 +115,13 @@ class SWEBenchConfig(DatasetConfig):
             "logical_reasoning_required",
             "atypicality",
         ]
+
+    @property
+    def trajectory_feature_cols(self) -> Optional[List[str]]:
+        """Trajectory feature columns.
+
+        Returns None to auto-detect all numeric columns from the CSV.
+        This includes mean, std, and ability_weighted aggregations for each
+        of the 9 trajectory features.
+        """
+        return None  # Auto-detect all numeric columns

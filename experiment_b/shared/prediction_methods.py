@@ -582,6 +582,7 @@ def build_feature_sources(
     config: DatasetConfig,
     embeddings_path_override: Optional[Path] = None,
     llm_judge_path_override: Optional[Path] = None,
+    trajectory_features_path_override: Optional[Path] = None,
 ) -> List[Tuple[str, TaskFeatureSource]]:
     """Build list of available feature sources.
 
@@ -589,6 +590,7 @@ def build_feature_sources(
         config: Dataset configuration
         embeddings_path_override: Optional path to override config embeddings
         llm_judge_path_override: Optional path to override config LLM judge features
+        trajectory_features_path_override: Optional path to override config trajectory features
 
     Returns:
         List of (source_name, feature_source) tuples
@@ -596,10 +598,18 @@ def build_feature_sources(
     embeddings_path = embeddings_path_override or config.embeddings_path
     llm_judge_path = llm_judge_path_override or config.llm_judge_path
 
+    # Trajectory features are only available for SWE-bench Verified
+    trajectory_features_path = trajectory_features_path_override or getattr(
+        config, "trajectory_features_path", None
+    )
+    trajectory_feature_cols = getattr(config, "trajectory_feature_cols", None)
+
     return _build_feature_sources(
         embeddings_path=embeddings_path,
         llm_judge_path=llm_judge_path,
         llm_judge_feature_cols=config.llm_judge_feature_cols,
+        trajectory_features_path=trajectory_features_path,
+        trajectory_feature_cols=trajectory_feature_cols,
         verbose=True,
     )
 

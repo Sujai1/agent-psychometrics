@@ -252,6 +252,7 @@ class GroupedRidgePredictor:
     SOURCE_ALPHA_GRIDS = {
         "Embedding": [1000.0, 3000.0, 10000.0, 30000.0, 100000.0],  # High regularization
         "LLM Judge": [1.0, 10.0, 30.0, 100.0, 300.0],  # Lower regularization
+        "Trajectory": [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0],  # Wide range (~33 features)
     }
 
     def __init__(
