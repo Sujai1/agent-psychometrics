@@ -58,13 +58,14 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 
 | Method | Mean AUC | Std |
 |--------|----------|-----|
-| Oracle (true b) | 0.9180 | 0.0160 |
-| Embedding | 0.7364 | 0.0166 |
-| LLM Judge | 0.7310 | 0.0103 |
-| Agent-only | 0.6568 | 0.0127 |
-| Constant (mean b) | 0.6563 | 0.0123 |
+| Oracle (true b) | 0.9183 | 0.0074 |
+| Grouped Ridge (Embedding + LLM Judge) | 0.7505 | 0.0244 |
+| Embedding | 0.7366 | 0.0281 |
+| LLM Judge | 0.7291 | 0.0231 |
+| Agent-only | 0.6568 | 0.0073 |
+| Constant (mean b) | 0.6567 | 0.0072 |
 
-**Note**: SWE-bench Pro shows lower predictor AUCs (~0.73) compared to SWE-bench Verified (~0.83). This may be due to having fewer agents (14 vs 131) for IRT training, or inherently harder-to-predict task difficulty in the Pro dataset.
+**Note**: SWE-bench Pro shows lower predictor AUCs (~0.73-0.75) compared to SWE-bench Verified (~0.83-0.84). This may be due to having fewer agents (14 vs 131) for IRT training, or inherently harder-to-predict task difficulty in the Pro dataset.
 
 ### TerminalBench (5-Fold Cross-Validation)
 
