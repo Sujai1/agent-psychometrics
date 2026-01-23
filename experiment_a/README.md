@@ -19,8 +19,11 @@ Then measure AUC by comparing these predicted probabilities to actual binary out
 ```bash
 source .venv/bin/activate
 
-# Run SWE-bench experiment
+# Run SWE-bench Verified experiment
 python -m experiment_a.swebench.train_evaluate
+
+# Run SWE-bench Pro experiment
+python -m experiment_a.swebench_pro.train_evaluate
 
 # Run TerminalBench experiment (binary mode - default)
 python -m experiment_a.terminalbench.train_evaluate
@@ -32,21 +35,33 @@ python -m experiment_a.terminalbench.train_evaluate --binomial
 python -m experiment_a.swebench.train_evaluate --dry_run
 ```
 
-## Results (2026-01-21)
+## Results (2026-01-22)
 
 ### SWE-bench Verified (5-Fold Cross-Validation)
 
-**Data**: 500 tasks, 130 agents
+**Data**: 500 tasks, 131 agents
 
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.9441 | 0.0045 |
-| Feature-IRT (Embedding) | 0.8272 | 0.0091 |
 | Embedding | 0.8269 | 0.0070 |
-| LLM Judge | 0.8227 | 0.0118 |
-| Feature-IRT (LLM Judge) | 0.8224 | 0.0124 |
+| LLM Judge | 0.8230 | 0.0127 |
 | Constant (mean b) | 0.7149 | 0.0108 |
 | Agent-only | 0.7150 | 0.0109 |
+
+### SWE-bench Pro (5-Fold Cross-Validation)
+
+**Data**: 730 tasks, 14 agents
+
+| Method | Mean AUC | Std |
+|--------|----------|-----|
+| Oracle (true b) | 0.9180 | 0.0160 |
+| Embedding | 0.7364 | 0.0166 |
+| LLM Judge | 0.7310 | 0.0103 |
+| Agent-only | 0.6568 | 0.0127 |
+| Constant (mean b) | 0.6563 | 0.0123 |
+
+**Note**: SWE-bench Pro shows lower predictor AUCs (~0.73) compared to SWE-bench Verified (~0.83). This may be due to having fewer agents (14 vs 131) for IRT training, or inherently harder-to-predict task difficulty in the Pro dataset.
 
 ### TerminalBench (5-Fold Cross-Validation)
 
@@ -56,15 +71,15 @@ TerminalBench supports two data modes:
 
 #### Binary Mode (Default)
 
-**Data**: 89 tasks, 83 agents (any success = 1)
+**Data**: 88 tasks, 83 agents (any success = 1)
 
 | Method | Mean AUC | Std |
 |--------|----------|-----|
-| Oracle (true b) | 0.9295 | 0.0113 |
-| LLM Judge | 0.7860 | 0.0243 |
-| Embedding | 0.7787 | 0.0541 |
-| Constant (mean b) | 0.6902 | 0.0163 |
-| Agent-only | 0.6903 | 0.0166 |
+| Oracle (true b) | 0.9319 | 0.0104 |
+| Embedding | 0.7779 | 0.0505 |
+| LLM Judge | 0.7734 | 0.0311 |
+| Constant (mean b) | 0.6904 | 0.0163 |
+| Agent-only | 0.6904 | 0.0167 |
 
 #### Binomial Mode (`--binomial`)
 
@@ -130,7 +145,7 @@ class CVPredictor(Protocol):
 | `cross_validation.py` | `CVPredictor` protocol, `run_cv()`, `k_fold_split_tasks()` |
 | `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `AgentOnlyPredictor`, `DifficultyPredictorAdapter`, `FeatureIRTCVPredictor` |
 
-### SWE-bench Specific (`experiment_a/swebench/`)
+### SWE-bench Verified (`experiment_a/swebench/`)
 
 | File | Purpose |
 |------|---------|
@@ -138,6 +153,13 @@ class CVPredictor(Protocol):
 | `config.py` | `ExperimentAConfig` with default paths |
 | `generate_embeddings.py` | Generate task embeddings |
 | `compute_llm_judge_features.py` | Extract LLM semantic features |
+
+### SWE-bench Pro (`experiment_a/swebench_pro/`)
+
+| File | Purpose |
+|------|---------|
+| `train_evaluate.py` | Main entry point |
+| `config.py` | `SWEBenchProConfig` with SWE-bench Pro paths |
 
 ### TerminalBench Specific (`experiment_a/terminalbench/`)
 
@@ -185,7 +207,8 @@ Key differences from Ridge:
 ### 1. Embeddings (DeepSeek-R1-Distill-Qwen-32B)
 
 Pre-computed embeddings are configured by default:
-- SWE-bench: `chris_output/experiment_a/embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__merged.npz`
+- SWE-bench Verified: `chris_output/experiment_a/embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__merged.npz`
+- SWE-bench Pro: `out/swebench_pro/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__...npz`
 - TerminalBench: `chris_output/experiment_a_terminalbench/embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__maxlen8192.npz`
 
 To generate new embeddings:
@@ -197,12 +220,17 @@ python -m experiment_a.generate_embeddings --backbone "deepseek-ai/DeepSeek-R1-D
 
 Semantic features extracted via LLM structured output:
 
-**SWE-bench (9 features)**:
+**SWE-bench Verified (10 features)**:
 - fix_in_description, problem_clarity, error_message_provided, reproduction_steps
-- fix_locality, domain_knowledge_required, fix_complexity, logical_reasoning_required, atypicality
+- fix_locality, domain_knowledge_required, fix_complexity, logical_reasoning_required, atypicality, integration_complexity
 
-**TerminalBench (4 pre-selected features)**:
-- task_clarity, domain_knowledge_required, task_complexity, atypicality
+**SWE-bench Pro (8 features, auto-detected from v5 CSV)**:
+- LLM features: fix_complexity, verification_difficulty, standard_pattern_available, integration_complexity
+- Deterministic features: num_files_modified, num_hunks, num_lines_changed, log_lines_changed
+
+**TerminalBench (9 features, auto-detected)**:
+- solution_in_instruction, task_clarity, solution_size, domain_knowledge_required
+- task_complexity, logical_reasoning_required, atypicality, tooling_complexity, log_lines
 
 To extract features:
 ```bash
@@ -225,7 +253,7 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 
 ## Data Paths
 
-### SWE-bench
+### SWE-bench Verified
 
 | File | Purpose |
 |------|---------|
@@ -233,6 +261,16 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 | `clean_data/swebench_verified_20251120_full/1d_1pl/items.csv` | Oracle IRT difficulties |
 | `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl` | Response matrix |
 | `chris_output/experiment_a/irt_splits/` | Fold-specific IRT models (cached) |
+
+### SWE-bench Pro
+
+| File | Purpose |
+|------|---------|
+| `chris_output/swebench_pro_irt/1d/abilities.csv` | Oracle IRT abilities |
+| `chris_output/swebench_pro_irt/1d/items.csv` | Oracle IRT difficulties |
+| `out/chris_irt/swebench_pro.jsonl` | Response matrix |
+| `chris_output/experiment_a_swebench_pro/irt_splits/` | Fold-specific IRT models (cached) |
+| `chris_output/experiment_a_swebench_pro/llm_judge_features_v5/` | LLM Judge features (v5) |
 
 ### TerminalBench
 

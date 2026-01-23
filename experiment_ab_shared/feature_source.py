@@ -196,14 +196,16 @@ class CSVFeatureSource(TaskFeatureSource):
         df = pd.read_csv(self._features_path)
 
         # Set index to task/instance ID column
-        if "_instance_id" in df.columns:
-            df = df.set_index("_instance_id")
+        # Prefer non-prefixed columns (task_id, instance_id) over prefixed ones (_task_id, _instance_id)
+        # since prefixed columns are typically metadata
+        if "task_id" in df.columns:
+            df = df.set_index("task_id")
         elif "instance_id" in df.columns:
             df = df.set_index("instance_id")
         elif "_task_id" in df.columns:
             df = df.set_index("_task_id")
-        elif "task_id" in df.columns:
-            df = df.set_index("task_id")
+        elif "_instance_id" in df.columns:
+            df = df.set_index("_instance_id")
         else:
             # Assume first column is the index
             df = df.set_index(df.columns[0])
