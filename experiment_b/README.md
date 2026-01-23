@@ -79,7 +79,7 @@ python -m experiment_b.compare_methods --output_csv results.csv
 
 ### SWE-bench Pro
 
-**Cutoff**: 2025-09-01 | **Pre-frontier agents**: 10 | **Post-frontier agents**: 4
+**Cutoff**: 2025-09-01 | **Pre-frontier agents**: 11 | **Post-frontier agents**: 3
 
 #### Pass-rate Definition (60 frontier tasks)
 
@@ -87,10 +87,23 @@ python -m experiment_b.compare_methods --output_csv results.csv
 |--------|---------|
 | Oracle (upper bound) | 0.7975 |
 | Embedding + Ridge | 0.7412 |
+| LLM Judge + Ridge | 0.7376 |
+| Feature-IRT (LLM Judge) | 0.7339 |
+| Feature-IRT (Embedding) | 0.6869 |
 | Baseline IRT (pre-frontier only) | 0.6500 |
-| LLM Judge + Ridge | TBD (see Phase 2) |
 
-**Note**: SWE-bench Pro uses public release dates for agents (stored in `data/swebench_pro_agent_dates.json`) since agent names don't follow the YYYYMMDD prefix convention. LLM judge features are pending extraction (see `PHASE2_SWEBENCH_PRO_PROMPT.md`).
+#### IRT Definition (60 frontier tasks)
+
+| Method | ROC-AUC |
+|--------|---------|
+| Oracle (upper bound) | 0.7196 |
+| Embedding + Ridge | 0.7040 |
+| Feature-IRT (LLM Judge) | 0.6876 |
+| LLM Judge + Ridge | 0.6835 |
+| Feature-IRT (Embedding) | 0.6018 |
+| Baseline IRT (pre-frontier only) | 0.5179 |
+
+**Note**: SWE-bench Pro uses public release dates for agents (stored in `data/swebench_pro_agent_dates.json`) since agent names don't follow the YYYYMMDD prefix convention. LLM judge features use v5 prompts with 4 LLM features + 3 deterministic patch features (num_files_modified, num_hunks, log_lines_changed).
 
 ### TerminalBench
 
@@ -340,7 +353,7 @@ experiment_b/
 | `chris_output/swebench_pro_irt/1d/items.csv` | Oracle IRT difficulties |
 | `out/chris_irt/swebench_pro.jsonl` | Response matrix (730 tasks, 14 agents) |
 | `out/swebench_pro/embeddings__deepseek-ai__...npz` | Task embeddings |
-| `chris_output/experiment_a_swebench_pro/llm_judge_features/` | LLM judge features (pending) |
+| `chris_output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv` | LLM judge v5 features (8 features) |
 | `data/swebench_pro_agent_dates.json` | Agent release dates (public announcements) |
 
 ### TerminalBench
