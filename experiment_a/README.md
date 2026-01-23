@@ -35,7 +35,7 @@ python -m experiment_a.terminalbench.train_evaluate --binary
 python -m experiment_a.swebench.train_evaluate --dry_run
 ```
 
-## Results (2026-01-22)
+## Results (2026-01-23)
 
 ### SWE-bench Verified (5-Fold Cross-Validation)
 
@@ -43,11 +43,14 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 
 | Method | Mean AUC | Std |
 |--------|----------|-----|
-| Oracle (true b) | 0.9441 | 0.0045 |
-| Embedding | 0.8269 | 0.0070 |
-| LLM Judge | 0.8230 | 0.0127 |
-| Constant (mean b) | 0.7149 | 0.0108 |
-| Agent-only | 0.7150 | 0.0109 |
+| Oracle (true b) | 0.9441 | 0.0085 |
+| Grouped Ridge (Emb + LLM) | 0.8296 | 0.0152 |
+| Embedding | 0.8230 | 0.0193 |
+| LLM Judge | 0.8227 | 0.0093 |
+| Constant (mean b) | 0.7146 | 0.0083 |
+| Agent-only | 0.7147 | 0.0084 |
+
+**Note**: Grouped Ridge combines embeddings and LLM judge features with per-source regularization. It uses higher alpha (10000-30000) for high-dim embeddings and lower alpha (100) for low-dim LLM features, achieving +0.8% improvement over the best individual method.
 
 ### SWE-bench Pro (5-Fold Cross-Validation)
 
@@ -71,15 +74,16 @@ TerminalBench supports two data modes:
 
 #### Binomial Mode (Default)
 
-**Data**: 89 tasks, 83 agents, 5 trials each
+**Data**: 88 tasks, 83 agents, 5 trials each
 
 | Method | Mean AUC | Std | Pass Rate MSE |
 |--------|----------|-----|---------------|
-| Oracle (true b) | 0.9040 | 0.0109 | 0.0540 |
-| Embedding | 0.7817 | 0.0429 | - |
-| LLM Judge | 0.7738 | 0.0256 | - |
-| Constant (mean b) | 0.7036 | 0.0123 | 0.1490 |
-| Agent-only | 0.7039 | 0.0125 | 0.1404 |
+| Oracle (true b) | 0.8995 | 0.0224 | 0.0533 |
+| Grouped Ridge (Emb + LLM) | 0.8103 | 0.0302 | 0.1076 |
+| Embedding | 0.7905 | 0.0172 | 0.1188 |
+| LLM Judge | 0.7663 | 0.0165 | 0.1307 |
+| Constant (mean b) | 0.7076 | 0.0172 | 0.1510 |
+| Agent-only | 0.7078 | 0.0174 | 0.1423 |
 
 #### Binary Mode (`--binary`)
 

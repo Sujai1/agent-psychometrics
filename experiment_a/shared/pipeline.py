@@ -253,7 +253,7 @@ def build_cv_predictors(
 
 def expand_grouped_ridge_configs(
     grouped_source: GroupedFeatureSource,
-    alpha_grid: Optional[List[float]] = None,
+    alpha_grids: Optional[Dict[str, List[float]]] = None,
 ) -> List[CVPredictorConfig]:
     """Expand grouped ridge into multiple fixed-alpha configs for AUC-based selection.
 
@@ -263,17 +263,27 @@ def expand_grouped_ridge_configs(
 
     Args:
         grouped_source: GroupedFeatureSource with 2+ underlying sources.
-        alpha_grid: Alpha values to try per source.
-            Defaults to [0.1, 1.0, 10.0, 100.0, 1000.0].
+        alpha_grids: Per-source alpha grids. Defaults to SOURCE_ALPHA_GRIDS.
 
     Returns:
         List of CVPredictorConfig, one per alpha combination.
     """
-    alpha_grid = alpha_grid or [0.1, 1.0, 10.0, 100.0, 1000.0]
+    # Get per-source alpha grids
+    source_grids = []
     source_names = [s.name for s in grouped_source.sources]
+    for name in source_names:
+        if alpha_grids and name in alpha_grids:
+            source_grids.append(alpha_grids[name])
+        elif name in GroupedRidgePredictor.SOURCE_ALPHA_GRIDS:
+            source_grids.append(GroupedRidgePredictor.SOURCE_ALPHA_GRIDS[name])
+        else:
+            raise ValueError(
+                f"No alpha grid for source '{name}'. "
+                f"Provide alpha_grids or add to SOURCE_ALPHA_GRIDS."
+            )
 
     configs = []
-    for alpha_combo in itertools.product(alpha_grid, repeat=len(source_names)):
+    for alpha_combo in itertools.product(*source_grids):
         fixed_alphas = dict(zip(source_names, alpha_combo))
 
         # Create predictor with fixed alphas (no internal grid search)

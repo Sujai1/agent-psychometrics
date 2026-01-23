@@ -246,13 +246,18 @@ class GroupedRidgePredictor:
         predictions = predictor.predict(test_task_ids)
     """
 
-    DEFAULT_ALPHA_GRID = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    # Per-source alpha grids optimized for common feature types.
+    # High-dim embeddings need strong regularization; low-dim semantic features need less.
+    # Sources not in this dict must have alpha_grids explicitly provided.
+    SOURCE_ALPHA_GRIDS = {
+        "Embedding": [1000.0, 3000.0, 10000.0, 30000.0, 100000.0],  # High regularization
+        "LLM Judge": [1.0, 10.0, 30.0, 100.0, 300.0],  # Lower regularization
+    }
 
     def __init__(
         self,
         source: GroupedFeatureSource,
         alpha_grids: Optional[Dict[str, List[float]]] = None,
-        default_alpha_grid: Optional[List[float]] = None,
         fixed_alphas: Optional[Dict[str, float]] = None,
     ):
         """Initialize the grouped ridge predictor.
@@ -261,9 +266,8 @@ class GroupedRidgePredictor:
             source: GroupedFeatureSource with multiple underlying feature sources.
             alpha_grids: Optional per-source alpha grids for grid search.
                 Keys are source names, values are lists of alphas to try.
-                If a source is not in this dict, uses default_alpha_grid.
-            default_alpha_grid: Default alpha grid for sources not in alpha_grids.
-                Defaults to [0.1, 1.0, 10.0, 100.0, 1000.0].
+                If a source is not in this dict, uses SOURCE_ALPHA_GRIDS.
+                Raises error if source is in neither.
             fixed_alphas: If provided, use these exact alphas per source (no grid search).
                 Keys are source names, values are alpha values.
                 Mutually exclusive with alpha_grids.
@@ -289,7 +293,6 @@ class GroupedRidgePredictor:
 
         self.source = source
         self._alpha_grids = alpha_grids or {}
-        self._default_alpha_grid = default_alpha_grid or self.DEFAULT_ALPHA_GRID
         self._fixed_alphas = fixed_alphas
 
         # Model state (set after fit())
@@ -307,8 +310,20 @@ class GroupedRidgePredictor:
         return f"Grouped Ridge ({self.source.name})"
 
     def _get_alpha_grid_for_source(self, source_name: str) -> List[float]:
-        """Get alpha grid for a specific source."""
-        return self._alpha_grids.get(source_name, self._default_alpha_grid)
+        """Get alpha grid for a specific source.
+
+        Raises:
+            ValueError: If source is not in alpha_grids or SOURCE_ALPHA_GRIDS.
+        """
+        if source_name in self._alpha_grids:
+            return self._alpha_grids[source_name]
+        if source_name in self.SOURCE_ALPHA_GRIDS:
+            return self.SOURCE_ALPHA_GRIDS[source_name]
+        raise ValueError(
+            f"No alpha grid defined for source '{source_name}'. "
+            f"Either add it to SOURCE_ALPHA_GRIDS or provide alpha_grids explicitly. "
+            f"Known sources: {list(self.SOURCE_ALPHA_GRIDS.keys())}"
+        )
 
     def _apply_group_scaling(
         self, X: np.ndarray, alphas: Tuple[float, ...]
@@ -435,4 +450,55 @@ class GroupedRidgePredictor:
                 for s in self.source.sources
             ],
             "n_features_total": self.source.feature_dim,
+        }
+
+    def get_detailed_diagnostics(self) -> Dict[str, Any]:
+        """Get detailed diagnostics about the fitted model for debugging.
+
+        Returns:
+            Dictionary with detailed coefficient analysis including:
+            - selected_alphas: Per-source regularization strengths
+            - coef_by_source: Coefficient statistics for each source
+            - intercept: Model intercept
+            - feature_names: Names of LLM judge features (if available)
+        """
+        if not self._is_fitted:
+            return {"is_fitted": False}
+
+        coefs = self._model.coef_
+
+        # Slice coefficients by source
+        coef_by_source = {}
+        for source, slice_obj in zip(self.source.sources, self.source.group_slices):
+            source_coefs = coefs[slice_obj]
+            coef_by_source[source.name] = {
+                "n_features": len(source_coefs),
+                "l2_norm": float(np.linalg.norm(source_coefs)),
+                "mean_abs": float(np.mean(np.abs(source_coefs))),
+                "max_abs": float(np.max(np.abs(source_coefs))),
+                "nonzero_frac": float(np.mean(np.abs(source_coefs) > 1e-6)),
+                "coefficients": source_coefs.tolist(),
+            }
+
+            # Add feature names if available (typically for LLM Judge)
+            if source.feature_names is not None:
+                coef_by_source[source.name]["feature_names"] = source.feature_names
+                coef_by_source[source.name]["named_coefficients"] = {
+                    name: float(c) for name, c in zip(source.feature_names, source_coefs)
+                }
+
+        # Compute effective contribution (sum of squared coefficients)
+        total_l2_sq = sum(d["l2_norm"] ** 2 for d in coef_by_source.values())
+        if total_l2_sq > 0:
+            for name, d in coef_by_source.items():
+                d["contribution_pct"] = 100 * (d["l2_norm"] ** 2) / total_l2_sq
+        else:
+            for name, d in coef_by_source.items():
+                d["contribution_pct"] = 0.0
+
+        return {
+            "is_fitted": True,
+            "selected_alphas": self._best_alphas,
+            "coef_by_source": coef_by_source,
+            "intercept": float(self._model.intercept_),
         }
