@@ -663,8 +663,8 @@ def collect_grouped_ridge_predictions(
 ) -> Dict[str, Dict[str, float]]:
     """Train grouped ridge on combined feature sources with per-source regularization.
 
-    This function combines all provided feature sources into a single grouped
-    predictor, allowing different regularization strengths for each source.
+    This function creates grouped predictors for all pairwise combinations of
+    feature sources, plus the full combination if there are 3+ sources.
 
     Args:
         feature_sources: List of (source_name, feature_source) tuples to combine
@@ -675,38 +675,46 @@ def collect_grouped_ridge_predictions(
             If not provided, uses default grid [0.1, 1.0, 10.0, 100.0, 1000.0].
 
     Returns:
-        Dict with single entry: "Grouped Ridge (source1 + source2 + ...)" -> predictions
+        Dict mapping method names to predictions for each combination
     """
+    from itertools import combinations
+
     predictions: Dict[str, Dict[str, float]] = {}
 
     if len(feature_sources) < 2:
         # Need at least 2 sources to combine
         return predictions
 
-    # Build grouped source from individual sources
-    reg_sources = [
-        RegularizedFeatureSource(source) for _, source in feature_sources
-    ]
-    combined = GroupedFeatureSource(reg_sources)
+    # Generate all combinations of size 2 to N
+    all_combinations = []
+    for r in range(2, len(feature_sources) + 1):
+        all_combinations.extend(combinations(feature_sources, r))
 
-    method_name = f"Grouped Ridge ({combined.name})"
-    print(f"\nTraining {method_name}...")
-    print(f"  Training on {len(train_task_ids)} tasks")
-    print(f"  Sources: {[s.name for s in combined.sources]}")
+    for source_combo in all_combinations:
+        # Build grouped source from this combination
+        reg_sources = [
+            RegularizedFeatureSource(source) for _, source in source_combo
+        ]
+        combined = GroupedFeatureSource(reg_sources)
 
-    try:
-        predictor = GroupedRidgePredictor(combined, alpha_grids=alpha_grids)
-        predictor.fit(train_task_ids, ground_truth_b)
+        method_name = f"Grouped Ridge ({combined.name})"
+        print(f"\nTraining {method_name}...")
+        print(f"  Training on {len(train_task_ids)} tasks")
+        print(f"  Sources: {[s.name for s in combined.sources]}")
 
-        info = predictor.get_model_info()
-        for source_info in info["sources"]:
-            print(f"    {source_info['name']}: best_alpha={source_info['best_alpha']}")
+        try:
+            predictor = GroupedRidgePredictor(combined, alpha_grids=alpha_grids)
+            predictor.fit(train_task_ids, ground_truth_b)
 
-        predictions[method_name] = predictor.predict(all_task_ids)
-    except Exception as e:
-        print(f"  Error: {e}")
-        import traceback
-        traceback.print_exc()
+            info = predictor.get_model_info()
+            for source_info in info["sources"]:
+                print(f"    {source_info['name']}: best_alpha={source_info['best_alpha']}")
+
+            predictions[method_name] = predictor.predict(all_task_ids)
+        except Exception as e:
+            print(f"  Error: {e}")
+            import traceback
+            traceback.print_exc()
 
     return predictions
 
