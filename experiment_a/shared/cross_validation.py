@@ -22,6 +22,73 @@ from sklearn.metrics import roc_auc_score
 from experiment_ab_shared.dataset import ExperimentData
 
 
+def expand_with_mode(
+    data: ExperimentData,
+    agent_id: str,
+    task_id: str,
+    prob: float,
+    expansion_mode: Optional[str],
+    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
+) -> Tuple[List[int], List[float]]:
+    """Expand response for AUC with explicit mode control.
+
+    This function allows decoupling the evaluation method from the data type,
+    enabling fair comparisons between training methods.
+
+    Args:
+        data: The experiment data
+        agent_id: Agent identifier
+        task_id: Task identifier
+        prob: Predicted probability
+        expansion_mode: "binary", "expand", or None (use data's default)
+            - "binary": Collapse to any_success = (k > 0) for binomial, raw value for binary
+            - "expand": Expand to n observations from binomial ground truth
+            - None: Use data's natural expand_for_auc method
+        binomial_responses: Original binomial responses, required when expansion_mode="expand"
+            and data is binary (trained on sampled data)
+
+    Returns:
+        (y_true, y_scores) tuple for AUC computation
+
+    Raises:
+        ValueError: If expansion_mode is unknown or required data is missing
+    """
+    if expansion_mode is None:
+        return data.expand_for_auc(agent_id, task_id, prob)
+
+    response = data.responses[agent_id][task_id]
+
+    if expansion_mode == "binary":
+        # Collapse to any_success = (k > 0) for binomial, or use raw value for binary
+        if isinstance(response, dict):
+            y = 1 if response["successes"] > 0 else 0
+        else:
+            y = int(response)
+        return [y], [prob]
+
+    elif expansion_mode == "expand":
+        # Expand to n observations from binomial ground truth
+        if binomial_responses is None:
+            raise ValueError(
+                "expansion_mode='expand' requires binomial_responses, but None provided"
+            )
+        if agent_id not in binomial_responses:
+            raise ValueError(
+                f"Agent {agent_id!r} not found in binomial_responses"
+            )
+        if task_id not in binomial_responses[agent_id]:
+            raise ValueError(
+                f"Task {task_id!r} not found for agent {agent_id!r} in binomial_responses"
+            )
+        resp = binomial_responses[agent_id][task_id]
+        k, n = resp["successes"], resp["trials"]
+        return [1] * k + [0] * (n - k), [prob] * n
+
+    raise ValueError(
+        f"Unknown expansion_mode: {expansion_mode!r}. Must be 'binary', 'expand', or None"
+    )
+
+
 @dataclass
 class CrossValidationResult:
     """Results from k-fold cross-validation."""
@@ -132,6 +199,8 @@ def run_cv(
     load_fold_data: Callable[[List[str], List[str], int], ExperimentData],
     verbose: bool = True,
     compute_pass_rate_mse: bool = False,
+    expansion_mode: Optional[str] = None,
+    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
 ) -> CrossValidationResult:
     """Run cross-validation for any predictor.
 
@@ -144,6 +213,9 @@ def run_cv(
         load_fold_data: Function that loads ExperimentData for a specific fold
         verbose: Print per-fold AUC results
         compute_pass_rate_mse: If True and data is binomial, compute pass rate MSE
+        expansion_mode: Override AUC expansion method ("binary", "expand", or None for default)
+        binomial_responses: Original binomial responses, required for expansion_mode="expand"
+            when data is binary (trained on sampled data)
 
     Returns:
         CrossValidationResult with mean/std AUC across folds
@@ -172,8 +244,10 @@ def run_cv(
                 # Get predicted probability
                 prob = predictor.predict_probability(data, agent_id, task_id)
 
-                # Expand outcomes (handles binary vs binomial)
-                outcomes, _ = data.expand_for_auc(agent_id, task_id, prob)
+                # Expand outcomes (with optional mode override)
+                outcomes, _ = expand_with_mode(
+                    data, agent_id, task_id, prob, expansion_mode, binomial_responses
+                )
                 y_true.extend(outcomes)
                 y_scores.extend([prob] * len(outcomes))
 

@@ -213,6 +213,8 @@ def run_cross_validation(
     k: int = 5,
     metadata_loader: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
     include_feature_irt: bool = False,
+    expansion_mode: Optional[str] = None,
+    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
 ) -> Dict[str, Any]:
     """Run the evaluation pipeline with k-fold cross-validation.
 
@@ -226,6 +228,9 @@ def run_cross_validation(
         metadata_loader: Optional callable to load task metadata
         include_feature_irt: Whether to include Feature-IRT joint learning methods.
             Defaults to False since they provide minimal improvement over Ridge.
+        expansion_mode: Override AUC expansion method ("binary", "expand", or None)
+        binomial_responses: Original binomial responses, required for expansion_mode="expand"
+            when data is binary (trained on sampled data)
 
     Returns:
         Dict with CV results for each method
@@ -299,6 +304,8 @@ def run_cross_validation(
             load_fold_data,
             verbose=True,
             compute_pass_rate_mse=compute_pass_rate_mse,
+            expansion_mode=expansion_mode,
+            binomial_responses=binomial_responses,
         )
         result = cv_results[pc.name]
         if result.mean_auc is not None:

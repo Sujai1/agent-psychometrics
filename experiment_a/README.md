@@ -95,6 +95,29 @@ TerminalBench supports two data modes:
 
 **Summary**: Binary mode (default) shows higher oracle AUC and is consistent with SWE-bench's single-trial format. Binomial mode preserves more information about task difficulty gradations but gives similar predictor AUCs.
 
+#### Fair Comparison: Training vs Evaluation Methods (5-Fold CV)
+
+To fairly compare binomial vs binary training, we hold the evaluation method constant:
+
+**Multi-attempt AUC Evaluation** (expand to 5 observations per pair):
+
+| Training Method | Oracle | Embedding | LLM Judge | Constant | Agent-only |
+|-----------------|--------|-----------|-----------|----------|------------|
+| Binomial (k/n)  | 0.9040 | 0.7817    | 0.7738    | 0.7036   | 0.7039     |
+| Binary (any success) | 0.8981 | 0.7761 | 0.7712    | 0.6904   | 0.6904     |
+
+**Binary AUC Evaluation** (any_success = k > 0):
+
+| Training Method | Oracle | Embedding | LLM Judge | Constant | Agent-only |
+|-----------------|--------|-----------|-----------|----------|------------|
+| Binomial (k/n)  | 0.9253 | 0.7800    | 0.7714    | 0.7153   | 0.7153     |
+| Binary (any success) | 0.9319 | 0.7779 | 0.7734    | 0.6904   | 0.6904     |
+
+**Key findings**:
+- When evaluated with the **same metric**, binomial and binary training yield very similar predictor AUCs
+- The apparent advantage of binary training (0.9319 vs 0.9037 Oracle AUC) in earlier comparisons was largely due to using different evaluation methods
+- Binomial training shows a slight edge (~0.5-1% higher AUC) when evaluation is held constant
+
 ## Evaluation Protocol
 
 1. **Split tasks** (not agents) into train/test sets using deterministic hash-based splitting

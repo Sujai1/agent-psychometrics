@@ -1,32 +1,31 @@
-"""Compare cross-validation AUC between binomial (5 runs) and sampled binary (1 run) IRT.
+"""Fair comparison of binomial vs binary IRT training methods.
 
-This script compares how Terminal Bench cross-validation AUC changes when:
-1. Using all 5 runs per agent-task pair with binomial IRT (current approach)
-2. Sampling 1 binary outcome per pair and using standard binary IRT
+This script runs all 4 configurations of (training method × evaluation method):
+1. Binomial Training + Multi-attempt AUC (expand to 5 observations per pair)
+2. Binomial Training + Binary AUC (collapse to any_success = k > 0)
+3. Binary Training + Multi-attempt AUC (expand using original binomial ground truth)
+4. Binary Training + Binary AUC (single observation per pair)
+
+This allows fair comparison of training methods by holding evaluation method constant.
 
 Usage:
-    # Basic comparison (single sample)
-    python -m experiment_a_terminalbench.compare_binomial_binary
+    # Basic comparison (5-fold CV)
+    python -m experiment_a.terminalbench.compare_binomial_binary
 
-    # Multiple samples for confidence intervals
-    python -m experiment_a_terminalbench.compare_binomial_binary --n_samples 10
+    # Dry run to see what would be run
+    python -m experiment_a.terminalbench.compare_binomial_binary --dry_run
 
-    # Custom seed
-    python -m experiment_a_terminalbench.compare_binomial_binary --sample_seed 42
-
-    # Dry run
-    python -m experiment_a_terminalbench.compare_binomial_binary --dry_run
+    # Save results to JSON
+    python -m experiment_a.terminalbench.compare_binomial_binary --output_json results.json
 """
 
 import argparse
 import json
 import sys
-from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-import pandas as pd
 
 # Add parent to path for imports
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,52 +35,7 @@ if str(ROOT) not in sys.path:
 from experiment_a.terminalbench.config import TerminalBenchConfig
 from experiment_a.terminalbench.data_loader import load_task_data_from_repo
 from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
-from experiment_ab_shared.sampling import (
-    sample_binary_from_binomial,
-    load_binomial_responses,
-    save_binary_responses,
-)
-
-
-@dataclass
-class SampledBinaryConfig:
-    """Configuration for sampled binary experiment.
-
-    This config points to sampled binary data instead of binomial data.
-    """
-
-    # Data paths (standard binary IRT model outputs)
-    abilities_path: Path
-    items_path: Path
-    responses_path: Path  # Sampled binary responses
-    repo_path: Path = Path("terminal-bench")
-    output_dir: Path = Path("chris_output/experiment_a_terminalbench/sampled_binary")
-
-    # Train/test splitting
-    test_fraction: float = 0.2
-    split_seed: int = 0
-
-    # Embedding predictor config
-    embeddings_path: Optional[Path] = None
-    ridge_alphas: tuple = (0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0)
-
-    # LLM Judge predictor config
-    llm_judge_features_path: Optional[Path] = None
-    llm_judge_ridge_alphas: tuple = (0.01, 0.1, 1.0, 10.0, 100.0, 1000.0)
-    llm_judge_max_features: Optional[int] = None
-
-    # Task filtering
-    exclude_unsolved: bool = False
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to JSON-serializable dict."""
-        d = asdict(self)
-        for k, v in d.items():
-            if isinstance(v, Path):
-                d[k] = str(v)
-            elif isinstance(v, tuple):
-                d[k] = list(v)
-        return d
+from experiment_ab_shared.dataset import _load_binomial_responses
 
 
 # TerminalBench-specific LLM judge features
@@ -104,111 +58,77 @@ def create_metadata_loader(repo_path: Path):
     return loader
 
 
-def train_binary_irt(
-    responses_path: Path,
-    output_dir: Path,
-    epochs: int = 2000,
-    force_retrain: bool = False,
-) -> Path:
-    """Train standard binary IRT on sampled responses.
+def print_config_table(
+    title: str,
+    description: str,
+    cv_results: Dict[str, Any],
+    methods: List[str],
+    method_names: Dict[str, str],
+) -> None:
+    """Print a single configuration table showing all methods.
 
     Args:
-        responses_path: Path to sampled binary JSONL
-        output_dir: Directory to save IRT outputs
-        epochs: Training epochs
-        force_retrain: Force retrain even if cached
-
-    Returns:
-        Path to IRT output directory (contains abilities.csv, items.csv)
+        title: Table title (e.g., "Table 1: Binomial Training + Multi-attempt AUC")
+        description: Description of the configuration
+        cv_results: Dict from run_cross_validation containing method results
+        methods: List of method keys to display
+        method_names: Mapping from method key to display name
     """
-    irt_dir = output_dir / "1d"
-    abilities_path = irt_dir / "abilities.csv"
-    items_path = irt_dir / "items.csv"
+    print(f"\n{title}")
+    print(f"({description})")
+    print("-" * 55)
+    print(f"| {'Method':<22} | {'Mean AUC':>10} | {'Std':>8} |")
+    print(f"|{'-'*24}|{'-'*12}|{'-'*10}|")
 
-    if not force_retrain and abilities_path.exists() and items_path.exists():
-        print(f"Found cached binary IRT model at {irt_dir}")
-        return irt_dir
-
-    print(f"Training binary IRT on {responses_path}...")
-    irt_dir.mkdir(parents=True, exist_ok=True)
-
-    from py_irt.config import IrtConfig
-    from py_irt.training import IrtModelTrainer
-
-    config = IrtConfig(
-        model_type="1pl",
-        epochs=epochs,
-        priors="hierarchical",
-        dims=1,
-    )
-
-    trainer = IrtModelTrainer(
-        data_path=responses_path,
-        config=config,
-    )
-    n_subjects = len(trainer._dataset.subject_ids)
-    n_items = len(trainer._dataset.item_ids)
-    print(f"   Dataset: {n_subjects} subjects, {n_items} items")
-
-    trainer.train(device="cpu")
-
-    # Save results
-    abilities = trainer.best_params["ability"]
-    difficulties = trainer.best_params["diff"]
-    item_ids = trainer.best_params["item_ids"]
-    subject_ids = trainer.best_params["subject_ids"]
-
-    abilities_df = pd.DataFrame({
-        "theta": [abilities[i] for i in range(len(subject_ids))],
-    }, index=[subject_ids[i] for i in range(len(subject_ids))])
-    abilities_df.index.name = "subject_id"
-    abilities_df.to_csv(abilities_path)
-
-    items_df = pd.DataFrame({
-        "b": [difficulties[i] for i in range(len(item_ids))],
-    }, index=[item_ids[i] for i in range(len(item_ids))])
-    items_df.index.name = "item_id"
-    items_df.to_csv(items_path)
-
-    print(f"   Saved abilities: {abilities_path}")
-    print(f"   Saved items: {items_path}")
-
-    return irt_dir
+    for method in methods:
+        result = cv_results.get(method, {})
+        mean_auc = result.get("mean_auc")
+        std_auc = result.get("std_auc")
+        name = method_names.get(method, method)
+        if mean_auc is not None:
+            print(f"| {name:<22} | {mean_auc:>10.4f} | {std_auc:>8.4f} |")
+        else:
+            print(f"| {name:<22} | {'N/A':>10} | {'N/A':>8} |")
 
 
 def run_comparison(
-    binomial_config: TerminalBenchConfig,
-    n_samples: int = 1,
-    sample_seed: int = 0,
     k_folds: int = 5,
-    force_retrain: bool = False,
     dry_run: bool = False,
 ) -> Dict[str, Any]:
-    """Run comparison between binomial and sampled binary IRT.
+    """Run fair comparison: 4 configurations (2 training × 2 evaluation methods).
+
+    All configurations use k-fold cross-validation.
+
+    Configurations:
+    1. Binomial Training + Multi-attempt AUC (expand to 5 observations)
+    2. Binomial Training + Binary AUC (collapse to any_success = k > 0)
+    3. Binary Training + Multi-attempt AUC (expand using original binomial ground truth)
+    4. Binary Training + Binary AUC (single observation per pair)
+
+    Binary training uses pre-computed collapsed binary data where any_success = 1 if k > 0.
+    Binomial training uses the full k/n successes data.
 
     Args:
-        binomial_config: Configuration for binomial experiment
-        n_samples: Number of binary samplings for confidence intervals
-        sample_seed: Base seed for sampling (sample i uses seed = base + i)
         k_folds: Number of CV folds
-        force_retrain: Force retrain IRT models
         dry_run: Just print config without running
 
     Returns:
-        Dict with comparison results
+        Dict with comparison results for all 4 configurations
     """
+    # Create configs for both training modes (using their respective defaults)
+    binomial_config = TerminalBenchConfig(use_binary=False)  # k/n successes
+    binary_config = TerminalBenchConfig(use_binary=True)     # any_success = 1
+
     # Paths
     binomial_responses_path = ROOT / binomial_config.responses_path
     repo_path = ROOT / binomial_config.repo_path
-    output_base = ROOT / "chris_output/experiment_a_terminalbench/binomial_vs_binary"
-    output_base.mkdir(parents=True, exist_ok=True)
 
     # Create metadata loader
     metadata_loader = create_metadata_loader(repo_path)
 
-    # Load binomial responses
-    print("Loading binomial responses...")
-    binomial_responses = load_binomial_responses(binomial_responses_path)
+    # Load binomial responses (needed for multi-attempt evaluation on binary-trained models)
+    print("Loading binomial responses (for multi-attempt evaluation)...")
+    binomial_responses = _load_binomial_responses(binomial_responses_path)
     n_agents = len(binomial_responses)
     n_pairs = sum(len(tasks) for tasks in binomial_responses.values())
     all_tasks = set()
@@ -226,16 +146,15 @@ def run_comparison(
     print(f"   Mean trials per pair: {mean_trials:.2f}")
 
     if dry_run:
-        print("\n[DRY RUN] Would run:")
-        print(f"  - Binomial IRT cross-validation ({k_folds} folds)")
-        print(f"  - {n_samples} sampled binary IRT cross-validations")
-        print(f"  - Sample seeds: {sample_seed} to {sample_seed + n_samples - 1}")
+        print("\n[DRY RUN] Would run 4 configurations (each with {}-fold CV):".format(k_folds))
+        print(f"  1. Binomial Training + Multi-attempt AUC")
+        print(f"  2. Binomial Training + Binary AUC")
+        print(f"  3. Binary Training + Multi-attempt AUC")
+        print(f"  4. Binary Training + Binary AUC")
         return {}
 
     results = {
         "config": {
-            "n_samples": n_samples,
-            "sample_seed": sample_seed,
             "k_folds": k_folds,
         },
         "data_summary": {
@@ -246,215 +165,164 @@ def run_comparison(
         },
     }
 
+    # Method display configuration
+    methods = ["oracle", "embedding_predictor", "llm_judge_predictor",
+               "constant_baseline", "agent_only_baseline"]
+    method_names = {
+        "oracle": "Oracle (true β)",
+        "embedding_predictor": "Embedding",
+        "llm_judge_predictor": "LLM Judge",
+        "constant_baseline": "Constant (mean β)",
+        "agent_only_baseline": "Agent-only",
+    }
+
     # =========================================================================
-    # Run binomial IRT cross-validation
+    # Configuration 1: Binomial Training + Multi-attempt AUC
     # =========================================================================
     print("\n" + "=" * 70)
-    print("BINOMIAL IRT (all trials per pair)")
+    print("CONFIG 1: Binomial Training + Multi-attempt AUC")
     print("=" * 70)
 
     binomial_spec = ExperimentSpec(
-        name="TerminalBench (Binomial)",
+        name="Binomial Train + Multi-attempt Eval",
         is_binomial=True,
         irt_cache_dir=ROOT / "chris_output/experiment_a_terminalbench/irt_splits",
         llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
     )
 
-    binomial_results = run_cross_validation(
-        binomial_config, binomial_spec, ROOT, k=k_folds, metadata_loader=metadata_loader
+    config1_results = run_cross_validation(
+        binomial_config, binomial_spec, ROOT, k=k_folds,
+        metadata_loader=metadata_loader,
+        expansion_mode=None,  # Default: expand for binomial data
     )
-    results["binomial"] = binomial_results
+    results["config1_binomial_train_expand_eval"] = config1_results
 
     # =========================================================================
-    # Run sampled binary IRT cross-validation(s)
-    # =========================================================================
-    results["sampled_binary"] = []
-
-    for sample_i in range(n_samples):
-        current_seed = sample_seed + sample_i
-        print("\n" + "=" * 70)
-        print(f"SAMPLED BINARY IRT (1 trial per pair, seed={current_seed})")
-        print("=" * 70)
-
-        # Sample binary responses
-        print(f"\nSampling binary responses (seed={current_seed})...")
-        binary_responses = sample_binary_from_binomial(binomial_responses, seed=current_seed)
-
-        # Save sampled responses
-        sample_dir = output_base / f"sampled_seed{current_seed}"
-        sample_dir.mkdir(parents=True, exist_ok=True)
-        sampled_responses_path = sample_dir / "sampled_responses.jsonl"
-        save_binary_responses(binary_responses, sampled_responses_path)
-        print(f"   Saved to: {sampled_responses_path}")
-
-        # Count sampled successes for sanity check
-        n_successes = sum(sum(tasks.values()) for tasks in binary_responses.values())
-        print(f"   Sampled successes: {n_successes}/{n_pairs} ({100*n_successes/n_pairs:.1f}%)")
-
-        # Train binary IRT on sampled data
-        irt_dir = train_binary_irt(
-            sampled_responses_path,
-            sample_dir,
-            force_retrain=force_retrain,
-        )
-
-        # Create config for sampled binary
-        sampled_config = SampledBinaryConfig(
-            abilities_path=irt_dir / "abilities.csv",
-            items_path=irt_dir / "items.csv",
-            responses_path=sampled_responses_path,
-            repo_path=binomial_config.repo_path,
-            output_dir=sample_dir,
-            test_fraction=binomial_config.test_fraction,
-            split_seed=binomial_config.split_seed,
-            embeddings_path=binomial_config.embeddings_path,
-            llm_judge_features_path=binomial_config.llm_judge_features_path,
-            llm_judge_max_features=binomial_config.llm_judge_max_features,
-        )
-
-        # Create spec for sampled binary (is_binomial=False)
-        sampled_spec = ExperimentSpec(
-            name=f"TerminalBench (Sampled Binary, seed={current_seed})",
-            is_binomial=False,  # Key difference: use binary IRT
-            irt_cache_dir=sample_dir / "irt_splits",
-            llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
-        )
-
-        # Run cross-validation
-        sampled_results = run_cross_validation(
-            sampled_config, sampled_spec, ROOT, k=k_folds, metadata_loader=metadata_loader
-        )
-        sampled_results["seed"] = current_seed
-        results["sampled_binary"].append(sampled_results)
-
-    # =========================================================================
-    # Print comparison summary
+    # Configuration 2: Binomial Training + Binary AUC
     # =========================================================================
     print("\n" + "=" * 70)
-    print("COMPARISON SUMMARY")
+    print("CONFIG 2: Binomial Training + Binary AUC")
     print("=" * 70)
 
-    # Extract AUC values
-    methods = ["oracle", "embedding_predictor", "llm_judge_predictor", "constant_baseline", "agent_only_baseline"]
-    method_names = {
-        "oracle": "Oracle (true b)",
-        "embedding_predictor": "Embedding",
-        "llm_judge_predictor": "LLM Judge",
-        "constant_baseline": "Constant (mean b)",
-        "agent_only_baseline": "Agent-only",
-    }
+    binomial_spec_binary_eval = ExperimentSpec(
+        name="Binomial Train + Binary Eval",
+        is_binomial=True,
+        irt_cache_dir=ROOT / "chris_output/experiment_a_terminalbench/irt_splits",
+        llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
+    )
 
-    # Get binomial AUCs
-    binomial_aucs = {}
-    for method in methods:
-        cv_result = binomial_results.get("cv_results", {}).get(method, {})
-        binomial_aucs[method] = cv_result.get("mean_auc")
+    config2_results = run_cross_validation(
+        binomial_config, binomial_spec_binary_eval, ROOT, k=k_folds,
+        metadata_loader=metadata_loader,
+        expansion_mode="binary",  # Override: collapse to any_success
+    )
+    results["config2_binomial_train_binary_eval"] = config2_results
 
-    # Get sampled binary AUCs (average over samples)
-    sampled_aucs = {method: [] for method in methods}
-    for sample_result in results["sampled_binary"]:
-        for method in methods:
-            cv_result = sample_result.get("cv_results", {}).get(method, {})
-            auc = cv_result.get("mean_auc")
-            if auc is not None:
-                sampled_aucs[method].append(auc)
+    # =========================================================================
+    # Configuration 3: Binary Training + Multi-attempt AUC
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("CONFIG 3: Binary Training + Multi-attempt AUC")
+    print("=" * 70)
 
-    # Compute mean and std for sampled
-    sampled_mean = {}
-    sampled_std = {}
-    for method in methods:
-        if sampled_aucs[method]:
-            sampled_mean[method] = np.mean(sampled_aucs[method])
-            sampled_std[method] = np.std(sampled_aucs[method]) if len(sampled_aucs[method]) > 1 else 0.0
-        else:
-            sampled_mean[method] = None
-            sampled_std[method] = None
+    binary_spec_expand_eval = ExperimentSpec(
+        name="Binary Train + Multi-attempt Eval",
+        is_binomial=False,
+        irt_cache_dir=ROOT / "chris_output/experiment_a_terminalbench_binary/irt_splits",
+        llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
+    )
 
-    # Print table
-    if n_samples > 1:
-        print(f"\n{'Method':<25} {'Binomial':>12} {'Binary (n={})':>18} {'Delta':>10}".format(n_samples))
-    else:
-        print(f"\n{'Method':<25} {'Binomial':>12} {'Binary':>12} {'Delta':>10}")
-    print("-" * 60)
+    config3_results = run_cross_validation(
+        binary_config, binary_spec_expand_eval, ROOT, k=k_folds,
+        metadata_loader=metadata_loader,
+        expansion_mode="expand",  # Override: expand using binomial ground truth
+        binomial_responses=binomial_responses,  # Required for expand mode
+    )
+    results["config3_binary_train_expand_eval"] = config3_results
 
-    for method in methods:
-        name = method_names.get(method, method)
-        bin_auc = binomial_aucs.get(method)
-        samp_mean = sampled_mean.get(method)
-        samp_std = sampled_std.get(method)
+    # =========================================================================
+    # Configuration 4: Binary Training + Binary AUC
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("CONFIG 4: Binary Training + Binary AUC")
+    print("=" * 70)
 
-        if bin_auc is None or samp_mean is None:
-            continue
+    binary_spec_binary_eval = ExperimentSpec(
+        name="Binary Train + Binary Eval",
+        is_binomial=False,
+        irt_cache_dir=ROOT / "chris_output/experiment_a_terminalbench_binary/irt_splits",
+        llm_judge_features=TERMINALBENCH_LLM_JUDGE_FEATURES,
+    )
 
-        delta = samp_mean - bin_auc
+    config4_results = run_cross_validation(
+        binary_config, binary_spec_binary_eval, ROOT, k=k_folds,
+        metadata_loader=metadata_loader,
+        expansion_mode=None,  # Default: binary for binary data
+    )
+    results["config4_binary_train_binary_eval"] = config4_results
 
-        if n_samples > 1 and samp_std is not None:
-            samp_str = f"{samp_mean:.4f} ± {samp_std:.4f}"
-        else:
-            samp_str = f"{samp_mean:.4f}"
+    # =========================================================================
+    # Print Summary: 4 Tables (one per configuration)
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("FAIR COMPARISON: Training Method vs Evaluation Method")
+    print("=" * 70)
 
-        print(f"{name:<25} {bin_auc:>12.4f} {samp_str:>18} {delta:>+10.4f}")
+    print_config_table(
+        "Table 1: Binomial Training + Multi-attempt AUC",
+        "Train with binomial likelihood (k/n), evaluate by expanding to 5 observations per pair",
+        config1_results.get("cv_results", {}),
+        methods, method_names,
+    )
 
-    # Store comparison in results
-    results["comparison"] = {
-        method: {
-            "binomial_auc": binomial_aucs.get(method),
-            "binary_mean_auc": sampled_mean.get(method),
-            "binary_std_auc": sampled_std.get(method),
-            "delta": sampled_mean.get(method) - binomial_aucs.get(method)
-                if sampled_mean.get(method) is not None and binomial_aucs.get(method) is not None
-                else None,
-        }
-        for method in methods
-    }
+    print_config_table(
+        "Table 2: Binomial Training + Binary AUC",
+        "Train with binomial likelihood (k/n), evaluate with any_success = k > 0",
+        config2_results.get("cv_results", {}),
+        methods, method_names,
+    )
+
+    print_config_table(
+        "Table 3: Binary Training + Multi-attempt AUC",
+        "Train with binary likelihood (any_success), evaluate by expanding to 5 observations",
+        config3_results.get("cv_results", {}),
+        methods, method_names,
+    )
+
+    print_config_table(
+        "Table 4: Binary Training + Binary AUC",
+        "Train with binary likelihood (any_success), evaluate with 1 observation per pair",
+        config4_results.get("cv_results", {}),
+        methods, method_names,
+    )
+
+    # =========================================================================
+    # Print Key Comparisons
+    # =========================================================================
+    print("\n" + "=" * 70)
+    print("KEY COMPARISONS")
+    print("=" * 70)
+
+    print("\n** Holding evaluation method constant (compare training methods): **")
+    print("Tables 1 vs 3 (Multi-attempt AUC): Does binomial training help?")
+    print("Tables 2 vs 4 (Binary AUC): Does binomial training help?")
+
+    print("\n** Holding training method constant (compare evaluation methods): **")
+    print("Tables 1 vs 2 (Binomial training): How much does evaluation affect AUC?")
+    print("Tables 3 vs 4 (Binary training): How much does evaluation affect AUC?")
 
     return results
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compare binomial (5 runs) vs sampled binary (1 run) IRT cross-validation"
-    )
-    parser.add_argument(
-        "--n_samples",
-        type=int,
-        default=1,
-        help="Number of binary samplings for confidence intervals (default: 1)",
-    )
-    parser.add_argument(
-        "--sample_seed",
-        type=int,
-        default=0,
-        help="Base seed for sampling (sample i uses seed = base + i)",
+        description="Fair comparison of binomial vs binary IRT training methods"
     )
     parser.add_argument(
         "--k_folds",
         type=int,
         default=5,
         help="Number of CV folds (default: 5)",
-    )
-    parser.add_argument(
-        "--split_seed",
-        type=int,
-        default=0,
-        help="Random seed for train/test split (default: 0)",
-    )
-    parser.add_argument(
-        "--embeddings_path",
-        type=str,
-        default=None,
-        help="Path to pre-computed embeddings .npz file",
-    )
-    parser.add_argument(
-        "--llm_judge_features_path",
-        type=str,
-        default=None,
-        help="Path to LLM judge features CSV file",
-    )
-    parser.add_argument(
-        "--force_retrain",
-        action="store_true",
-        help="Force retrain IRT models even if cached",
     )
     parser.add_argument(
         "--dry_run",
@@ -469,24 +337,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Build binomial config
-    config_kwargs = {
-        "split_seed": args.split_seed,
-    }
-    if args.embeddings_path:
-        config_kwargs["embeddings_path"] = Path(args.embeddings_path)
-    if args.llm_judge_features_path:
-        config_kwargs["llm_judge_features_path"] = Path(args.llm_judge_features_path)
-
-    binomial_config = TerminalBenchConfig(**config_kwargs)
-
     # Run comparison
     results = run_comparison(
-        binomial_config,
-        n_samples=args.n_samples,
-        sample_seed=args.sample_seed,
         k_folds=args.k_folds,
-        force_retrain=args.force_retrain,
         dry_run=args.dry_run,
     )
 
