@@ -62,12 +62,6 @@ TRAJECTORY_FEATURES: List[FeatureSpec] = [
         "positive"  # More loops = harder task
     ),
     FeatureSpec(
-        "premature_cutoff",
-        "Did the model terminate before completing the task?",
-        "bool",
-        "positive"  # Early cutoff = harder task
-    ),
-    FeatureSpec(
         "localization_quality",
         "Did the model correctly identify the problem location?",
         "0-5",
@@ -102,6 +96,18 @@ TRAJECTORY_FEATURES: List[FeatureSpec] = [
         "How complete was the attempted solution?",
         "0-5",
         "negative"  # More complete = easier task
+    ),
+    FeatureSpec(
+        "edge_case_handling",
+        "Did the agent consider and handle edge cases?",
+        "0-5",
+        "negative"  # Better edge case handling = easier task
+    ),
+    FeatureSpec(
+        "test_verification",
+        "Did the agent verify their solution works?",
+        "0-5",
+        "negative"  # Better verification = easier task
     ),
 ]
 

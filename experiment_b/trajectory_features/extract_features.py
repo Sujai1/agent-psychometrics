@@ -439,6 +439,72 @@ def sample_trajectories(
     return pairs
 
 
+def sample_by_task(
+    n_tasks: int = 100,
+    agents_per_task: int = 6,
+    agents: Optional[List[str]] = None,
+) -> List[Tuple[str, str]]:
+    """Sample trajectories task-by-task with fixed agents per task.
+
+    Args:
+        n_tasks: Number of tasks to sample
+        agents_per_task: Number of agents to include per task
+        agents: List of agents to use (default: AGENT_NAMES)
+
+    Returns:
+        List of (agent, task_id) pairs
+    """
+    if agents is None:
+        agents = AGENT_NAMES
+
+    trajectory_dir = Path("trajectory_data/unified_trajs")
+
+    # Build task -> available agents mapping
+    task_agents: Dict[str, List[str]] = {}
+    for agent in agents:
+        agent_dir = trajectory_dir / agent
+        if not agent_dir.exists():
+            continue
+
+        for task_file in agent_dir.glob("*.json"):
+            task_id = task_file.stem
+            if task_id not in task_agents:
+                task_agents[task_id] = []
+            task_agents[task_id].append(agent)
+
+    # Filter to tasks with enough agents
+    valid_tasks = [t for t, a in task_agents.items() if len(a) >= agents_per_task]
+    print(f"Found {len(valid_tasks)} tasks with >= {agents_per_task} agents")
+
+    # Sample tasks
+    import random
+    random.seed(42)  # Reproducible
+    sampled_tasks = sorted(random.sample(valid_tasks, min(n_tasks, len(valid_tasks))))
+
+    # For each task, select agents spanning the ability spectrum
+    # Sort agents by their IRT ability and pick evenly spaced ones
+    agent_abilities = {a.name: a.theta for a in SELECTED_AGENTS}
+
+    pairs = []
+    for task_id in sampled_tasks:
+        available = task_agents[task_id]
+        # Sort by ability
+        available_with_ability = [(a, agent_abilities.get(a, 0)) for a in available]
+        available_with_ability.sort(key=lambda x: x[1])
+
+        # Pick evenly spaced agents
+        if len(available_with_ability) <= agents_per_task:
+            selected = [a for a, _ in available_with_ability]
+        else:
+            step = len(available_with_ability) / agents_per_task
+            indices = [int(i * step) for i in range(agents_per_task)]
+            selected = [available_with_ability[i][0] for i in indices]
+
+        pairs.extend([(agent, task_id) for agent in selected])
+
+    return pairs
+
+
 async def async_main(args):
     """Async entry point."""
     output_path = Path(args.output_path)
@@ -454,8 +520,24 @@ async def async_main(args):
         print(json.dumps(result, indent=2))
         print(f"\nUsage: {extractor.usage.summary()}")
 
+    elif args.n_tasks:
+        # Task-by-task sampling with fixed agents per task
+        pairs = sample_by_task(
+            n_tasks=args.n_tasks,
+            agents_per_task=args.agents_per_task,
+        )
+        print(f"Sampled {len(pairs)} trajectories ({args.n_tasks} tasks × {args.agents_per_task} agents)")
+
+        df = await extractor.extract_batch_async(
+            pairs,
+            output_path=output_path,
+            resume=not args.no_resume,
+            parallel=args.parallel,
+        )
+        print(f"\nSaved {len(df)} results to {output_path}")
+
     elif args.num_trajectories:
-        # Sample trajectories for exploration
+        # Sample trajectories for exploration (legacy mode)
         n_per_agent = max(1, args.num_trajectories // len(AGENT_NAMES))
         pairs = sample_trajectories(n_per_agent=n_per_agent)[: args.num_trajectories]
         print(f"Sampled {len(pairs)} trajectories from {len(AGENT_NAMES)} agents")
@@ -513,6 +595,18 @@ def main():
         type=int,
         default=None,
         help="Number of trajectories to sample (for exploration runs)",
+    )
+    parser.add_argument(
+        "--n_tasks",
+        type=int,
+        default=None,
+        help="Number of tasks to sample (task-by-task mode)",
+    )
+    parser.add_argument(
+        "--agents_per_task",
+        type=int,
+        default=6,
+        help="Number of agents per task (task-by-task mode)",
     )
     parser.add_argument(
         "--parallel",
