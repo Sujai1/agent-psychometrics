@@ -42,6 +42,32 @@ if str(ROOT) not in sys.path:
 from experiment_ab_shared.dataset import stable_split_tasks
 
 
+def set_torch_determinism(enabled: bool) -> None:
+    """Toggle PyTorch deterministic algorithm behavior (best-effort).
+
+    IRT training can be numerically unstable with deterministic algorithms
+    enabled. This function temporarily disables determinism during IRT training.
+
+    Copied from predict_question_difficulty.py - see that file for full rationale.
+    """
+    import torch
+    on = bool(enabled)
+    try:
+        torch.use_deterministic_algorithms(on, warn_only=True)
+    except TypeError:
+        try:
+            torch.use_deterministic_algorithms(on)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    try:
+        torch.backends.cudnn.deterministic = on
+        torch.backends.cudnn.benchmark = (not on)
+    except Exception:
+        pass
+
+
 def get_split_cache_dir(
     output_base: Path,
     test_fraction: float,
@@ -362,7 +388,11 @@ def get_or_train_split_irt(
         n_items = len(trainer._dataset.item_ids)
         print(f"   Dataset: {n_subjects} subjects, {n_items} items")
 
+        # Disable torch determinism during IRT for numerical stability
+        # (see predict_question_difficulty.py for rationale)
+        set_torch_determinism(False)
         trainer.train(device="cpu")
+        set_torch_determinism(True)
 
         # Save results
         print("\n7. Saving IRT parameters...")
