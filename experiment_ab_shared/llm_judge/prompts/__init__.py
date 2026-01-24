@@ -17,6 +17,12 @@ from experiment_ab_shared.llm_judge.prompts.terminalbench import TERMINALBENCH_C
 from experiment_ab_shared.llm_judge.prompts.terminalbench_v2 import TERMINALBENCH_V2_CONFIG
 from experiment_ab_shared.llm_judge.prompts.gso import GSO_CONFIG
 
+# Unified prompts (standardized features across all datasets)
+from experiment_ab_shared.llm_judge.prompts.swebench_unified import SWEBENCH_UNIFIED_CONFIG
+from experiment_ab_shared.llm_judge.prompts.swebench_pro_unified import SWEBENCH_PRO_UNIFIED_CONFIG
+from experiment_ab_shared.llm_judge.prompts.terminalbench_unified import TERMINALBENCH_UNIFIED_CONFIG
+from experiment_ab_shared.llm_judge.prompts.gso_unified import GSO_UNIFIED_CONFIG
+
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench": SWEBENCH_CONFIG,
@@ -29,6 +35,11 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "terminalbench": TERMINALBENCH_CONFIG,
     "terminalbench_v2": TERMINALBENCH_V2_CONFIG,
     "gso": GSO_CONFIG,
+    # Unified prompts (standardized features for fair comparison)
+    "swebench_unified": SWEBENCH_UNIFIED_CONFIG,
+    "swebench_pro_unified": SWEBENCH_PRO_UNIFIED_CONFIG,
+    "terminalbench_unified": TERMINALBENCH_UNIFIED_CONFIG,
+    "gso_unified": GSO_UNIFIED_CONFIG,
 }
 
 
@@ -90,4 +101,9 @@ __all__ = [
     "TERMINALBENCH_CONFIG",
     "TERMINALBENCH_V2_CONFIG",
     "GSO_CONFIG",
+    # Unified prompts
+    "SWEBENCH_UNIFIED_CONFIG",
+    "SWEBENCH_PRO_UNIFIED_CONFIG",
+    "TERMINALBENCH_UNIFIED_CONFIG",
+    "GSO_UNIFIED_CONFIG",
 ]
