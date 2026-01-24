@@ -20,4 +20,5 @@ python predict_question_difficulty.py \
   --dataset_path "out/chris_irt/terminal_bench_tasks.jsonl" \
   --agent_results "out/chris_irt/terminal_bench_2.0.jsonl" \
   --out_dir "out/terminal_bench" \
-  --zero_success_tasks "mean"
+  --include_judge \
+  --judge_features_dir llm_judge/features/terminal_bench
