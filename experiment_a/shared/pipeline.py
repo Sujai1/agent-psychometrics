@@ -28,6 +28,7 @@ from experiment_ab_shared.feature_source import (
 from experiment_ab_shared.feature_predictor import (
     FeatureBasedPredictor,
     GroupedRidgePredictor,
+    StackedResidualPredictor,
 )
 from experiment_ab_shared import (
     load_dataset,
@@ -161,7 +162,7 @@ def build_cv_predictors(
         source = source_by_name["Embedding"]
         difficulty_predictor = FeatureBasedPredictor(
             source,
-            ridge_alphas=list(config.ridge_alphas),
+            alphas=list(config.ridge_alphas),
         )
         configs.append(
             CVPredictorConfig(
@@ -186,7 +187,7 @@ def build_cv_predictors(
         source = source_by_name["LLM Judge"]
         difficulty_predictor = FeatureBasedPredictor(
             source,
-            ridge_alphas=list(config.ridge_alphas),
+            alphas=list(config.ridge_alphas),
         )
         configs.append(
             CVPredictorConfig(
@@ -229,6 +230,38 @@ def build_cv_predictors(
                     display_name=f"Grouped Ridge ({grouped_source.name})",
                 )
             )
+
+    # Stacked Residual predictors (two-stage: base model + residual correction)
+    # Try both orderings to see which source is better as base vs residual
+    if "Embedding" in source_by_name and "LLM Judge" in source_by_name:
+        emb_source = source_by_name["Embedding"]
+        llm_source = source_by_name["LLM Judge"]
+
+        # Stacked: Embedding base → LLM residual
+        stacked_emb_llm = StackedResidualPredictor(
+            base_source=emb_source,
+            residual_source=llm_source,
+        )
+        configs.append(
+            CVPredictorConfig(
+                predictor=DifficultyPredictorAdapter(stacked_emb_llm),
+                name="stacked_emb_llm",
+                display_name="Stacked (Emb → LLM)",
+            )
+        )
+
+        # Stacked: LLM base → Embedding residual
+        stacked_llm_emb = StackedResidualPredictor(
+            base_source=llm_source,
+            residual_source=emb_source,
+        )
+        configs.append(
+            CVPredictorConfig(
+                predictor=DifficultyPredictorAdapter(stacked_llm_emb),
+                name="stacked_llm_emb",
+                display_name="Stacked (LLM → Emb)",
+            )
+        )
 
     # Constant baseline (mean difficulty)
     configs.append(

@@ -65,10 +65,11 @@ class FeatureBasedPredictor:
     # alpha=0.01 results in rcond~2e-8 which triggers scipy warnings.
     DEFAULT_RIDGE_ALPHAS = [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 
-    # Wide range of Lasso alphas for feature selection
+    # Lasso alphas for feature selection
     # Lower values = less regularization (more features kept)
     # Higher values = more regularization (fewer features kept)
-    DEFAULT_LASSO_ALPHAS = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
+    # Note: Very low alphas (0.0001, 0.001) cause convergence issues with high-dim features
+    DEFAULT_LASSO_ALPHAS = [0.01, 0.1, 1.0, 10.0, 100.0]
 
     def __init__(
         self,
@@ -99,9 +100,6 @@ class FeatureBasedPredictor:
             self.alphas = self.DEFAULT_RIDGE_ALPHAS
         else:  # lasso
             self.alphas = self.DEFAULT_LASSO_ALPHAS
-
-        # Backward compatibility alias
-        self.ridge_alphas = self.alphas
 
         # Model state (set after fit())
         self._scaler: Optional[StandardScaler] = None
@@ -146,8 +144,8 @@ class FeatureBasedPredictor:
         if self.method == "ridge":
             self._model = RidgeCV(alphas=self.alphas, cv=5)
         else:  # lasso
-            # max_iter increased for convergence with many features
-            self._model = LassoCV(alphas=self.alphas, cv=5, max_iter=10000)
+            # max_iter increased for convergence with high-dim features
+            self._model = LassoCV(alphas=self.alphas, cv=5, max_iter=50000)
 
         self._model.fit(X_scaled, y)
         self._best_alpha = float(self._model.alpha_)
@@ -561,3 +559,220 @@ class GroupedRidgePredictor:
             "coef_by_source": coef_by_source,
             "intercept": float(self._model.intercept_),
         }
+
+
+class StackedResidualPredictor:
+    """Two-stage stacked predictor: base model + residual correction.
+
+    Instead of concatenating features and fitting jointly (like GroupedRidgePredictor),
+    this uses a two-stage approach:
+
+    1. Stage 1 (Base): Fit Ridge on base_source to predict β
+    2. Stage 2 (Residual): Fit Ridge on residual_source to predict (β_true - β̂_base)
+    3. Final prediction: β̂ = β̂_base + β̂_residual
+
+    This allows the residual source to specifically correct errors from the base model,
+    rather than competing in the same feature space.
+
+    Example:
+        # Embedding as base, LLM Judge corrects residuals
+        predictor = StackedResidualPredictor(
+            base_source=embedding_source,
+            residual_source=llm_judge_source,
+        )
+        predictor.fit(train_task_ids, train_difficulties)
+        predictions = predictor.predict(test_task_ids)
+    """
+
+    # Default alpha grids by source type
+    # High-dim embeddings need stronger regularization
+    HIGH_DIM_ALPHAS = [100.0, 1000.0, 10000.0, 30000.0]
+    # Low-dim features (like LLM judge) need less regularization
+    LOW_DIM_ALPHAS = [0.1, 1.0, 10.0, 100.0]
+
+    def __init__(
+        self,
+        base_source: TaskFeatureSource,
+        residual_source: TaskFeatureSource,
+        base_alphas: Optional[List[float]] = None,
+        residual_alphas: Optional[List[float]] = None,
+    ):
+        """Initialize the stacked residual predictor.
+
+        Args:
+            base_source: Feature source for the base model (Stage 1).
+            residual_source: Feature source for the residual model (Stage 2).
+            base_alphas: Optional list of alpha values for base model RidgeCV.
+                Defaults based on feature dimensionality.
+            residual_alphas: Optional list of alpha values for residual model RidgeCV.
+                Defaults based on feature dimensionality.
+        """
+        self.base_source = base_source
+        self.residual_source = residual_source
+
+        # Set default alphas based on feature dimensionality
+        if base_alphas is not None:
+            self.base_alphas = base_alphas
+        else:
+            self.base_alphas = (
+                self.HIGH_DIM_ALPHAS if base_source.feature_dim > 100
+                else self.LOW_DIM_ALPHAS
+            )
+
+        if residual_alphas is not None:
+            self.residual_alphas = residual_alphas
+        else:
+            self.residual_alphas = (
+                self.HIGH_DIM_ALPHAS if residual_source.feature_dim > 100
+                else self.LOW_DIM_ALPHAS
+            )
+
+        # Model state (set after fit())
+        self._base_scaler: Optional[StandardScaler] = None
+        self._residual_scaler: Optional[StandardScaler] = None
+        self._base_model: Optional[RidgeCV] = None
+        self._residual_model: Optional[RidgeCV] = None
+        self._base_best_alpha: Optional[float] = None
+        self._residual_best_alpha: Optional[float] = None
+        self._is_fitted: bool = False
+
+        # Diagnostics
+        self._train_residual_std: Optional[float] = None  # Std of residuals from base model
+
+    @property
+    def name(self) -> str:
+        """Human-readable predictor name."""
+        return f"Stacked ({self.base_source.name} → {self.residual_source.name})"
+
+    def fit(self, task_ids: List[str], ground_truth_b: Union[np.ndarray, List[float]]) -> None:
+        """Fit the two-stage stacked predictor.
+
+        Stage 1: Fit base model to predict β from base_source features
+        Stage 2: Fit residual model to predict (β_true - β̂_base) from residual_source features
+
+        Args:
+            task_ids: List of training task identifiers.
+            ground_truth_b: Ground truth difficulty values (IRT b parameters).
+
+        Raises:
+            ValueError: If task_ids and ground_truth_b have different lengths.
+            ValueError: If any task is missing from either feature source.
+        """
+        y = np.asarray(ground_truth_b, dtype=np.float32)
+
+        if len(task_ids) != len(y):
+            raise ValueError(
+                f"task_ids ({len(task_ids)}) and ground_truth_b ({len(y)}) must have same length"
+            )
+
+        # === Stage 1: Base Model ===
+        # Get base features (will raise if any task is missing)
+        X_base = self.base_source.get_features(task_ids)
+
+        # Fit scaler for base features
+        self._base_scaler = StandardScaler()
+        X_base_scaled = self._base_scaler.fit_transform(X_base)
+
+        # Fit base model with cross-validation
+        self._base_model = RidgeCV(alphas=self.base_alphas, cv=5)
+        self._base_model.fit(X_base_scaled, y)
+        self._base_best_alpha = float(self._base_model.alpha_)
+
+        # Get base predictions on training data
+        base_predictions = self._base_model.predict(X_base_scaled)
+
+        # === Stage 2: Residual Model ===
+        # Compute residuals: what the base model got wrong
+        residuals = y - base_predictions
+        self._train_residual_std = float(np.std(residuals))
+
+        # Get residual features (will raise if any task is missing)
+        X_residual = self.residual_source.get_features(task_ids)
+
+        # Fit scaler for residual features
+        self._residual_scaler = StandardScaler()
+        X_residual_scaled = self._residual_scaler.fit_transform(X_residual)
+
+        # Fit residual model with cross-validation
+        self._residual_model = RidgeCV(alphas=self.residual_alphas, cv=5)
+        self._residual_model.fit(X_residual_scaled, residuals)
+        self._residual_best_alpha = float(self._residual_model.alpha_)
+
+        self._is_fitted = True
+
+    def predict(self, task_ids: List[str]) -> Dict[str, float]:
+        """Predict difficulty using the stacked ensemble.
+
+        Final prediction: β̂ = β̂_base + β̂_residual
+
+        Args:
+            task_ids: List of task identifiers to predict for.
+
+        Returns:
+            Dictionary mapping task_id -> predicted difficulty.
+
+        Raises:
+            RuntimeError: If predict() is called before fit().
+            ValueError: If any task is missing from either feature source.
+        """
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit before calling predict()")
+
+        # Get base predictions
+        X_base = self.base_source.get_features(task_ids)
+        X_base_scaled = self._base_scaler.transform(X_base)
+        base_predictions = self._base_model.predict(X_base_scaled)
+
+        # Get residual predictions
+        X_residual = self.residual_source.get_features(task_ids)
+        X_residual_scaled = self._residual_scaler.transform(X_residual)
+        residual_predictions = self._residual_model.predict(X_residual_scaled)
+
+        # Combine: β̂ = β̂_base + β̂_residual
+        final_predictions = base_predictions + residual_predictions
+
+        return {task_id: float(pred) for task_id, pred in zip(task_ids, final_predictions)}
+
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get information about the fitted model.
+
+        Returns:
+            Dictionary with model information including:
+            - base_model: Info about the base model (source, best_alpha, n_features)
+            - residual_model: Info about the residual model
+            - train_residual_std: Standard deviation of residuals from base model
+        """
+        if not self._is_fitted:
+            return {"is_fitted": False}
+
+        return {
+            "is_fitted": True,
+            "base_model": {
+                "source": self.base_source.name,
+                "n_features": self.base_source.feature_dim,
+                "best_alpha": self._base_best_alpha,
+            },
+            "residual_model": {
+                "source": self.residual_source.name,
+                "n_features": self.residual_source.feature_dim,
+                "best_alpha": self._residual_best_alpha,
+            },
+            "train_residual_std": self._train_residual_std,
+        }
+
+    def print_model_summary(self) -> None:
+        """Print a summary of the fitted model."""
+        info = self.get_model_info()
+
+        if not info["is_fitted"]:
+            print("Model not fitted yet")
+            return
+
+        print(f"  Stacked Residual Predictor")
+        print(f"  Stage 1 (Base): {info['base_model']['source']}")
+        print(f"    Features: {info['base_model']['n_features']}")
+        print(f"    Best alpha: {info['base_model']['best_alpha']:.2e}")
+        print(f"  Stage 2 (Residual): {info['residual_model']['source']}")
+        print(f"    Features: {info['residual_model']['n_features']}")
+        print(f"    Best alpha: {info['residual_model']['best_alpha']:.2e}")
+        print(f"  Training residual std: {info['train_residual_std']:.4f}")

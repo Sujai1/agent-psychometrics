@@ -51,12 +51,14 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 |--------|----------|-----|
 | Oracle (true b) | 0.9441 | 0.0085 |
 | Grouped Ridge (Emb + LLM) | 0.8296 | 0.0152 |
+| Stacked (Emb → LLM) | 0.8278 | 0.0172 |
+| Stacked (LLM → Emb) | 0.8276 | 0.0149 |
 | Embedding | 0.8230 | 0.0193 |
 | LLM Judge | 0.8227 | 0.0093 |
 | Constant (mean b) | 0.7146 | 0.0083 |
 | Agent-only | 0.7147 | 0.0084 |
 
-**Note**: Grouped Ridge combines embeddings and LLM judge features with per-source regularization. It uses higher alpha (10000-30000) for high-dim embeddings and lower alpha (100) for low-dim LLM features, achieving +0.8% improvement over the best individual method.
+**Note**: Grouped Ridge combines embeddings and LLM judge features with per-source regularization. It uses higher alpha (10000-30000) for high-dim embeddings and lower alpha (100) for low-dim LLM features. On this larger dataset, Grouped Ridge slightly outperforms Stacked methods.
 
 ### SWE-bench Pro (5-Fold Cross-Validation)
 
@@ -80,13 +82,15 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.9227 | 0.0156 |
-| Grouped Ridge (Embedding=3000.0, LLM Judge=300.0) | 0.7429 | 0.0260 |
+| Stacked (Emb → LLM) | 0.7416 | 0.0176 |
+| Stacked (LLM → Emb) | 0.7390 | 0.0092 |
 | Embedding | 0.7378 | 0.0396 |
 | LLM Judge | 0.7356 | 0.0109 |
+| Grouped Ridge (Emb + LLM) | 0.7282 | 0.0214 |
 | Constant (mean b) | 0.6934 | 0.0536 |
 | Agent-only | 0.6926 | 0.0561 |
 
-**Note**: GSO is a software optimization benchmark (different from bug-fixing in SWE-bench). Tasks involve optimizing code performance. Best results achieved with `--expand_grouped_ridge` flag which uses AUC-based alpha selection instead of MSE-based grid search. The optimal alphas (Embedding=3000.0, LLM Judge=300.0) apply stronger regularization to embeddings relative to LLM features.
+**Note**: GSO is a software optimization benchmark (different from bug-fixing in SWE-bench). Stacked (Emb → LLM) performs best here, outperforming both individual sources and Grouped Ridge. The stacked approach works better on smaller datasets where the two-stage residual correction can capture complementary signal.
 
 ### TerminalBench (5-Fold Cross-Validation)
 
@@ -182,7 +186,7 @@ class CVPredictor(Protocol):
 |------|---------|
 | `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData`, `BinomialExperimentData` |
 | `feature_source.py` | `TaskFeatureSource` ABC with `EmbeddingFeatureSource`, `CSVFeatureSource` |
-| `feature_predictor.py` | `FeatureBasedPredictor` (StandardScaler → RidgeCV) |
+| `feature_predictor.py` | `FeatureBasedPredictor`, `GroupedRidgePredictor`, `StackedResidualPredictor` |
 | `predictor_base.py` | `DifficultyPredictorBase` ABC |
 | `evaluator.py` | `compute_auc()`, `compute_irt_probability()` |
 
@@ -250,6 +254,23 @@ Key differences from Ridge:
 - Uses internal 3-fold CV to select `l2_weight` from `[0.01, 0.1, 1.0, 10.0]` (similar to RidgeCV)
 
 **Note**: In Experiment A (task holdout), Feature-IRT performs similarly to Ridge because it must generalize to unseen test tasks using only feature weights. This is unlike Experiment B (agent holdout) where Feature-IRT can leverage jointly-learned abilities across all tasks.
+
+### Stacked Residual (Emb → LLM)
+
+Two-stage predictor where the second model corrects errors from the first:
+
+```
+Stage 1: β̂_base = Ridge(embeddings)           # Base prediction from embeddings
+Stage 2: β̂_residual = Ridge(llm_features)     # Predict residuals (β_true - β̂_base)
+Final:   β̂ = β̂_base + β̂_residual              # Combined prediction
+```
+
+Key differences from Grouped Ridge:
+- **Sequential, not joint**: LLM features specifically learn to correct embedding errors
+- **No feature space competition**: Each model operates on its own feature space
+- **Works best when sources are complementary**: Shows improvement on GSO (+0.4% over Embedding alone) but not on SWE-bench
+
+**When to use**: Stacked (Emb → LLM) is recommended for smaller datasets (like GSO) where it outperforms Grouped Ridge. For larger datasets (like SWE-bench), Grouped Ridge performs slightly better.
 
 ## Feature Sources
 
