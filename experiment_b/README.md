@@ -84,17 +84,19 @@ All results use the **zero_pre** frontier definition (0% pre-frontier, >0% post-
 
 ### SWE-bench Pro
 
-**Cutoff**: 2025-09-01 | **Pre-frontier agents**: 11 | **Post-frontier agents**: 3 | **Frontier tasks**: 24 | **Eval agents with variance**: 3
+**Cutoff**: 2025-06-01 | **Pre-frontier agents**: 5 | **Post-frontier agents**: 9 | **Frontier tasks**: 114 | **Eval agents with variance**: 9
 
 | Method | Mean AUC ± SEM | ROC-AUC |
 |--------|----------------|---------|
-| Oracle (upper bound) | **0.8000 ± 0.144** | 0.8600 |
-| LLM Judge + Ridge | 0.3524 ± 0.188 | 0.7537 |
-| Feature-IRT (LLM Judge) | 0.3305 ± 0.204 | 0.7514 |
-| Baseline IRT (pre-frontier only) | 0.3059 ± 0.189 | 0.7427 |
-| Embedding + Ridge | 0.3009 ± 0.209 | 0.7349 |
+| Oracle (upper bound) | **0.7377 ± 0.029** | 0.8000 |
+| Embedding + Ridge | 0.5896 ± 0.029 | 0.7132 |
+| Grouped Ridge (Embedding + LLM Judge) | 0.5757 ± 0.027 | 0.7103 |
+| Feature-IRT (Embedding) | 0.5756 ± 0.027 | 0.6652 |
+| Feature-IRT (LLM Judge) | 0.5444 ± 0.025 | 0.7013 |
+| LLM Judge + Ridge | 0.5419 ± 0.024 | 0.7018 |
+| Baseline IRT (pre-frontier only) | 0.5055 ± 0.017 | 0.6958 |
 
-**Note**: SWE-bench Pro has only 3 post-frontier agents, resulting in high uncertainty. SAD-IRT not available (trained on SWE-bench tasks only).
+**Note**: SAD-IRT not available (trained on SWE-bench tasks only). Cutoff moved earlier (from 2025-09-01) to get more post-frontier agents for reliable evaluation.
 
 ### TerminalBench
 
@@ -127,9 +129,10 @@ All results use the **zero_pre** frontier definition (0% pre-frontier, >0% post-
 
 ### Key Observations
 
-- **SAD-IRT** (using trajectory information) achieves the best Mean AUC on SWE-bench (0.759), even outperforming Oracle (0.732)
+- **SAD-IRT vs Oracle**: SAD-IRT (0.759 ± 0.022) slightly outperforms Oracle (0.732 ± 0.039) on SWE-bench, but the difference is **not statistically significant** (combined SE ≈ 0.045, p > 0.5). Trajectory features may capture difficulty signal that outcomes don't, but more data is needed to confirm.
+- **Baseline IRT on zero_pre tasks**: For tasks with 0% pre-frontier success, Baseline IRT has no training signal and produces near-random predictions (AUC ≈ 0.5). This is expected behavior, not a bug.
 - **Mean AUC and ROC-AUC can give different rankings**: This is because Mean AUC is scale-free while ROC-AUC requires scale alignment
-- **Error bars are informative**: Oracle has low SEM on GSO (0.043) but high on SWE-bench Pro (0.144), reflecting different data sizes
+- **Error bars are informative**: Small eval agent counts lead to high variance (e.g., SWE-bench Pro with 3 agents had SEM ± 0.18)
 - **Agent filtering**: Only agents with at least one frontier task success are included in Mean AUC computation
 
 ## Methods Compared

@@ -209,12 +209,50 @@ def main():
     data = load_and_prepare_data(args, config)
 
     # =========================================================================
+    # DIAGNOSTIC: β distributions for zero_pre frontier tasks
+    # =========================================================================
+    if "zero_pre" in data.frontier_tasks_by_def:
+        import numpy as np
+        from scipy.stats import spearmanr
+
+        frontier_tasks = data.frontier_tasks_by_def["zero_pre"]
+        baseline_betas = []
+        oracle_betas = []
+        for t in frontier_tasks:
+            if t in data.baseline_items.index:
+                baseline_betas.append(data.baseline_items.loc[t, "b"])
+            if t in data.oracle_items.index:
+                oracle_betas.append(data.oracle_items.loc[t, "b"])
+
+        print(f"\n=== DIAGNOSTIC: β distributions for {len(frontier_tasks)} zero_pre frontier tasks ===")
+        print(f"Baseline β: mean={np.mean(baseline_betas):.3f}, std={np.std(baseline_betas):.3f}, "
+              f"range=[{min(baseline_betas):.3f}, {max(baseline_betas):.3f}]")
+        print(f"Oracle β:   mean={np.mean(oracle_betas):.3f}, std={np.std(oracle_betas):.3f}, "
+              f"range=[{min(oracle_betas):.3f}, {max(oracle_betas):.3f}]")
+
+        # Check correlation between baseline and oracle
+        if len(baseline_betas) >= 3 and len(oracle_betas) >= 3:
+            corr, p = spearmanr(baseline_betas, oracle_betas)
+            print(f"Correlation (Baseline vs Oracle): Spearman r={corr:.3f}, p={p:.4f}")
+
+            # Check if task index order correlates with oracle difficulty
+            corr_idx, p_idx = spearmanr(range(len(oracle_betas)), oracle_betas)
+            print(f"Correlation (Task index vs Oracle β): Spearman r={corr_idx:.3f}, p={p_idx:.4f}")
+
+    # =========================================================================
     # 2. Collect predictions from all methods
     # =========================================================================
     raw_predictions: Dict[str, Dict[str, float]] = {
         "Oracle (upper bound)": data.oracle_items["b"].to_dict(),
         "Baseline IRT (pre-frontier only)": data.baseline_items["b"].to_dict(),
     }
+
+    # === DIAGNOSTIC: Add random baseline to verify evaluation ===
+    import random
+    random.seed(42)
+    all_task_ids = list(data.oracle_items.index)
+    random_beta = {t: random.random() for t in all_task_ids}
+    raw_predictions["Random Baseline"] = random_beta
 
     # Track abilities for methods that have their own IRT (for date forecasting)
     method_abilities: Dict[str, Dict[str, float]] = {

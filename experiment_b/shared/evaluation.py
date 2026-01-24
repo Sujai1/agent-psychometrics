@@ -540,6 +540,13 @@ def compute_mean_per_agent_auc(
         f"Mean Per-Agent AUC: {mean_auc:.4f} ± {sem_auc:.4f} (SEM, n_agents={n_agents})"
     )
 
+    # === DIAGNOSTIC: Per-agent AUC distribution ===
+    if len(agent_aucs) > 0:
+        logger.info(
+            f"  Per-agent AUC distribution: min={min(agent_aucs):.3f}, max={max(agent_aucs):.3f}, "
+            f"below 0.5: {sum(1 for a in agent_aucs if a < 0.5)}/{len(agent_aucs)}"
+        )
+
     return {
         "mean_auc": mean_auc,
         "std_auc": std_auc,

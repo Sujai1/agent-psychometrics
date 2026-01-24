@@ -48,11 +48,11 @@ class SWEBenchProConfig(DatasetConfig):
     )
 
     # Frontier split settings
-    # Cutoff 2025-09-01 splits:
-    #   Pre-frontier (10): GPT-4o, Kimi, Gemini 2.5 Pro, Claude Sonnet 4, Claude 4 Sonnet,
-    #                      GLM-4.5, Claude Opus 4.1, GPT-5, GPT-5 High, GPT OSS
-    #   Post-frontier (4): GPT-5 Codex, Claude 4.5 Sonnet, Claude 4.5 Haiku, Gemini debug-oct22
-    cutoff_date: str = "20250901"
+    # Cutoff 2025-06-01 splits:
+    #   Pre-frontier (5): GPT-4o, Kimi, Gemini 2.5 Pro Preview, Claude Sonnet 4, Claude 4 Sonnet
+    #   Post-frontier (9): Gemini 2.5 Pro Preview (debug), GLM-4.5, Claude Opus 4.1,
+    #                      GPT-5, GPT-5 High, GPT OSS, GPT-5 Codex, Claude 4.5 Sonnet, Claude 4.5 Haiku
+    cutoff_date: str = "20250601"
 
     # Output
     output_dir: Path = field(
