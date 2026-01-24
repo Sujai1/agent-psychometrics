@@ -15,6 +15,7 @@ from experiment_ab_shared.llm_judge.prompts.swebench_pro_v5 import SWEBENCH_PRO_
 from experiment_ab_shared.llm_judge.prompts.swebench_v2 import SWEBENCH_V2_CONFIG
 from experiment_ab_shared.llm_judge.prompts.terminalbench import TERMINALBENCH_CONFIG
 from experiment_ab_shared.llm_judge.prompts.terminalbench_v2 import TERMINALBENCH_V2_CONFIG
+from experiment_ab_shared.llm_judge.prompts.gso import GSO_CONFIG
 
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
@@ -27,6 +28,7 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench_v2": SWEBENCH_V2_CONFIG,
     "terminalbench": TERMINALBENCH_CONFIG,
     "terminalbench_v2": TERMINALBENCH_V2_CONFIG,
+    "gso": GSO_CONFIG,
 }
 
 
@@ -87,4 +89,5 @@ __all__ = [
     "SWEBENCH_V2_CONFIG",
     "TERMINALBENCH_CONFIG",
     "TERMINALBENCH_V2_CONFIG",
+    "GSO_CONFIG",
 ]

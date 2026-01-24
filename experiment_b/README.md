@@ -37,6 +37,9 @@ python -m experiment_b.compare_methods --dataset terminalbench
 # Run on SWE-bench Pro
 python -m experiment_b.compare_methods --dataset swebench_pro
 
+# Run on GSO (optimization benchmark)
+python -m experiment_b.compare_methods --dataset gso
+
 # Run with only one frontier definition
 python -m experiment_b.compare_methods --frontier_definitions passrate
 
@@ -104,6 +107,36 @@ python -m experiment_b.compare_methods --output_csv results.csv
 | Baseline IRT (pre-frontier only) | 0.5179 |
 
 **Note**: SWE-bench Pro uses public release dates for agents (stored in `data/swebench_pro_agent_dates.json`) since agent names don't follow the YYYYMMDD prefix convention. LLM judge features use v5 prompts with 4 LLM features + 3 deterministic patch features (num_files_modified, num_hunks, log_lines_changed).
+
+### GSO (Software Optimization Benchmark)
+
+**Cutoff**: 2025-08-15 | **Pre-frontier agents**: 8 | **Post-frontier agents**: 6
+
+#### Pass-rate Definition (33 frontier tasks)
+
+| Method | ROC-AUC |
+|--------|---------|
+| Oracle (upper bound) | 0.8043 |
+| Grouped Ridge (Embedding + LLM Judge) | 0.7351 |
+| LLM Judge + Ridge | 0.7334 |
+| Feature-IRT (LLM Judge) | 0.7278 |
+| Baseline IRT (pre-frontier only) | 0.7155 |
+| Embedding + Ridge | 0.7023 |
+| Feature-IRT (Embedding) | 0.6890 |
+
+#### IRT Definition (19 frontier tasks)
+
+| Method | ROC-AUC |
+|--------|---------|
+| Oracle (upper bound) | 0.6963 |
+| Embedding + Ridge | 0.6154 |
+| Feature-IRT (LLM Judge) | 0.6052 |
+| LLM Judge + Ridge | 0.6031 |
+| Grouped Ridge (Embedding + LLM Judge) | 0.5981 |
+| Feature-IRT (Embedding) | 0.4886 |
+| Baseline IRT (pre-frontier only) | 0.4617 |
+
+**Note**: GSO is a software optimization benchmark with 102 tasks across 10 Python repos (numpy, pandas, etc.). Tasks involve optimizing code performance, not fixing bugs. Agent release dates are stored in `data/gso_agent_dates.json`. LLM judge features (8 features + 4 deterministic) are adapted from SWE-bench features for the optimization context.
 
 ### TerminalBench
 

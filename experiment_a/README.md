@@ -31,6 +31,12 @@ python -m experiment_a.terminalbench.train_evaluate
 # Run TerminalBench experiment (binary mode - any success = 1)
 python -m experiment_a.terminalbench.train_evaluate --binary
 
+# Run GSO experiment (optimization benchmark)
+python -m experiment_a.gso.train_evaluate
+
+# Run with AUC-based alpha selection for grouped ridge (recommended for GSO)
+python -m experiment_a.gso.train_evaluate --expand_grouped_ridge
+
 # Dry run to check config
 python -m experiment_a.swebench.train_evaluate --dry_run
 ```
@@ -66,6 +72,21 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 | Constant (mean b) | 0.6567 | 0.0072 |
 
 **Note**: SWE-bench Pro shows lower predictor AUCs (~0.73-0.75) compared to SWE-bench Verified (~0.83-0.84). This may be due to having fewer agents (14 vs 131) for IRT training, or inherently harder-to-predict task difficulty in the Pro dataset.
+
+### GSO (5-Fold Cross-Validation)
+
+**Data**: 102 tasks, 14 agents (performance optimization benchmark)
+
+| Method | Mean AUC | Std |
+|--------|----------|-----|
+| Oracle (true b) | 0.9227 | 0.0156 |
+| Grouped Ridge (Embedding=3000.0, LLM Judge=300.0) | 0.7429 | 0.0260 |
+| Embedding | 0.7378 | 0.0396 |
+| LLM Judge | 0.7356 | 0.0109 |
+| Constant (mean b) | 0.6934 | 0.0536 |
+| Agent-only | 0.6926 | 0.0561 |
+
+**Note**: GSO is a software optimization benchmark (different from bug-fixing in SWE-bench). Tasks involve optimizing code performance. Best results achieved with `--expand_grouped_ridge` flag which uses AUC-based alpha selection instead of MSE-based grid search. The optimal alphas (Embedding=3000.0, LLM Judge=300.0) apply stronger regularization to embeddings relative to LLM features.
 
 ### TerminalBench (5-Fold Cross-Validation)
 

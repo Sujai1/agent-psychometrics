@@ -449,18 +449,20 @@ def run_cross_validation(
                 pc for pc in predictor_configs
                 if not pc.name.startswith("grouped_ridge_alpha_")
             ]
+            # Simplify the display name - extract just the alphas part
+            # e.g., "Grouped Ridge (Embedding=3000.0, LLM Judge=300.0)" -> keep as is
             predictor_configs.append(
                 CVPredictorConfig(
                     predictor=None,  # Not needed for summary
                     name="grouped_ridge_best_auc",
-                    display_name=f"Grouped Ridge (best by AUC: {best_display_name})",
+                    display_name=best_display_name,  # Already includes "Grouped Ridge (...)"
                 )
             )
 
     # Print summary
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 75)
     print(f"SUMMARY: {spec.name} ({k}-FOLD CROSS-VALIDATION)")
-    print("=" * 60)
+    print("=" * 75)
 
     # Sort by mean AUC descending
     display_order = [
@@ -471,26 +473,26 @@ def run_cross_validation(
     display_order.sort(key=lambda x: x[2], reverse=True)
 
     if compute_pass_rate_mse:
-        print(f"\n{'Method':<25} {'Mean AUC':>10} {'Std':>8} {'Pass Rate MSE':>14}")
-        print("-" * 62)
+        print(f"\n{'Method':<55} {'Mean AUC':>10} {'Std':>8} {'Pass Rate MSE':>14}")
+        print("-" * 92)
 
         for name, key, _ in display_order:
             result = cv_results[key]
             if result.mean_auc is not None:
                 mse_str = f"{result.mean_pass_rate_mse:.4f}" if result.mean_pass_rate_mse is not None else "N/A"
-                print(f"{name:<25} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mse_str:>14}")
+                print(f"{name:<55} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mse_str:>14}")
             else:
-                print(f"{name:<25} {'N/A':>10} {'N/A':>8} {'N/A':>14}")
+                print(f"{name:<55} {'N/A':>10} {'N/A':>8} {'N/A':>14}")
     else:
-        print(f"\n{'Method':<30} {'Mean AUC':>10} {'Std':>8}")
-        print("-" * 50)
+        print(f"\n{'Method':<55} {'Mean AUC':>10} {'Std':>8}")
+        print("-" * 75)
 
         for name, key, _ in display_order:
             result = cv_results[key]
             if result.mean_auc is not None:
-                print(f"{name:<30} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
+                print(f"{name:<55} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
             else:
-                print(f"{name:<30} {'N/A':>10} {'N/A':>8}")
+                print(f"{name:<55} {'N/A':>10} {'N/A':>8}")
 
     # Return results as dict
     return {

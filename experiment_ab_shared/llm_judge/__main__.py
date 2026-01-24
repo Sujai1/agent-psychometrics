@@ -48,6 +48,7 @@ DEFAULT_OUTPUT_DIRS = {
     "swebench_pro": Path("chris_output/experiment_a_swebench_pro/llm_judge_features"),
     "terminalbench": Path("chris_output/experiment_a_terminalbench/llm_judge_features"),
     "terminalbench_v2": Path("chris_output/experiment_a_terminalbench/llm_judge_features_v2"),
+    "gso": Path("chris_output/gso_llm_judge_features"),
 }
 
 
@@ -118,6 +119,45 @@ def load_swebench_pro_tasks() -> List[Dict[str, Any]]:
             # SWE-bench Pro uses lowercase field names
             "fail_to_pass": item.get("fail_to_pass", "[]"),
             "pass_to_pass": item.get("pass_to_pass", "[]"),
+        })
+
+    print(f"Loaded {len(tasks)} tasks")
+    return tasks
+
+
+def load_gso_tasks() -> List[Dict[str, Any]]:
+    """Load GSO (Software Optimization Benchmark) dataset from HuggingFace.
+
+    Data source: gso-bench/gso
+
+    Returns:
+        List of task dictionaries with fields:
+        - instance_id: Task identifier (owner__repo-commit format)
+        - repo: Repository name
+        - api: API/function being optimized
+        - prob_script: Test script showing performance scenario
+        - gt_diff: Gold optimization patch
+        - hints_text: Optional hints
+    """
+    try:
+        from datasets import load_dataset
+    except ImportError:
+        raise ImportError(
+            "datasets package required for GSO. Install with: pip install datasets"
+        )
+
+    print("Loading GSO dataset from HuggingFace (gso-bench/gso)...")
+    ds = load_dataset("gso-bench/gso", split="test")
+
+    tasks = []
+    for item in ds:
+        tasks.append({
+            "instance_id": item["instance_id"],
+            "repo": item.get("repo", ""),
+            "api": item.get("api", ""),
+            "prob_script": item.get("prob_script", ""),
+            "gt_diff": item.get("gt_diff", ""),
+            "hints_text": item.get("hints_text", ""),
         })
 
     print(f"Loaded {len(tasks)} tasks")
@@ -277,6 +317,8 @@ def load_tasks_for_dataset(
     elif dataset in ("terminalbench", "terminalbench_v2"):
         # terminalbench_v2 uses same data as terminalbench, just different prompt
         return load_terminalbench_tasks(items_path, repo_path)
+    elif dataset == "gso":
+        return load_gso_tasks()
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
@@ -309,7 +351,8 @@ def _add_deterministic_features_to_csv(
 
     # Build task lookup by ID
     is_swebench = "swebench" in dataset_name
-    if is_swebench:
+    is_gso = dataset_name == "gso"
+    if is_swebench or is_gso:
         task_id_field = "instance_id"
         feature_names = SWEBENCH_DETERMINISTIC_FEATURES
     else:
@@ -347,6 +390,10 @@ def _add_deterministic_features_to_csv(
         try:
             if is_swebench:
                 patch = task.get("patch", "")
+                features = compute_patch_features(patch)
+            elif is_gso:
+                # GSO uses gt_diff as the patch field
+                patch = task.get("gt_diff", "")
                 features = compute_patch_features(patch)
             else:
                 solution = task.get("solution", "")

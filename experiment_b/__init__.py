@@ -25,6 +25,7 @@ See README.md for full documentation.
 from experiment_b.swebench.config import SWEBenchConfig
 from experiment_b.swebench_pro.config import SWEBenchProConfig
 from experiment_b.terminalbench.config import TerminalBenchConfig
+from experiment_b.gso.config import GSOConfig
 from experiment_b.shared.config_base import DatasetConfig
 
 
@@ -33,6 +34,7 @@ DATASET_CONFIGS = {
     "swebench": SWEBenchConfig,
     "swebench_pro": SWEBenchProConfig,
     "terminalbench": TerminalBenchConfig,
+    "gso": GSOConfig,
 }
 
 
@@ -65,6 +67,7 @@ __all__ = [
     "SWEBenchConfig",
     "SWEBenchProConfig",
     "TerminalBenchConfig",
+    "GSOConfig",
     "get_dataset_config",
     "list_datasets",
     "DATASET_CONFIGS",
