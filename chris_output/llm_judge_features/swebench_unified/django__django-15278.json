@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires deep knowledge of SQLite's ALTER TABLE limitations (cannot add UNIQUE columns) and Django's schema migration internals. The fix itself is simple - adding conditions to check for primary_key and unique fields before using ALTER TABLE - but identifying this as the root cause requires understanding both SQLite constraints and the _remake_table workaround pattern. The hint pointing to a specific commit helps narrow down the regression source.",
+  "_task_id": "django__django-15278",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:21.765138"
+}

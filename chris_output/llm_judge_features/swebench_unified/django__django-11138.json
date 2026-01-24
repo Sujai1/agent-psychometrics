@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement explicitly identifies the exact line causing the issue and provides a PR link with the fix. However, the solution requires modifying timezone conversion logic across three database backends (MySQL, SQLite, Oracle), each with different SQL syntax and implementation patterns. Deep understanding of Django's database backend internals and timezone handling is needed, plus the SQLite implementation requires modifying Python functions and their SQL function registrations with additional parameters.",
+  "_task_id": "django__django-11138",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:07.529729"
+}

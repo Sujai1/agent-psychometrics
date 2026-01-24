@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This bug requires deep understanding of Django's ORM internals, specifically how JSONField lookups are compiled into SQL across different database backends. The solution involves creating a new method to handle final key compilation differently for has_key lookups vs array index lookups, and requires understanding the distinction between JSON object keys and array indices in JSON path syntax. The fix touches multiple lookup classes and requires introducing a new HasKeyOrArrayIndex class to maintain backward compatibility for array index lookups while fixing the numeric key handling.",
+  "_task_id": "django__django-15503",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:25.764135"
+}

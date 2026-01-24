@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 1,
+  "reasoning": "The problem statement explicitly identifies the exact bug (UnboundLocalError due to 'substitutions' not being initialized before the loop) and even links to the specific line of code. The fix is trivial - just initialize 'substitutions = False' before the loop. This is a classic 'uninitialized variable' bug pattern that any developer would recognize.",
+  "_task_id": "django__django-14493",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:06.688700"
+}

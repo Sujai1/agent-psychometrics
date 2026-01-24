@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly provides the exact fix needed (wrapping with int()). The solution is straightforward - adding int() conversion in 3 similar locations where float min_samples is converted to an integer count. The main challenge is finding all locations needing the fix, but the hints explicitly mention cluster_optics_xi and compute_optics_graph, making this a well-specified, low-complexity bug fix.",
+  "_task_id": "scikit-learn__scikit-learn-14496",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:53.354910"
+}

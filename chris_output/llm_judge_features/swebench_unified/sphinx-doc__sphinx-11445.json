@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "The hints identify the problematic code location and suggest the issue is about prolog insertion between role markup and heading definition. The fix requires understanding docutils RST parsing internals (specifically the Body.patterns['field_marker'] regex) and how field names are matched. The actual code change is relatively simple - replacing a custom regex with the proper docutils pattern and fixing a variable initialization issue - but finding this solution requires deep knowledge of RST parsing.",
+  "_task_id": "sphinx-doc__sphinx-11445",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:03.331964"
+}

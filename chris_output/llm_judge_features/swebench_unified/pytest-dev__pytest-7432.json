@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is crystal clear with exact file location and hook name provided. The fix is trivial - changing 'elif' to 'if' - but understanding WHY requires knowledge of pytest's internal hook system and how runxfail affects the control flow. The hint points directly to the file and hook, making localization easy, but recognizing the elif/if logic error requires understanding the interaction between xfail handling and skip mark reporting.",
+  "_task_id": "pytest-dev__pytest-7432",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:41.640802"
+}

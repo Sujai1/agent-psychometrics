@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies the whitespace formatting issue and even points to the exact line causing the bug (ddl_references.py#L87). The fix requires understanding Django's DDL reference classes and how col_suffixes are handled, but the actual code change is straightforward - just checking if suffix is non-empty before appending with a space. The solution follows a common pattern of conditional string formatting.",
+  "_task_id": "django__django-12039",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:24.226454"
+}

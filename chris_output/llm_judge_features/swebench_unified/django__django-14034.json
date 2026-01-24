@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The hints clearly identify the culprit location (BoundField.build_widget_attrs) and the need to handle require_all_fields, but the exact implementation requires understanding Django's form/widget architecture. The solution involves modifying how required attributes are propagated to subwidgets in MultiValueField/MultiWidget combinations, requiring knowledge of Django forms internals. The fix is moderately complex, needing to iterate over subfields and subwidgets to set individual required attributes.",
+  "_task_id": "django__django-14034",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:59.685458"
+}

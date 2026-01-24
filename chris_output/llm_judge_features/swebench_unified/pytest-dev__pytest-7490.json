@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires deep understanding of pytest's hook system and the test execution lifecycle, particularly how xfail markers are evaluated at different phases (setup vs call). The solution involves reorganizing when xfail marks are evaluated to handle dynamically added markers after test execution, requiring knowledge of pytest internals including _store, hookimpl wrappers, and the runtest protocol. The hint mentions a specific commit as the regression source but doesn't explain the solution approach.",
+  "_task_id": "pytest-dev__pytest-7490",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:44.087472"
+}

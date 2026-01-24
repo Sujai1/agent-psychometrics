@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "integration_complexity": 5,
+  "reasoning": "The optimization involves replacing Tornado's custom Future implementation with asyncio.Future when available, which is a significant architectural change affecting callback timing semantics across the entire codebase. This requires deep understanding of both Tornado's and asyncio's Future implementations, event loop behaviors, and careful handling of callback scheduling differences. The patch touches many files (concurrent.py, gen.py, iostream.py, locks.py, queues.py, and numerous test files), indicating pervasive integration requirements and subtle timing-sensitive correctness issues.",
+  "_task_id": "tornadoweb__tornado-ac13ee5",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:42.725655"
+}

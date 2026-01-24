@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes that flush() doesn't work on management command output streams. The solution is a simple method delegation pattern - adding a flush() method to OutputWrapper that forwards to the underlying stream. This requires understanding Django's management command architecture but the fix itself is trivial once the wrapper class is located.",
+  "_task_id": "django__django-13516",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:49.112686"
+}

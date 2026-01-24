@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires exposing a max_iter parameter through multiple layers of the dictionary learning API (SparseCoder, DictionaryLearning, MiniBatchDictionaryLearning, and their underlying functions). While the pattern is straightforward (adding a parameter and threading it through), it requires understanding the library's internal architecture and multiple interconnected classes/functions. The hints in the discussion directly point to the solution approach of passing the parameter to LassoLars.",
+  "_task_id": "scikit-learn__scikit-learn-12682",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:48.112563"
+}

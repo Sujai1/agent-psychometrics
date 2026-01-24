@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Sphinx's internal architecture, specifically how toctrees work, how generated documents (genindex, modindex, search) are handled through the 'std' domain's labels system, and how to integrate these virtual documents across three different files (directives/other.py, environment/adapters/toctree.py, and environment/collectors/toctree.py). The solution involves understanding the distinction between actual documents and generated/virtual documents, and ensuring they're properly handled in multiple code paths including glob handling, figure numbering, and toctree resolution.",
+  "_task_id": "sphinx-doc__sphinx-10673",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:02.938370"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires implementing a custom compression algorithm that is the inverse of a given decompressor. The solution involves writing a sophisticated range coder with dynamic programming for optimal token selection, requiring deep knowledge of data compression theory, arithmetic coding, and algorithm design. While verification is straightforward (decompress and compare), the implementation itself is extremely complex with no standard pattern to follow.",
+  "_task_id": "write-compressor",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:01:03.719285"
+}

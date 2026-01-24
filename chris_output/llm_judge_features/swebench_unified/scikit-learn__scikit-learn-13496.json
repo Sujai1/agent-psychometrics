@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 1,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly describes the exact solution: expose warm_start in __init__, add documentation, and pass it to the parent class. The gold patch shows this is a trivial parameter exposure task requiring only adding a parameter to __init__ and passing it to super().__init__. The pattern is well-established in scikit-learn for exposing parent class parameters.",
+  "_task_id": "scikit-learn__scikit-learn-13496",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:50.814588"
+}

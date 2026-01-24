@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints provide the exact solution with a diff patch, making implementation straightforward. However, understanding why the fix works requires knowledge of Django's migration system and how ForeignKey references are resolved. The actual code change is simple (splitting a string and only lowercasing the model name part), but knowing where to look requires deep Django internals knowledge.",
+  "_task_id": "django__django-13112",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:38.904130"
+}

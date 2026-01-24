@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the asymmetry issue and hints at the solution location (Q._combine method). The fix requires understanding Django's Q objects and how 'conditional' attribute works on Exists expressions. The actual code change is simple (one-line modification to isinstance check), but requires knowledge of Django's internal expression system to know about the 'conditional' attribute pattern.",
+  "_task_id": "django__django-14017",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:59.346432"
+}

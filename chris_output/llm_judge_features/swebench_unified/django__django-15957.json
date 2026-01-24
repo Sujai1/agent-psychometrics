@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The solution requires deep knowledge of Django's ORM internals, particularly query compilation, window functions (RowNumber), and prefetch mechanics. The hints mention using Window functions with Rank/partition_by but implementing this requires understanding how to extract slice bounds, construct window expressions with proper ordering, and integrate with the existing prefetch query filtering in multiple related descriptors. This is a non-trivial top-n-per-group SQL pattern that Django's ORM historically didn't support.",
+  "_task_id": "django__django-15957",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:34.194179"
+}

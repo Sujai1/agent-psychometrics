@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 5,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 4,
+  "reasoning": "This task requires deep knowledge of OCaml's garbage collector internals, specifically understanding the major heap sweeping implementation and run-length compression of free space. The solution involves finding a specific bug on line 650 of shared_heap.c where Whsize_hd(hd) should be replaced with wh - this is highly specialized debugging requiring understanding of OCaml runtime memory management. The task provides minimal hints about where the bug is located, making it extremely difficult to identify without extensive codebase familiarity.",
+  "_task_id": "fix-ocaml-gc",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:31.854960"
+}

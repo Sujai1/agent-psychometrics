@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly suggests reverting the __hash__ change from #31750, and the gold patch shows a trivial fix - simply removing the model-dependent parts of the hash tuple. The task is crystal clear with a reproducible example. The main knowledge needed is understanding Python's hash immutability contract and basic Django model field internals.",
+  "_task_id": "django__django-15315",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:22.636171"
+}

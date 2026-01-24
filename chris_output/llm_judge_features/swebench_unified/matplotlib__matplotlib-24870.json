@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the desired behavior (auto-detect bool arrays and set appropriate levels), and the hint in comments even specifies the exact level values needed. However, the solution requires understanding matplotlib's contour internals, specifically how `_process_contour_level_args` and `_check_xyz` work together, and requires modifying the dtype handling to preserve boolean information rather than immediately converting to float64. The changes span multiple methods in both contour.py and tri/_tricontour.py, requiring moderate integration work.",
+  "_task_id": "matplotlib__matplotlib-24870",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:05.006205"
+}

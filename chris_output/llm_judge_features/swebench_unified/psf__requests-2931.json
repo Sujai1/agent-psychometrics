@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies a regression with binary payloads and links to the causing commit, but doesn't hint at the specific fix. The solution requires understanding the difference between URL params (which need native strings) and body data (which should preserve bytes), requiring knowledge of requests internals. The fix involves modifying two locations with related but different logic, making it moderately complex to reason through.",
+  "_task_id": "psf__requests-2931",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:16.117799"
+}

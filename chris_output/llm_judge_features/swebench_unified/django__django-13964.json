@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints section provides the exact solution (changing `is None` to `in field.empty_values`), making this trivial once located. However, finding this specific location requires deep understanding of Django's ORM internals, specifically how foreign key relationships handle primary key assignment during save operations. The fix itself is a simple one-line change but requires understanding why empty string should be treated the same as None for non-numeric PKs.",
+  "_task_id": "django__django-13964",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:57.640858"
+}

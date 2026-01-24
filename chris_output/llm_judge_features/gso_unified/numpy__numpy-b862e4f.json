@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires expert-level knowledge of NumPy's internal ufunc implementation, code generation system, and low-level C template macros. The optimization involves adding specialized indexed loops for complex number arithmetic operations across multiple code generation files and dispatch mechanisms. While the hint reveals the general approach (enable fast indexed loops for complex types), implementing it requires deep understanding of NumPy's type system, loop dispatching, and template-based code generation architecture.",
+  "_task_id": "numpy__numpy-b862e4f",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:08:22.677806"
+}

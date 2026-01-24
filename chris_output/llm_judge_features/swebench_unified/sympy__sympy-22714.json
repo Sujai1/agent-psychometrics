@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "The fix requires understanding SymPy's evaluate context and how it affects symbolic computation - specifically that `im(a)` returns an unevaluated expression rather than 0 when evaluate=False, so the check must use `.is_zero is False` instead of just checking truthiness. This requires deep knowledge of SymPy's three-valued logic system and how lazy evaluation affects type checks. The actual code change is simple but finding the root cause requires understanding the interaction between evaluate contexts and symbolic expression evaluation.",
+  "_task_id": "sympy__sympy-22714",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:52.386003"
+}

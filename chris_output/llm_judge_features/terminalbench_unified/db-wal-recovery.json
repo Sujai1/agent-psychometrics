@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires deep knowledge of SQLite WAL file format, including recognizing the magic bytes and understanding that the WAL is XOR-encrypted with a specific key (0x42). The solver must deduce the encryption scheme by comparing expected vs actual header bytes, write custom decryption code, and understand how SQLite processes WAL files. While the output verification is straightforward (JSON comparison), the path to solution involves uncommon forensic/recovery techniques not typically documented.",
+  "_task_id": "db-wal-recovery",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:59:56.468908"
+}

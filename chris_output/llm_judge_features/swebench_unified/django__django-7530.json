@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The bug is clearly described - incorrect (app_label, model) pairs being passed to allow_migrate(). The fix is trivial (changing apps.get_models(app_label) to apps.get_app_config(app_label).get_models()), but requires understanding Django's app registry internals and migration system. The problem statement mentions there's a PR but doesn't detail the exact solution approach.",
+  "_task_id": "django__django-7530",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:52.370567"
+}

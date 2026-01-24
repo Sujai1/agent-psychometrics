@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes the bug (Zero vs ZeroMatrix type mismatch) but doesn't hint at the actual solution location (matexpr.py's _postprocessor). The fix itself is simple (2 lines), but finding it requires deep understanding of SymPy's matrix expression internals, particularly how MatAdd postprocessing works and interacts with BlockMatrix operations. The solution involves understanding the distinction between MatAdd handling vs other matrix operations in expression simplification.",
+  "_task_id": "sympy__sympy-17630",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:39.045571"
+}

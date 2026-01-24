@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly provides the exact solution (using cur_model._meta.concrete_model._meta) and the hints even refine it to the preferred approach. The fix itself is trivial - a single line addition. However, understanding WHY this fix works requires deep knowledge of Django's ORM internals, specifically how proxy models inherit from concrete models and how the deferred_to_data method processes related model metadata.",
+  "_task_id": "django__django-15814",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:32.056230"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "The fix is trivial - removing an else clause so that record_unapplied is always called for the squash migration itself, not just when there are no replacements. However, understanding why this is needed requires deep knowledge of Django's migration system and how squashed migrations interact with replaced migrations. The problem statement hints that something isn't being marked correctly but doesn't reveal the exact fix.",
+  "_task_id": "django__django-14500",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:08.159945"
+}

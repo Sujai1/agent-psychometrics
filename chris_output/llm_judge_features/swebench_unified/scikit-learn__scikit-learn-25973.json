@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints explicitly mention using `check_cv` to transform the generator, which is the exact solution. The fix requires understanding scikit-learn's cross-validation internals (check_cv, is_classifier) and how generators get exhausted when reused. The code change is straightforward once you know the pattern - call check_cv once at the start of fit() and pass the result to the inner function instead of self.cv.",
+  "_task_id": "scikit-learn__scikit-learn-25973",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:58.709062"
+}

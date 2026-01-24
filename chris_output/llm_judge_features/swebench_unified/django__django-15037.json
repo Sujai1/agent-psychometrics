@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is clearly described with a concrete SQL example showing foreign keys to non-primary key fields. The solution requires understanding Django's inspectdb internals and introspection APIs (get_primary_key_column), but the actual fix is relatively simple - adding a conditional check and extra parameter. The fix must integrate with the existing relation handling code and requires knowing about Django's to_field parameter for foreign keys.",
+  "_task_id": "django__django-15037",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:16.507538"
+}

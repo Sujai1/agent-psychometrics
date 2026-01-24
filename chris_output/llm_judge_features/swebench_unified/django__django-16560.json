@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task clearly describes adding a violation_error_code parameter similar to the existing violation_error_message pattern. However, the implementation requires understanding Django's constraint system across multiple files (BaseConstraint, CheckConstraint, UniqueConstraint, and PostgreSQL-specific ExclusionConstraint), updating constructors, __eq__, __repr__, deconstruct, and validate methods consistently. The pattern follows the existing violation_error_message implementation, making it straightforward but requiring attention to multiple touchpoints.",
+  "_task_id": "django__django-16560",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:44.530258"
+}

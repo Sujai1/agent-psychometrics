@@ -302,6 +302,30 @@ Semantic features extracted via LLM structured output:
 - solution_in_instruction, task_clarity, solution_size, domain_knowledge_required
 - task_complexity, logical_reasoning_required, atypicality, tooling_complexity, log_lines
 
+### Unified Features (Experimental)
+
+A standardized 9-feature set is available for fair cross-dataset comparison. All datasets share 8 core features with one dataset-specific feature:
+
+**Core features (all datasets)**:
+- solution_hint (0-3), problem_clarity (1-5), solution_complexity (1-5)
+- domain_knowledge_required (1-5), logical_reasoning_required (1-5), atypicality (1-5)
+- verification_difficulty (1-5), standard_pattern_available (0-1)
+
+**Dataset-specific**:
+- Code datasets (SWE-bench, SWE-bench Pro, GSO): `integration_complexity` (1-5)
+- TerminalBench: `tooling_complexity` (1-5)
+
+**Unified feature paths**:
+- `chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv`
+- `chris_output/llm_judge_features/swebench_pro_unified/llm_judge_features.csv`
+- `chris_output/llm_judge_features/terminalbench_unified/llm_judge_features.csv`
+- `chris_output/llm_judge_features/gso_unified/llm_judge_features.csv`
+
+To use unified features:
+```bash
+python -m experiment_a.swebench.train_evaluate --llm_judge_features_path chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv
+```
+
 To extract features:
 ```bash
 # SWE-bench features

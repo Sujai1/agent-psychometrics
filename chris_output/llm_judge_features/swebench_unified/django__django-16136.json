@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints explicitly describe the exact solution approach (adjust http_method_not_allowed() to handle async like options() does), and even reference a draft implementation. The fix requires understanding Django's async view handling and the pattern of wrapping sync responses in async functions, but the actual code change is straightforward - just conditionally return a coroutine when the view is async. The existing options() method provides a clear pattern to follow.",
+  "_task_id": "django__django-16136",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:37.624138"
+}

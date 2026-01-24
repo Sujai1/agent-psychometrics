@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task clearly describes adding a --skip-checks option to runserver, similar to other management commands. The solution requires Django management command knowledge (argument parsing, execute flow) but follows a standard pattern - adding an argument and conditionally skipping checks. The gold patch shows a simple addition of a parser argument and a conditional check, making this a straightforward extension of existing functionality.",
+  "_task_id": "django__django-13809",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:54.464119"
+}

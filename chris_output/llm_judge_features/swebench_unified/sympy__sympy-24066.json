@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly shows the bug with a reproducible example, but doesn't hint at the solution. The fix requires understanding SymPy's unit system internals, specifically how dimensions are collected and when they should be normalized to dimensionless. The actual code change is relatively simple (adding a dimensionless check), but finding where and how to apply it requires domain knowledge of the physics units subsystem.",
+  "_task_id": "sympy__sympy-24066",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:55.012570"
+}

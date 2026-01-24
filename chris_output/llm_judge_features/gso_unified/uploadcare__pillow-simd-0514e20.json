@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints explicitly describe the exact solution approach (SSE4 and AVX2 SIMD implementations with specific intrinsics like _mm_mullo_epi16). However, implementing SIMD intrinsics for alpha compositing requires expert-level knowledge of CPU vector instructions, memory alignment, and low-level C optimization. The solution involves complex bit manipulation, register management, and understanding of the alpha blending algorithm at a very low level.",
+  "_task_id": "uploadcare__pillow-simd-0514e20",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:35.460766"
+}

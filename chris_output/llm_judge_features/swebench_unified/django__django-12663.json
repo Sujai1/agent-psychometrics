@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hints section provides the exact solution with a code diff, making the fix straightforward once understood. However, discovering this solution requires deep knowledge of Django's ORM internals - specifically understanding the relationship between Col.field, Col.target, output_field resolution in subqueries, and how SimpleLazyObject interacts with related field lookups. The actual code change is minimal (2 lines) but requires tracing through multiple layers of query compilation.",
+  "_task_id": "django__django-12663",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:32.634462"
+}

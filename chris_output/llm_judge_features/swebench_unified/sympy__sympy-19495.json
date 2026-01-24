@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly demonstrates the bug with examples showing expected vs actual behavior. The fix requires understanding SymPy's set theory internals, particularly how ConditionSet handles substitution with bound variables and the interaction between condition evaluation and the base set. The solution involves removing incorrect logic that was conflating the case when condition becomes true during substitution, requiring careful reasoning about when to preserve the original symbol vs substitute.",
+  "_task_id": "sympy__sympy-19495",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:43.645073"
+}

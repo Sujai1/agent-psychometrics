@@ -1,0 +1,12 @@
+{
+  "timestamp": "20260124_140004",
+  "dataset": "terminalbench_unified",
+  "provider": "anthropic",
+  "model": "claude-opus-4-5-20251101",
+  "stats": {
+    "total": 20,
+    "success": 20,
+    "failed": 0,
+    "failed_task_ids": []
+  }
+}

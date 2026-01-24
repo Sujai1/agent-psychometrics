@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints provide explicit guidance including code snippets showing where to add 'choices' to non_database_attrs, and discussion about making it field-class specific. However, the actual solution requires understanding Django's schema migration internals and involves moving the non_database_attrs list from the schema editor to the Field class itself, allowing per-field customization. This requires knowledge of Django's ORM field system and migration framework, but the change pattern is relatively straightforward once understood.",
+  "_task_id": "django__django-15561",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:27.490666"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires deep understanding of Django's ORM deletion collector mechanism and how related objects are fetched during cascade deletes. The solution involves modifying the collect() method to defer non-referenced fields only when signals aren't connected, requiring careful reasoning about when the optimization is safe. The hints provide direction toward using only() on related object queries, but the implementation details for determining which fields are actually needed (foreign key related fields) requires significant framework internals knowledge.",
+  "_task_id": "django__django-11087",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:03.772077"
+}

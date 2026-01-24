@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This bug requires deep understanding of Django's ORM internals, specifically the query compilation system and how joins are reused. The fix involves modifying join reuse logic across multiple methods (join(), build_filter(), setup_joins(), build_filtered_relation_q()) to distinguish between regular join reuse and filtered relation join reuse using the equals() vs == comparison. The hint mentions the regression commit but doesn't explain the solution approach.",
+  "_task_id": "django__django-15554",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:26.825345"
+}

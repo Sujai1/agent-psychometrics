@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "This task requires optimizing a C extension's byte-level XOR masking operation using SIMD-like techniques (processing 8 or 4 bytes at a time instead of 1). It demands expert-level knowledge of C programming, memory alignment, and low-level CPU optimization patterns. While the pattern of widening operations is known, applying it correctly in a Python C extension context with proper type casting requires significant expertise.",
+  "_task_id": "tornadoweb__tornado-9a18f6c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:43.930868"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires knowledge of fastText ML framework, data preprocessing for text classification, and hyperparameter tuning to meet size/accuracy constraints. The solution involves multiple steps: installing dependencies, cloning/building fastText, converting parquet data to fastText format, and training with specific parameters (wordNgrams, dim) to achieve model size constraints while maintaining accuracy. The verification is difficult because the accuracy is tested on a private test set with specific thresholds.",
+  "_task_id": "train-fasttext",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:01:01.850552"
+}

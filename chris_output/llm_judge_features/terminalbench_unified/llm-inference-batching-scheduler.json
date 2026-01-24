@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 5,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 2,
+  "reasoning": "This task requires implementing a sophisticated batching scheduler with multiple optimization objectives (cost, padding ratio, latency). The solution involves k-medoids clustering, dynamic programming for batch segmentation, and grid search over hyperparameters - requiring deep understanding of LLM inference costs and algorithmic optimization. While the task provides a cost model and baseline for comparison, the actual optimization approach (shape selection strategies, DP-based splitting) must be devised from scratch.",
+  "_task_id": "llm-inference-batching-scheduler",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:35.382186"
+}

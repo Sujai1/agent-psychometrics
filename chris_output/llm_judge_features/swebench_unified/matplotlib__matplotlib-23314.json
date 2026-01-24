@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The fix is trivial - just adding a visibility check at the start of the draw() method in the 3D axes class. However, finding where to make this change requires understanding matplotlib's 3D axes architecture and knowing that Axes3D has its own draw() method that doesn't inherit the visibility check from the base class. This is a common pattern (early return on visibility check) but requires domain knowledge to locate the correct file and method.",
+  "_task_id": "matplotlib__matplotlib-23314",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:00.026405"
+}

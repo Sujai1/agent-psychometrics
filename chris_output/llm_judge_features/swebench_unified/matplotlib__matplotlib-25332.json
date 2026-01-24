@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly states the issue (cannot pickle weakref) and the trigger (align_labels), but doesn't hint at the solution location (Grouper class in cbook.py). The fix requires understanding Python's pickle protocol (__getstate__/__setstate__) and how weakrefs need to be converted to strong refs during serialization. While this is a standard pattern for pickling objects with weakrefs, finding that the Grouper class in cbook.py is the culprit requires tracing through matplotlib internals.",
+  "_task_id": "matplotlib__matplotlib-25332",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:06.764847"
+}

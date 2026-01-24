@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The bug involves two distinct issues in LogisticRegressionCV's fit method: using `self.multi_class` instead of the local `multi_class` variable, and incorrectly handling `l1_ratio_` when penalty is not 'elasticnet'. While the error message hints at an indexing problem, understanding the fix requires deep knowledge of sklearn's logistic regression internals and how multi_class/penalty settings affect coefficient paths. The fix is relatively simple once identified but requires understanding the specific context of when refit=False triggers this code path.",
+  "_task_id": "scikit-learn__scikit-learn-14087",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:53.386299"
+}

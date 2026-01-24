@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints explicitly identify the root cause (SecurityMiddleware's __init__ not calling super().__init__()) and the solution (ensuring _async_check() is called). The fix is straightforward - replacing manual initialization with super().__init__() calls in multiple middleware classes. However, it requires deep understanding of Django's middleware system, ASGI handling, and the MiddlewareMixin's async capabilities to understand why the fix works.",
+  "_task_id": "django__django-13344",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:45.892968"
+}

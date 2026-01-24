@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires optimizing Series construction with nullable Int64 dtype. The hint mentions 'value_counts' and 'masked arrays' which gives a vague direction but doesn't specify the exact changes. The solution involves understanding pandas internals for masked arrays, adding a fastpath for integer dtype coercion to avoid expensive is_numeric_na checks, and refactoring the value_counts method. This requires deep knowledge of pandas extension array implementation and how mask generation works.",
+  "_task_id": "pandas-dev__pandas-191557d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:31.202382"
+}

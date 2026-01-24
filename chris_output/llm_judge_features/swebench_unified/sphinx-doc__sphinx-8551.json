@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires deep understanding of Sphinx's domain system, specifically how cross-references are resolved and how module/class context is propagated. The solution involves passing environment context (py:module, py:class) through the xref creation chain in two different files, requiring knowledge of how docfields and Python domain interact. While the code change is small, identifying where context needs to be passed requires understanding the reference resolution flow.",
+  "_task_id": "sphinx-doc__sphinx-8551",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:12.181677"
+}

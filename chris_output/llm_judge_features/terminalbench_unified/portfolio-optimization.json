@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 4,
+  "reasoning": "This task requires writing a C extension for Python using the NumPy C API, which demands specialized knowledge of both C programming and Python extension development. The mathematical formulas are clearly provided, but implementing them correctly with proper memory management, array handling, and the PyArg_ParseTuple interface requires significant domain expertise. The tooling complexity is high due to the need to work with Python's extension build system and NumPy's C API.",
+  "_task_id": "portfolio-optimization",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:48.312739"
+}

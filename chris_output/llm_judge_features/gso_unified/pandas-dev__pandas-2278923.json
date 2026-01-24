@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The optimization requires deep understanding of pandas MultiIndex internals, specifically how get_locs processes hierarchical indexing. The solution involves a significant algorithmic change from using Int64Index with intersection operations to boolean arrays with logical operations, requiring understanding of how indexer propagation works through multiple levels. The hint only suggests using boolean arrays internally without explaining the complex refactoring needed across multiple helper functions.",
+  "_task_id": "pandas-dev__pandas-2278923",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:25.001989"
+}

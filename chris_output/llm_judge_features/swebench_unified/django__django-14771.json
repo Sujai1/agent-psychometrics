@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes that -X options aren't passed through the auto-reloader, and references the relevant Python documentation (sys._xoptions). The solution requires knowledge of Python's internal sys._xoptions API and Django's autoreload mechanism, but the fix itself is a simple extension following the existing pattern for warnoptions. The change is localized to a single function and follows an established pattern in the same codebase.",
+  "_task_id": "django__django-14771",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:13.501788"
+}

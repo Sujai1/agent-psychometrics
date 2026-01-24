@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly provides the exact solution code change needed (changing `id_for_label` to return `self.data['attrs']['id']` instead of constructing it). The fix is a trivial one-liner, but understanding why it's needed requires knowledge of Django's form/widget system. The task is well-specified with clear expected behavior and existing tests to verify correctness.",
+  "_task_id": "django__django-14534",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:08.787816"
+}

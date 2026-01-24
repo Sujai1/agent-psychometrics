@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The optimization involves changing dictionary lookups from string-based keys to numpy dtype objects, which is a standard lookup optimization pattern. However, it requires deep knowledge of pandas internals (masked array dtype system, NumericDtype hierarchy) and understanding how dtype lookups are used across multiple files. The hint only mentions 'faster access' without revealing the specific approach of changing key types in the mapping dictionaries.",
+  "_task_id": "pandas-dev__pandas-37e9e06",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:12.778353"
+}

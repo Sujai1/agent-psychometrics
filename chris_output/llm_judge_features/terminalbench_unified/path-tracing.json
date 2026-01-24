@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 2,
+  "reasoning": "This task requires reverse-engineering a rendered image to write a path tracing/ray tracing C program from scratch that reproduces it with 99% similarity. It demands deep knowledge of 3D graphics, ray-sphere intersection, lighting models, and camera projection - all while keeping the code under 2KB compressed. The solution involves implementing a complete ray tracer with spheres, checkerboard floor, shadows, and sky gradient, which is highly specialized computer graphics work with no standard pattern to follow for reverse-engineering an unknown image.",
+  "_task_id": "path-tracing",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:44.564028"
+}

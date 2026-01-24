@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hints provide an almost exact solution via the monkey-patching extension code, which directly guides the gold patch approach. However, the solution requires deep understanding of Sphinx internals (directive processing, StateMachine, event system) and docutils integration. The patch involves instance-level method patching within a directive's run method, handling docutils version-specific marker lines, and properly converting between text and line formats - all requiring specialized domain knowledge.",
+  "_task_id": "sphinx-doc__sphinx-11510",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:04.249284"
+}

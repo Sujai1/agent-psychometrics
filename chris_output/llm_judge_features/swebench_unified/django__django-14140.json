@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the bug (special case handling in deconstruct causing subscriptability errors), references the exact PR with the fix, and the hints discuss the exact code change needed. The solution is relatively simple - removing a special case branch in the deconstruct method. However, it requires understanding Django's Q object internals and the deconstruct/reconstruct pattern used for migrations.",
+  "_task_id": "django__django-14140",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:01.517704"
+}

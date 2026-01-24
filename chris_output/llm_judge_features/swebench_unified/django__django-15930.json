@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is clear with good error messages and SQL output showing the issue. The solution requires understanding Django's ORM internals, specifically how Q objects compile to SQL and how empty conditions are handled differently in WHERE vs CASE WHEN contexts. The fix itself is simple (5 lines checking for empty string and substituting Value(True)), but finding the right location and understanding why empty conditions become empty strings requires deep Django knowledge.",
+  "_task_id": "django__django-15930",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:33.340303"
+}

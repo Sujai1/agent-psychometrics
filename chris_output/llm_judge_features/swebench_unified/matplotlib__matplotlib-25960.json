@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This fix requires deep understanding of matplotlib's figure layout system, GridSpec positioning, subfigure transforms, and how layout engines interact with spacing. The solution involves manually computing grid positions when no layout engine is present and updating subfigure transforms, which is non-obvious. The hints mention constrained layout working but don't directly indicate the solution of using `get_grid_positions` and `_redo_transform_rel_fig`.",
+  "_task_id": "matplotlib__matplotlib-25960",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:07.674741"
+}

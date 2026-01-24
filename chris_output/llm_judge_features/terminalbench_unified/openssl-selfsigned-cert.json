@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 2,
+  "reasoning": "The task provides exact steps and specifications for creating SSL certificates, making it very clear what's required. It requires knowledge of OpenSSL commands and certificate concepts, but follows well-documented patterns. The solution involves multiple steps (key generation, certificate creation, verification script) but each step is straightforward and commonly documented.",
+  "_task_id": "openssl-selfsigned-cert",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:44.328688"
+}

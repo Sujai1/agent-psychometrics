@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the issue (JSONField displaying as Python dict instead of JSON) and hints at the solution location (display_for_field) and approach (using prepare_value). The fix follows an existing pattern in the function (checking field type and handling specially), but requires knowledge of Django's admin internals and field API. The solution is straightforward once you understand the display_for_field function structure and JSONField's get_prep_value method.",
+  "_task_id": "django__django-12308",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:29.528982"
+}

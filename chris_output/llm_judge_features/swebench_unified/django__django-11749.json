@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies that mutually exclusive groups aren't being handled in call_command, and even points to the exact code location. However, solving it requires deep knowledge of both Django's management command internals and Python's argparse internal structures (_mutually_exclusive_groups, _group_actions). The fix requires modifying complex list comprehension logic to include group membership checks.",
+  "_task_id": "django__django-11749",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:19.805479"
+}

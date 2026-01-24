@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Sphinx's autodoc internals, Python descriptor protocols, and how classmethod/property decorators interact. The solution spans multiple files (python.py, autodoc/__init__.py, inspect.py) and requires understanding how Sphinx discovers and documents class members. The fix involves special-casing classmethod-wrapped properties throughout the documentation pipeline, including signature handling, docstring extraction via MRO traversal, and directive options.",
+  "_task_id": "sphinx-doc__sphinx-9461",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:18.065351"
+}

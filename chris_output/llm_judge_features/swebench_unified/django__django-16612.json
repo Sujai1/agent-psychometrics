@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task description explicitly provides the exact solution - using request.get_full_path(force_append_slash=True) instead of request.path. The problem is crystal clear with specific URLs showing expected vs actual behavior. The fix is a trivial one-liner replacement, though it requires knowing Django's request API methods.",
+  "_task_id": "django__django-16612",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:44.968447"
+}

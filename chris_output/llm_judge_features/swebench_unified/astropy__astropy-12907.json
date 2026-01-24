@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is clearly described with reproducible examples showing the bug, but no hint at the solution is provided. The fix itself is simple (changing `= 1` to `= right` on one line), but finding it requires deep understanding of how separability matrices are computed for compound models and the `_cstack` function's role in handling nested models. The key insight is that when the right operand is already a matrix (from a nested compound model), it should preserve that matrix rather than filling with ones.",
+  "_task_id": "astropy__astropy-12907",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:43:53.360731"
+}

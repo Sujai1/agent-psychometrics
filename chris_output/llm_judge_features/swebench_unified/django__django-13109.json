@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly states the exact solution: change ForeignKey.validate() to use _base_manager instead of _default_manager, and even provides the exact line number in the code. The fix is a trivial one-line change replacing '_default_manager' with '_base_manager'. However, understanding WHY this is the correct fix requires knowledge of Django's manager system and how _base_manager vs _default_manager differ in filtering behavior.",
+  "_task_id": "django__django-13109",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:37.879098"
+}

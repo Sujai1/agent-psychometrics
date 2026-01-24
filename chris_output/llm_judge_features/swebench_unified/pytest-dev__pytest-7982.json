@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 1,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 1,
+  "reasoning": "The problem statement explicitly identifies the exact line that caused the regression and states that `follow_symlinks=False` should be removed. The fix is trivial - just removing a parameter from a function call. The only domain knowledge needed is understanding Python's os.scandir and DirEntry.is_dir() behavior with symlinks.",
+  "_task_id": "pytest-dev__pytest-7982",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:42.814212"
+}

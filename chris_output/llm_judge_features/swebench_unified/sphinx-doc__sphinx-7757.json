@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This bug requires deep understanding of Python AST parsing, specifically how positional-only arguments and their defaults are structured differently than regular arguments. The fix requires careful index manipulation to properly align defaults with both posonlyargs and regular args, which is non-trivial algorithmic logic. The problem statement is clear about the symptom but gives no hint about the solution approach in signature_from_str.",
+  "_task_id": "sphinx-doc__sphinx-7757",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:05.787691"
+}

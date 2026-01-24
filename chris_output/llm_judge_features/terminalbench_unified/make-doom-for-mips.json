@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 5,
+  "reasoning": "This task requires cross-compiling Doom for MIPS architecture, which involves creating a completely custom build system with LLVM IR generation, custom stdlib implementation, and a fake filesystem. The solution requires deep knowledge of cross-compilation toolchains, C library internals, MIPS assembly, and ELF binary formats. The massive patch file shows this is a highly unusual task requiring significant modifications to handle the absence of standard library dependencies and architecture-specific considerations.",
+  "_task_id": "make-doom-for-mips",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:41.166320"
+}

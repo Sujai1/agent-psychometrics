@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires specialized knowledge of HuggingFace datasets API, tokenizers, and understanding that 'science domain' maps to chemistry/biology/physics. The solver must know to use the 'metadata' config, filter by domain, and count tokens from both deepseek_reasoning and deepseek_solution fields - information that requires reading dataset documentation. While the individual components (loading datasets, tokenization) follow standard patterns, combining them correctly requires domain expertise in ML data processing.",
+  "_task_id": "count-dataset-tokens",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:59:34.632544"
+}

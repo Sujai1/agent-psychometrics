@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 5,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 5,
+  "reasoning": "This task requires building legacy software from 1993 (POV-Ray 2.2) which demands extensive knowledge of C89 compilation, legacy build systems, and source code patching for modern compatibility. The solution involves downloading archives from specific URLs, extracting with obsolete compression tools (ncompress), patching source files to fix header conflicts, adding deterministic RNG functions, and modifying makefiles - none of which is documented in standard resources. This is an extremely rare pattern requiring deep systems knowledge and trial-and-error debugging of decades-old code.",
+  "_task_id": "build-pov-ray",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:58:32.314627"
+}

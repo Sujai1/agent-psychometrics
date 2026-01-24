@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 1,
+  "reasoning": "This task requires advanced regex skills including lookaheads, complex alternation patterns, and boundary conditions. The solution must combine IPv4 validation, date validation with month-specific day ranges, and the constraint of matching only the last date on lines containing IPs - requiring deep regex knowledge and careful logical reasoning about edge cases. While individual date/IP regex patterns exist, combining them with the 'last date only' requirement makes this a non-standard problem.",
+  "_task_id": "regex-log",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:53.796928"
+}

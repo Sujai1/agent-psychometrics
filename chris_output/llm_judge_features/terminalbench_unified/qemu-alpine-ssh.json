@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 5,
+  "reasoning": "This task requires deep knowledge of QEMU virtualization, expect scripting for automated interaction, Alpine Linux system administration, and SSH server configuration. The solution involves launching a VM with proper networking (port forwarding), automating login via telnet/expect, and configuring networking, installing packages, and setting up SSH inside the VM - a complex multi-layer orchestration task. The tooling is exotic, combining QEMU, expect scripts, telnet automation, and Alpine-specific service management.",
+  "_task_id": "qemu-alpine-ssh",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:51.888875"
+}

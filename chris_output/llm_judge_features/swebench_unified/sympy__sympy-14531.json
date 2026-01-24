@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem is clearly described with examples, and mentions 'a fix is forthcoming'. The solution requires understanding SymPy's printer architecture - specifically that subexpressions must be processed through self._print() to respect settings, not converted directly to strings. The fix involves many similar changes across multiple print methods, following a consistent pattern of wrapping expressions in self._print() calls.",
+  "_task_id": "sympy__sympy-14531",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:29.913533"
+}

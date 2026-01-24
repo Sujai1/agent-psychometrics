@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints clearly identify the problem (extra <mi> tags wrapping subscript elements) and show what correct output should look like. The fix requires understanding MathML structure and SymPy's printer pattern, but the change is straightforward: remove the outer <mi> container and directly return the msub/msup/msubsup element. The solution involves refactoring one method with clear DOM manipulation logic.",
+  "_task_id": "sympy__sympy-15976",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:34.789741"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The fix is a simple one-line change replacing 'unhandled_kwargs' with 'kwonly' in a condition, but finding this requires deep understanding of Django's template tag parsing internals and how keyword-only arguments are handled differently from regular kwargs. The problem is clearly described with examples, but the solution requires understanding the distinction between params, kwonly, and unhandled_kwargs in the parse_bits function.",
+  "_task_id": "django__django-12262",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:27.542641"
+}

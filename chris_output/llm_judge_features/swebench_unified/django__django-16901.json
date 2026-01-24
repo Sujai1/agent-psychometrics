@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly explains the XOR parity issue (odd vs exactly-one) and provides expected behavior. The solution requires understanding Django's ORM internals and SQL generation, but the fix itself is straightforward - adding a MOD operation for cases with more than 2 arguments. The mathematical concept of XOR as parity (odd number of true values) is standard knowledge, making the pattern available once understood.",
+  "_task_id": "django__django-16901",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:49.521841"
+}

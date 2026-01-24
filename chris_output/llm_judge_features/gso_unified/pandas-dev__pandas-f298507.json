@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hint explicitly states 'Implement round on the block level' which gives a clear direction. However, this requires deep knowledge of pandas internals (BlockManager, Block classes, array managers) and understanding how to properly integrate with the Copy-on-Write mechanism. The solution involves modifying multiple internal components (frame.py, blocks.py, managers.py, array_manager.py) and requires understanding pandas' internal data representation to bypass the inefficient per-column iteration approach.",
+  "_task_id": "pandas-dev__pandas-f298507",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:15.824731"
+}

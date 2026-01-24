@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 5,
+  "atypicality": 5,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires implementing a GPT-2 inference engine in under 5000 bytes of C code, which demands expert-level knowledge of transformer architectures, TensorFlow checkpoint formats, BPE tokenization, and extreme code golf skills. The solution involves implementing matrix multiplication, attention mechanisms, layer normalization, and GELU activation in highly compressed C code. This is an exceptionally rare and novel task combining deep ML knowledge with systems programming and code size optimization.",
+  "_task_id": "gpt2-codegolf",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:33.733153"
+}

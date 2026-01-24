@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This optimization requires deep understanding of pandas groupby internals, including group indexing, factorization, and the use of specialized hashtable functions like `duplicated`. The solution replaces a complex lexsort-based algorithm with a more efficient approach using `get_group_index` and `bincount`, requiring knowledge of how pandas handles group operations internally. The hint provides no direction on the solution approach, and the pattern is not standard - it requires understanding multiple pandas internal components and their interaction.",
+  "_task_id": "pandas-dev__pandas-d377cc9",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:17.726671"
+}

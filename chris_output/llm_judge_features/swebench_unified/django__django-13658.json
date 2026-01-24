@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly provides the exact solution code needed - just adding `prog=self.prog_name` as a parameter to CommandParser. The fix is trivial (adding one argument), but requires understanding Django's management command infrastructure to locate the correct file. Verification is moderately difficult as it requires a specific embedded environment setup to reproduce the issue.",
+  "_task_id": "django__django-13658",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:50.491973"
+}

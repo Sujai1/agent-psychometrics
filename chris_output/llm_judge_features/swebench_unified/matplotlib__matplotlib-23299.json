@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The hint provided explains the root cause (lazy backend resolution + rc_context stashing the sentinel), which points toward the solution. However, the fix requires deep understanding of matplotlib's rcParams system, particularly how the 'backend' key interacts with figure management. The solution is simple (exclude 'backend' from context restoration) but finding it requires tracing a complex interaction between rc_context, backend resolution, and Gcf figure management.",
+  "_task_id": "matplotlib__matplotlib-23299",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:59.122788"
+}

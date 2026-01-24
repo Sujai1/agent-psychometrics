@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints section provides the exact solution code, making this straightforward to implement. The bug involves incorrect handling of the denominator accumulator variable `q` being reused when it should use a separate variable `Q`. Understanding requires knowledge of how Rational conversion works internally, but the fix itself is a simple variable management change.",
+  "_task_id": "sympy__sympy-24562",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:56.831490"
+}

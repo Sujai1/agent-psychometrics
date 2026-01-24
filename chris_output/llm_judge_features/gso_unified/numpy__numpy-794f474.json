@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This optimization requires adding AVX2 SIMD support to NumPy's sorting routines, involving deep knowledge of CPU instruction sets, SIMD programming, and NumPy's internal build system (meson). The patch modifies multiple dispatch files, creates new architecture-specific implementations using x86-simd-sort and highway libraries, and requires understanding of CPU feature detection and conditional compilation across different platforms. The integration is pervasive, touching build configuration, multiple C++ source files, and test infrastructure.",
+  "_task_id": "numpy__numpy-794f474",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:09:24.787370"
+}

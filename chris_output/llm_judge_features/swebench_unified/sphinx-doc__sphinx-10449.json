@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is very clearly described with reproduction steps, but finding the solution requires deep knowledge of Sphinx's autodoc internals, specifically the typehints module and how it processes field lists. The fix involves modifying the `modify_field_list` function to suppress return types for classes and adding conditional logic based on object type, which requires understanding multiple interacting components in the autodoc system.",
+  "_task_id": "sphinx-doc__sphinx-10449",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:00.479562"
+}

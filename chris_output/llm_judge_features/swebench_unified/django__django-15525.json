@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The hints section provides the exact solution with a code diff, making this straightforward to implement. However, understanding why the fix works requires deep knowledge of Django's ORM internals, specifically how `_state.db` controls which database is used for related object lookups during natural key resolution. The fix itself is simple (3 lines), but recognizing that the database context wasn't being properly set on the temporary model instance requires framework expertise.",
+  "_task_id": "django__django-15525",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:27.658203"
+}

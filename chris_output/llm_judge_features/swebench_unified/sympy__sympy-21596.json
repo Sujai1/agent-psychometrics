@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of SymPy's set theory internals, particularly how ImageSet intersections with Reals are computed. The fix involves understanding the subtle difference between subtracting invalid values from a base set versus intersecting with valid solutions, requiring knowledge of symbolic math operations like solve_linear, numer, and denoms. The solution changes the algorithmic approach from set subtraction to set intersection with a union of solutions, which is a non-obvious fix requiring significant domain expertise.",
+  "_task_id": "sympy__sympy-21596",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:50.660502"
+}

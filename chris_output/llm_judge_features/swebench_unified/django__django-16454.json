@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the issue (subparsers don't inherit error formatting) and hints at the solution (copying relevant arguments). However, implementing it requires deep understanding of argparse internals (subparser actions, parser_class parameter) and Django's CommandParser customizations. The solution uses functools.partial to pass the called_from_command_line flag to subparsers, which is a moderately unusual pattern specific to this framework integration.",
+  "_task_id": "django__django-16454",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:40.943836"
+}

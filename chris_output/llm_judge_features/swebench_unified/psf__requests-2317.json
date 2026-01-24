@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes the issue with builtin_str converting binary strings incorrectly in Python 3. The hint explicitly states it should be replaced with 'to_native_str', making the solution straightforward. The fix is a simple one-line change replacing one function call with another, requiring knowledge of the requests library's string handling utilities but not deep reasoning.",
+  "_task_id": "psf__requests-2317",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:15.969098"
+}

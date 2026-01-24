@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the issue (using hardcoded class references instead of cls) and the hint explicitly states the solution approach (make _af_new a classmethod with Basic.__new__(cls, perm)). The fix requires changing multiple methods from static to class methods and replacing hardcoded Perm/Permutation references with cls/self._af_new throughout the file. This is a well-known Python pattern for proper subclassing, but requires touching many methods across the class.",
+  "_task_id": "sympy__sympy-12489",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:23.691650"
+}

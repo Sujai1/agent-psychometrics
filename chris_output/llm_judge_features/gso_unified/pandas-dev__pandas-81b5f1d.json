@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The optimization requires deep understanding of pandas' MultiIndex internals, specifically knowing that accessing MultiIndex._values causes expensive caching behavior during merge operations on sorted indices. The hint mentions 'merge on sorted multiindex performance' and 'avoid going through multi._values', providing direction but not exact implementation. The solution involves modifying conditional checks in Index base class to exclude MultiIndex from certain optimization paths that inadvertently trigger slow code paths.",
+  "_task_id": "pandas-dev__pandas-81b5f1d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:22.746565"
+}

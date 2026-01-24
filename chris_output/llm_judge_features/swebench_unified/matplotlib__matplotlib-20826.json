@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The hint clearly identifies the issue (clearing tick keyword dictionaries drops visibility settings) and points to the relevant commit. However, the fix requires understanding matplotlib's internal tick/axis system and how rcParams interact with axis clearing. The solution involves modifying just a few lines to preserve only the gridOn setting while letting shared axis settings persist, which is a targeted but non-obvious change requiring domain knowledge.",
+  "_task_id": "matplotlib__matplotlib-20826",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:56.092712"
+}

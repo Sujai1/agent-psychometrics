@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly shows the comparison between ModelMultipleChoiceField (which has %(value)s) and ModelChoiceField (which doesn't), and hints suggest passing the value parameter. The fix is trivial - just adding params={'value': value} to the ValidationError call. This follows Django's standard pattern for error messages with parameters, requiring basic Django forms knowledge but no complex reasoning.",
+  "_task_id": "django__django-13933",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:57.352152"
+}

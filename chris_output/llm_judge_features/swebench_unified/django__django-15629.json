@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of Django's database schema editor, migrations system, and how foreign key relationships are managed across multiple database backends. The solution involves changes in 4 different files across base schema, SQLite schema, Oracle features, and the related fields module. The hints provide direction but the implementation requires understanding how db_params propagate through the system and how ALTER operations handle collation changes for related fields.",
+  "_task_id": "django__django-15629",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:29.233035"
+}

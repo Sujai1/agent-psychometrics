@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly demonstrates the bug with reproducible code showing that center=True is ignored during manual iteration. The solution requires understanding xarray's rolling window internals and correctly computing centered window offsets. The fix involves modifying the __iter__ method to account for centering by adjusting start/stop indices, requiring knowledge of how rolling windows work and careful reasoning about offset calculations for both centered and non-centered cases.",
+  "_task_id": "pydata__xarray-6744",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:28.326845"
+}

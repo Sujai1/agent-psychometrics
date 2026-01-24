@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints explicitly point to the PathCollection.set_paths implementation as the solution, and the gold patch confirms this is just moving/copying that simple 2-line implementation to the base Collection class. The fix is trivial - replacing a NotImplementedError with the actual setter logic. Some matplotlib collections knowledge is needed to understand the class hierarchy, but the pattern is standard getter/setter.",
+  "_task_id": "matplotlib__matplotlib-26342",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:09.885832"
+}

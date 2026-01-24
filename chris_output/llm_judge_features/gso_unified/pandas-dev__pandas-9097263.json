@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 3,
+  "atypicality": 4,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The optimization requires deep knowledge of NumPy's C API (flatiter, PyArray_GETITEM, PyArray_ITER_DATA) and Cython to replace separate 1D/2D implementations with a unified iterator-based approach. The hint mentions using 'Numpy C Iterator API to unify isnaobj 1D/2D' which gives a clear direction but still requires expert-level knowledge of low-level NumPy internals. Integration touches multiple files including Cython code, Python wrappers, and test files across the pandas codebase.",
+  "_task_id": "pandas-dev__pandas-9097263",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:30.652702"
+}

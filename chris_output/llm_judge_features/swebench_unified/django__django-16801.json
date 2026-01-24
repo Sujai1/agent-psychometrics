@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement clearly identifies the issue (unnecessary post_init signal handler when width_field/height_field not set) and even suggests the solution approach (removing the signal when those fields aren't used). The fix is straightforward - adding a condition to check if width_field or height_field exists before connecting the signal. However, it requires understanding Django's signal system, ImageField internals, and how the contribute_to_class mechanism works.",
+  "_task_id": "django__django-16801",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:48.008274"
+}

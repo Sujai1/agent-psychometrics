@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hints section provides nearly the exact solution with a diff showing the precise code changes needed for replace_named_groups() and mentions similar changes for replace_unnamed_groups(). The problem is clearly explained with reproducible examples. The fix involves understanding regex parsing logic and bracket balancing, requiring moderate reasoning about off-by-one errors in index calculations, but the pattern is straightforward once understood.",
+  "_task_id": "django__django-11728",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:18.199375"
+}

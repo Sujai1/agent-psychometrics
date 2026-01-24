@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 2,
+  "reasoning": "The hints section explicitly provides the exact solution code diff needed - setting `_iterable_class = ValuesIterable` when `value.values_select` is not empty in the query setter. While the problem is clearly described and the fix is trivial (2 lines), understanding WHY this fix works requires deep Django ORM knowledge about how QuerySet iteration classes work and how query pickling interacts with queryset state.",
+  "_task_id": "django__django-13406",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:45.391455"
+}

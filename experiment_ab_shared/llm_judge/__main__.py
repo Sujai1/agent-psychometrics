@@ -308,16 +308,17 @@ def load_tasks_for_dataset(
     repo_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """Load tasks for a built-in dataset."""
-    if dataset in ("swebench", "swebench_v2"):
-        # swebench_v2 uses same data as swebench, just different prompt
+    if dataset in ("swebench", "swebench_v2", "swebench_unified"):
+        # swebench_v2 and swebench_unified use same data as swebench, just different prompts
         return load_swebench_tasks()
-    elif dataset in ("swebench_pro", "swebench_pro_v2", "swebench_pro_v3", "swebench_pro_v4", "swebench_pro_v5"):
-        # V2/V3/V4/V5 use same data as swebench_pro, just different prompts
+    elif dataset in ("swebench_pro", "swebench_pro_v2", "swebench_pro_v3", "swebench_pro_v4", "swebench_pro_v5", "swebench_pro_unified"):
+        # V2/V3/V4/V5/unified use same data as swebench_pro, just different prompts
         return load_swebench_pro_tasks()
-    elif dataset in ("terminalbench", "terminalbench_v2"):
-        # terminalbench_v2 uses same data as terminalbench, just different prompt
+    elif dataset in ("terminalbench", "terminalbench_v2", "terminalbench_unified"):
+        # terminalbench_v2 and terminalbench_unified use same data as terminalbench, just different prompts
         return load_terminalbench_tasks(items_path, repo_path)
-    elif dataset == "gso":
+    elif dataset in ("gso", "gso_unified"):
+        # gso_unified uses same data as gso, just different prompt
         return load_gso_tasks()
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
@@ -351,7 +352,7 @@ def _add_deterministic_features_to_csv(
 
     # Build task lookup by ID
     is_swebench = "swebench" in dataset_name
-    is_gso = dataset_name == "gso"
+    is_gso = "gso" in dataset_name  # Matches both "gso" and "gso_unified"
     if is_swebench or is_gso:
         task_id_field = "instance_id"
         feature_names = SWEBENCH_DETERMINISTIC_FEATURES

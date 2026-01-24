@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly identifies the bug (cursor.fetchone() returning None) and even suggests the solution ('a simple check to see if it contains data would be enough'). The fix is a trivial null check before subscripting, which is a very common defensive programming pattern. The only challenge is understanding the database cursor context, but the exact location and nature of the fix is clearly specified.",
+  "_task_id": "django__django-13089",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:37.974816"
+}

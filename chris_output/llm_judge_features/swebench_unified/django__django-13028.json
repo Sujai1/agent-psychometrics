@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The solution is explicitly provided in the hints section with exact code diff, making implementation trivial. However, understanding WHY this fix works requires deep Django ORM knowledge about expressions, the filterable attribute, and resolve_expression. The actual code change is a simple one-liner adding a hasattr check, but finding it without the hint would require understanding Django's query building internals.",
+  "_task_id": "django__django-13028",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:37.327091"
+}

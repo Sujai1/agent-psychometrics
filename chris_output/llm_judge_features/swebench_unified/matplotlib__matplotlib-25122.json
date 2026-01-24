@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly identifies the bug (unnecessary np.abs calls) and references scipy's correct implementation. The fix is straightforward - removing np.abs() in 4 places - but requires understanding signal processing concepts like window correction factors and spectral density. The domain knowledge about ENBW and window functions is specialized, though the solution pattern follows scipy's established approach.",
+  "_task_id": "matplotlib__matplotlib-25122",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:06.565707"
+}

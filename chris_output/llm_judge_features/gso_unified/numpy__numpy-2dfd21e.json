@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing AVX512 SIMD vectorization for float16 (half-precision) math functions in NumPy's core umath library. It demands expert-level knowledge of SIMD intrinsics, Intel SVML library integration, NumPy's code generation system, and CPU dispatch mechanisms. The solution spans multiple files including code generators, build configuration, and low-level C with SIMD intrinsics, requiring deep understanding of NumPy's internal architecture.",
+  "_task_id": "numpy__numpy-2dfd21e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:07.242925"
+}

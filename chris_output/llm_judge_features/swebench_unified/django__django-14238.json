@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly identifies the fix location (AutoFieldMeta.__subclasscheck__) and what needs to change (_subclasses property handling). The actual fix is a trivial one-liner changing 'subclass in self._subclasses' to 'issubclass(subclass, self._subclasses)'. However, understanding why this fix works requires knowledge of Python metaclasses and Django's AutoField inheritance hierarchy.",
+  "_task_id": "django__django-14238",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:03.272511"
+}

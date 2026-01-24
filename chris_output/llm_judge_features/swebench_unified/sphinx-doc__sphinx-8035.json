@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires extending the `:private-members:` option to accept specific member names like `:members:` already does. The solution involves modifying option parsing, creating a new merge function, and updating multiple documenters' filter logic. This requires understanding Sphinx autodoc internals including option handling and member filtering, but follows existing patterns from `:special-members:` implementation.",
+  "_task_id": "sphinx-doc__sphinx-8035",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:08.199683"
+}

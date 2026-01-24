@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The task explicitly references PR #14047 as an example pattern to follow, making the solution approach crystal clear - just add the @deconstructible decorator with a simplified path to multiple expression classes. The changes are mechanical (adding the same decorator pattern to 6 different classes) and require only understanding Django's deconstructible decorator. The existing F() implementation serves as a direct template.",
+  "_task_id": "django__django-15161",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:18.783446"
+}

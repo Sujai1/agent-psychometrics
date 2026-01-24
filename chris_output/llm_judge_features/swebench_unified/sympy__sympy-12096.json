@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly states the solution: 'It isn't calling evalf recursively on the return of _imp_'. The fix is a simple one-liner change to add recursive evalf calls on the arguments. While understanding SymPy's function evaluation system requires some domain knowledge, the actual fix pattern (applying a function recursively to arguments) is straightforward.",
+  "_task_id": "sympy__sympy-12096",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:20.933560"
+}

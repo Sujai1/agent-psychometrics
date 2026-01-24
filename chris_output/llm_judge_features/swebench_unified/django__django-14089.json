@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 1,
+  "atypicality": 1,
+  "verification_difficulty": 1,
+  "standard_pattern_available": 1,
+  "integration_complexity": 1,
+  "reasoning": "The problem statement explicitly tells you exactly what to do: add a __reversed__() method to OrderedSet. The solution is a trivial 2-line method that delegates to the underlying dict's reversed(). This is a standard Python protocol implementation pattern requiring only basic knowledge of Python's iterator protocols.",
+  "_task_id": "django__django-14089",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:59.207495"
+}

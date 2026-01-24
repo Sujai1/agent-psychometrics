@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires implementing a sophisticated statistical algorithm (adaptive rejection sampling) from a specific academic paper, demanding deep knowledge of Bayesian statistics, log-concave distributions, and sampling theory. The solution involves creating modular R code with input validation, log-concavity checks, hull construction algorithms, and comprehensive testing against known distributions. The stochastic nature of outputs makes verification challenging, requiring statistical tolerance comparisons rather than exact matches.",
+  "_task_id": "adaptive-rejection-sampler",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:58:01.915950"
+}

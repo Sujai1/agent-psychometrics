@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 5,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem is crystal clear with a minimal reproducible example and the author even states they've identified the issue in codegen. The fix requires understanding SymPy's code generation internals, specifically how InputArgument and dimension metadata work for array types (MatrixSymbol, IndexedBase). The solution involves adding a helper function and handling the case where array symbols in argument_sequence aren't found in the expression atoms, which requires moderate integration with existing routine() method logic.",
+  "_task_id": "sympy__sympy-16792",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:36.886542"
+}

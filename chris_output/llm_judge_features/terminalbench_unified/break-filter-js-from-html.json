@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 1,
+  "reasoning": "This task requires specialized knowledge of XSS bypass techniques and understanding of HTML parser quirks, specifically the malformed comment technique that exploits how browsers handle '<!-->'. While the actual solution is a single echo command, discovering this bypass requires deep knowledge of web security and HTML parsing edge cases. The verification is straightforward with the provided test script, but the conceptual difficulty lies in knowing obscure XSS filter bypass patterns.",
+  "_task_id": "break-filter-js-from-html",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T13:58:12.976458"
+}

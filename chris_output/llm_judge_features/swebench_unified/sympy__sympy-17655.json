@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 2,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The hint explicitly states the exact solution: define `__rmul__` for Point. This is a well-known Python pattern for handling reversed operand multiplication. The fix is trivial - just 3 lines to add `__rmul__` that delegates to `__mul__`. The problem is crystal clear with reproducible examples showing the asymmetric behavior.",
+  "_task_id": "sympy__sympy-17655",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:38.512385"
+}

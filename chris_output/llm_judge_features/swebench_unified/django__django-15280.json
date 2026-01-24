@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The task requires deep understanding of Django's prefetch_related internals, specifically how objects are cached and assigned during prefetch operations. The hint points directly to the relevant code location, and the fix is relatively simple (checking if field is cached before overwriting), but understanding WHY this fix works requires understanding the complex interplay between deferred fields, prefetching, and object caching in Django's ORM.",
+  "_task_id": "django__django-15280",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:22.062602"
+}

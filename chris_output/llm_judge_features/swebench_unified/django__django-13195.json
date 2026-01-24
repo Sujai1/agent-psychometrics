@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement includes a nearly complete solution approach with example code showing exactly what parameters to add. The fix requires modifying delete_cookie() to accept and pass through a samesite parameter, plus updating callers in messages and sessions middleware - a common pattern of adding a parameter through a call chain. Domain knowledge of Django's cookie handling and browser SameSite requirements is needed, but the solution follows a standard pattern of propagating configuration settings.",
+  "_task_id": "django__django-13195",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:40.744496"
+}

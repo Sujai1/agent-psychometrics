@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly states that --check should exit without making migrations, matching behavior of other commands. The fix is trivial - just moving the sys.exit(1) call before the write_migration_files() call, requiring only 4 lines changed. The main challenge is understanding Django's migration command flow, but the solution pattern is straightforward once you understand the desired behavior.",
+  "_task_id": "django__django-16116",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:36.575991"
+}

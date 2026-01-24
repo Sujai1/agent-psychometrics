@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly identifies the offending lines and points to the existing method (get_tzname()) that should be used instead, making the solution essentially spelled out. The fix is trivial - just replacing hardcoded timezone logic with the existing method call in two places. The main requirement is understanding Django's datetime function hierarchy and the TimeZone mixin pattern.",
+  "_task_id": "django__django-13363",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:45.473073"
+}

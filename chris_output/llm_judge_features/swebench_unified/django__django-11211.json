@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The task requires deep understanding of Django's ORM internals, specifically how UUIDField handles value preparation and how GenericForeignKey prefetching works. The solution is simple (4 lines adding get_prep_value to UUIDField), but discovering that the issue is a type mismatch between string and UUID during prefetch lookup requires tracing through multiple Django subsystems. The hint in the problem statement is misleading, suggesting it's not supported, when actually it's a bug in value preparation.",
+  "_task_id": "django__django-11211",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:11.337047"
+}

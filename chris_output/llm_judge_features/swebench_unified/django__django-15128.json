@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The hints explicitly mention using Query.bump_prefix with modifications to handle alias conflicts, providing a clear direction. However, the solution requires deep understanding of Django's ORM query internals, specifically the alias management system (alias_map, change_aliases, bump_prefix). The fix involves modifying bump_prefix to accept an exclude parameter and calling it during combine() to prevent alias collisions, requiring careful reasoning about how aliases interact between merged querysets.",
+  "_task_id": "django__django-15128",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:19.071587"
+}

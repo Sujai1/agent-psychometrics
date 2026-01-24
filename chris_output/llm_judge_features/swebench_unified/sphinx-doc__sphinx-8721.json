@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem clearly describes the bug (viewcode creating epub pages despite config setting), but doesn't hint at where the fix should go. The solution requires understanding Sphinx's builder system and the viewcode extension internals to know that collect_pages() needs early-return guards. The fix itself is simple conditional logic, but finding the right location requires domain knowledge of Sphinx's extension architecture.",
+  "_task_id": "sphinx-doc__sphinx-8721",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:13.595098"
+}

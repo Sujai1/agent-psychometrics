@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies the missing ordering fallback behavior and points to specific code locations. The solution requires understanding Django admin internals (filters, model ordering, field choices) and involves changes across three files with a new helper method. The pattern of adding ordering parameters to queryset methods is standard Django, but requires knowledge of how ModelAdmin ordering integrates with field choices.",
+  "_task_id": "django__django-11400",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:13.204765"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 3,
+  "solution_complexity": 5,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "tooling_complexity": 3,
+  "reasoning": "This task requires reverse engineering a compiled binary to understand it implements a ray tracer, then recreating equivalent C code with specific constraints. The solution involves deep knowledge of computer graphics (ray tracing algorithms, sphere intersection, lighting calculations), reverse engineering skills, and C programming expertise. The complexity is very high as the solver must understand 3D graphics math, decompile/analyze binary behavior, and produce functionally identical code under a size constraint.",
+  "_task_id": "path-tracing-reverse",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:44.530633"
+}

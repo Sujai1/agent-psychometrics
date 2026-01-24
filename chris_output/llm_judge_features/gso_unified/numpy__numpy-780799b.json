@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The gold patch reveals the exact solution: a branchless, manually unrolled loop in C to avoid branch misprediction penalties. This requires expert knowledge of CPU architecture (branch prediction, cache behavior) and low-level C optimization within NumPy's internals. The optimization is non-obvious - replacing a simple conditional loop with pointer arithmetic tricks that eliminate branches - making it an unusual pattern requiring deep understanding of both the NumPy codebase and hardware performance characteristics.",
+  "_task_id": "numpy__numpy-780799b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:06:12.608925"
+}

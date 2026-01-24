@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem statement includes an almost complete code patch showing exactly what needs to be done - adding async wrapper methods using sync_to_async. The pattern is straightforward (wrap sync method with sync_to_async), but requires understanding Django's related managers architecture across multiple manager types (reverse many-to-one, forward many-to-many, and generic relations). The fix is repetitive but must be applied consistently in three different files/locations.",
+  "_task_id": "django__django-16256",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:39.722114"
+}

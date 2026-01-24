@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly identifies the regression from Django 3.1 to 3.2 in _get_timezone_name() behavior. The solution requires understanding timezone APIs and knowing that tzname(None) returns the offset for fixed offset timezones while str() returns the zone name. The fix is small (one line change) but requires deep knowledge of Python timezone internals and how different timezone representations (pytz, zoneinfo, fixed offsets) behave differently.",
+  "_task_id": "django__django-14792",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:13.517024"
+}

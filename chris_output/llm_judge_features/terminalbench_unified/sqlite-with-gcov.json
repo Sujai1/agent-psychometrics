@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 3,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 3,
+  "atypicality": 3,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 1,
+  "tooling_complexity": 3,
+  "reasoning": "The task requires knowledge of gcov instrumentation flags (-ftest-coverage, -fprofile-arcs) and the SQLite build system. While compiling with coverage is a documented pattern, combining the specific CFLAGS with configure options and ensuring PATH availability requires moderate domain knowledge. The solution involves multiple tools (apt, tar, make, configure) and understanding how to properly link the binary for system-wide access.",
+  "_task_id": "sqlite-with-gcov",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T14:00:58.182125"
+}

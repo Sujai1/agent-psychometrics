@@ -1,0 +1,16 @@
+{
+  "solution_hint": 3,
+  "problem_clarity": 5,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem statement explicitly identifies the root cause (UserCreationForm.save() omits to call self.save_m2m()) and the exact solution needed. The fix is a trivial 2-line addition that follows Django's standard ModelForm pattern. The main requirement is understanding Django forms and the save_m2m() convention, but no complex reasoning is needed since the solution is directly stated.",
+  "_task_id": "django__django-16333",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:41.033615"
+}

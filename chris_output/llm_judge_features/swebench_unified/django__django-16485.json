@@ -1,0 +1,16 @@
+{
+  "solution_hint": 1,
+  "problem_clarity": 4,
+  "solution_complexity": 1,
+  "domain_knowledge_required": 3,
+  "logical_reasoning_required": 2,
+  "atypicality": 2,
+  "verification_difficulty": 2,
+  "standard_pattern_available": 1,
+  "integration_complexity": 2,
+  "reasoning": "The problem is clear with a reproducible error and the hint identifies the regression commit. The solution is trivial - changing `p < 0` to `p <= 0` in a conditional check. However, understanding why this fix works requires some knowledge of Django's floatformat filter internals and decimal precision handling.",
+  "_task_id": "django__django-16485",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:45:41.889467"
+}

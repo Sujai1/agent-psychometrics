@@ -1,0 +1,16 @@
+{
+  "solution_hint": 2,
+  "problem_clarity": 4,
+  "solution_complexity": 3,
+  "domain_knowledge_required": 5,
+  "logical_reasoning_required": 4,
+  "atypicality": 4,
+  "verification_difficulty": 3,
+  "standard_pattern_available": 0,
+  "integration_complexity": 4,
+  "reasoning": "This bug requires deep understanding of Django's ORM query internals, specifically how FilteredRelation annotations interact with exclude operations and the split_exclude mechanism. The fix involves propagating _filtered_relations to new query objects and preventing trimming of INNER JOINs from filtered relations - both require intimate knowledge of the query compilation process. The hints mention split_exclude is faulty and discuss the expected SQL, providing direction but not the exact solution.",
+  "_task_id": "django__django-11265",
+  "_model": "claude-opus-4-5-20251101",
+  "_provider": "anthropic",
+  "_extracted_at": "2026-01-24T15:44:11.950887"
+}
