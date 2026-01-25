@@ -692,6 +692,9 @@ class StackedResidualPredictor:
             ValueError: If task_ids and ground_truth_b have different lengths.
             ValueError: If any task is missing from either feature source.
         """
+        from sklearn.linear_model import Ridge
+        from sklearn.model_selection import KFold
+
         y = np.asarray(ground_truth_b, dtype=np.float32)
 
         if len(task_ids) != len(y):
@@ -699,38 +702,95 @@ class StackedResidualPredictor:
                 f"task_ids ({len(task_ids)}) and ground_truth_b ({len(y)}) must have same length"
             )
 
-        # === Stage 1: Base Model ===
-        # Get base features (will raise if any task is missing)
+        # Get features upfront (will raise if any task is missing)
         X_base = self.base_source.get_features(task_ids)
+        X_residual = self.residual_source.get_features(task_ids)
 
-        # Fit scaler for base features
+        # === Stage 1: Base Model Alpha Selection ===
+        # Use manual CV to re-fit scalers per fold (avoids data leakage)
+        inner_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+
+        best_base_alpha = None
+        best_base_mse = float("inf")
+        for alpha in self.base_alphas:
+            fold_mses = []
+            for train_idx, val_idx in inner_cv.split(X_base):
+                # Fit scaler on training fold only
+                scaler = StandardScaler()
+                X_train = scaler.fit_transform(X_base[train_idx])
+                X_val = scaler.transform(X_base[val_idx])
+
+                # Fit and evaluate
+                model = Ridge(alpha=alpha)
+                model.fit(X_train, y[train_idx])
+                pred = model.predict(X_val)
+                mse = float(np.mean((y[val_idx] - pred) ** 2))
+                fold_mses.append(mse)
+
+            mean_mse = np.mean(fold_mses)
+            if mean_mse < best_base_mse:
+                best_base_mse = mean_mse
+                best_base_alpha = alpha
+
+        self._base_best_alpha = float(best_base_alpha)
+
+        # Fit final base model on all data
         self._base_scaler = StandardScaler()
         X_base_scaled = self._base_scaler.fit_transform(X_base)
-
-        # Fit base model with cross-validation
-        self._base_model = RidgeCV(alphas=self.base_alphas, cv=5)
+        self._base_model = Ridge(alpha=best_base_alpha)
         self._base_model.fit(X_base_scaled, y)
-        self._base_best_alpha = float(self._base_model.alpha_)
 
-        # Get base predictions on training data
+        # Get base predictions on training data for residual computation
         base_predictions = self._base_model.predict(X_base_scaled)
 
-        # === Stage 2: Residual Model ===
+        # === Stage 2: Residual Model Alpha Selection ===
         # Compute residuals: what the base model got wrong
         residuals = y - base_predictions
         self._train_residual_std = float(np.std(residuals))
 
-        # Get residual features (will raise if any task is missing)
-        X_residual = self.residual_source.get_features(task_ids)
+        best_residual_alpha = None
+        best_residual_mse = float("inf")
+        for alpha in self.residual_alphas:
+            fold_mses = []
+            for train_idx, val_idx in inner_cv.split(X_residual):
+                # For residual model, we need to compute residuals per fold
+                # to avoid leakage from the base model's in-sample predictions
+                base_scaler_fold = StandardScaler()
+                X_base_train = base_scaler_fold.fit_transform(X_base[train_idx])
+                X_base_val = base_scaler_fold.transform(X_base[val_idx])
 
-        # Fit scaler for residual features
+                base_model_fold = Ridge(alpha=best_base_alpha)
+                base_model_fold.fit(X_base_train, y[train_idx])
+                base_pred_val = base_model_fold.predict(X_base_val)
+                residuals_val = y[val_idx] - base_pred_val
+
+                # Now fit residual model
+                residual_scaler = StandardScaler()
+                X_res_train = residual_scaler.fit_transform(X_residual[train_idx])
+                X_res_val = residual_scaler.transform(X_residual[val_idx])
+
+                # For training residuals, use in-sample base predictions
+                base_pred_train = base_model_fold.predict(X_base_train)
+                residuals_train = y[train_idx] - base_pred_train
+
+                model = Ridge(alpha=alpha)
+                model.fit(X_res_train, residuals_train)
+                pred = model.predict(X_res_val)
+                mse = float(np.mean((residuals_val - pred) ** 2))
+                fold_mses.append(mse)
+
+            mean_mse = np.mean(fold_mses)
+            if mean_mse < best_residual_mse:
+                best_residual_mse = mean_mse
+                best_residual_alpha = alpha
+
+        self._residual_best_alpha = float(best_residual_alpha)
+
+        # Fit final residual model on all data
         self._residual_scaler = StandardScaler()
         X_residual_scaled = self._residual_scaler.fit_transform(X_residual)
-
-        # Fit residual model with cross-validation
-        self._residual_model = RidgeCV(alphas=self.residual_alphas, cv=5)
+        self._residual_model = Ridge(alpha=best_residual_alpha)
         self._residual_model.fit(X_residual_scaled, residuals)
-        self._residual_best_alpha = float(self._residual_model.alpha_)
 
         self._is_fitted = True
 
