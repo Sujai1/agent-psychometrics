@@ -68,6 +68,7 @@ def _fit_feature_irt_single(
         init_from_baseline=True,
         l2_weight=l2_weight,
         l2_residual=l2_residual,
+        verbose=False,
     )
     predictor.fit(
         task_ids=train_task_ids,
@@ -129,6 +130,11 @@ def run_threshold_sweep_for_dataset(
     config = get_dataset_config(dataset_name)
     results = []
 
+    # Sort thresholds ascending to ensure lowest threshold is processed first
+    # This establishes the fixed agent set for consistent comparison
+    thresholds = sorted(thresholds)
+    fixed_eval_agents: Optional[List[str]] = None
+
     for threshold in thresholds:
         print(f"\n--- Threshold: {threshold*100:.0f}% ---")
 
@@ -163,18 +169,30 @@ def run_threshold_sweep_for_dataset(
                 continue
 
             # Filter eval agents to those with variance on frontier tasks
-            eval_agents = filter_agents_with_frontier_variance(
-                responses=data.config.responses,
-                frontier_task_ids=frontier_tasks,
-                candidate_agents=data.post_frontier_agents,
-            )
+            # Use fixed agent set from lowest threshold for consistent comparison
+            if fixed_eval_agents is None:
+                # First threshold: establish the fixed agent set
+                fixed_eval_agents = filter_agents_with_frontier_variance(
+                    responses=data.config.responses,
+                    frontier_task_ids=frontier_tasks,
+                    candidate_agents=data.post_frontier_agents,
+                )
+                eval_agents = fixed_eval_agents
+                print(f"  Fixed eval agent set: {len(fixed_eval_agents)} agents (from {threshold*100:.0f}% threshold)")
+            else:
+                # Subsequent thresholds: use fixed set, filter out agents with no variance
+                eval_agents = filter_agents_with_frontier_variance(
+                    responses=data.config.responses,
+                    frontier_task_ids=frontier_tasks,
+                    candidate_agents=fixed_eval_agents,
+                )
 
             if len(eval_agents) == 0:
                 print(f"  No eval agents with variance at threshold {threshold*100:.0f}%, skipping")
                 continue
 
             print(f"  Frontier tasks: {len(frontier_tasks)}")
-            print(f"  Eval agents: {len(eval_agents)}")
+            print(f"  Eval agents: {len(eval_agents)} (of {len(fixed_eval_agents)} fixed)")
 
             # Compute metrics for Oracle
             oracle_beta = data.oracle_items["b"].to_dict()
