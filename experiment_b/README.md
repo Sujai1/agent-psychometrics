@@ -508,7 +508,16 @@ python -m experiment_b.threshold_sweep --datasets swebench terminalbench
 python -m experiment_b.threshold_sweep --thresholds 0.0 0.1 0.2 0.3
 ```
 
-**Output**: Plots saved to `chris_output/threshold_sweep/` showing Oracle, Baseline IRT, and Baseline-Init Feature-IRT performance across thresholds.
+**Output**: Plots and CSVs saved to `chris_output/threshold_sweep/`. The CSV includes `best_l2_weight` and `best_l2_residual` columns showing the optimal hyperparameters at each threshold.
+
+**Parallel execution**: Datasets are independent and can be run in parallel:
+```bash
+python -m experiment_b.threshold_sweep --datasets swebench &
+python -m experiment_b.threshold_sweep --datasets swebench_pro &
+python -m experiment_b.threshold_sweep --datasets terminalbench &
+python -m experiment_b.threshold_sweep --datasets gso &
+wait
+```
 
 **Key insight**: At low thresholds (0-5%), Baseline IRT has little signal on frontier tasks. As threshold increases, Baseline IRT catches up to Oracle. The Baseline-Init Feature-IRT can sometimes improve over Baseline IRT by leveraging task features.
 

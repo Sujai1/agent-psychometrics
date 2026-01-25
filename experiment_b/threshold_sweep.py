@@ -12,8 +12,9 @@ Usage:
 
 import argparse
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -30,6 +31,53 @@ from experiment_b.shared import (
 
 # Default thresholds to sweep
 DEFAULT_THRESHOLDS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+
+
+def _fit_feature_irt_single(
+    l2_weight: float,
+    l2_residual: float,
+    embedding_source,
+    train_task_ids: List[str],
+    baseline_ground_truth_b: np.ndarray,
+    train_responses: Dict,
+    baseline_ability_values: np.ndarray,
+    baseline_agent_ids: List[str],
+    all_task_ids: List[str],
+) -> Tuple[float, float, Dict[str, float]]:
+    """Fit Feature-IRT with single hyperparameter combination.
+
+    This function is designed to be called in parallel via joblib.
+
+    Args:
+        l2_weight: L2 regularization weight for feature weights
+        l2_residual: L2 regularization weight for per-task residuals
+        embedding_source: Feature source for embeddings
+        train_task_ids: Task IDs for training
+        baseline_ground_truth_b: Ground truth difficulties from baseline IRT
+        train_responses: Response matrix for training (pre-frontier agents only)
+        baseline_ability_values: Agent abilities from baseline IRT
+        baseline_agent_ids: Agent IDs corresponding to abilities
+        all_task_ids: All task IDs for prediction
+
+    Returns:
+        Tuple of (l2_weight, l2_residual, predictions dict)
+    """
+    predictor = FeatureIRTPredictor(
+        source=embedding_source,
+        use_residuals=True,
+        init_from_baseline=True,
+        l2_weight=l2_weight,
+        l2_residual=l2_residual,
+    )
+    predictor.fit(
+        task_ids=train_task_ids,
+        ground_truth_b=baseline_ground_truth_b,
+        responses=train_responses,
+        baseline_abilities=baseline_ability_values,
+        baseline_agent_ids=baseline_agent_ids,
+    )
+    preds = predictor.predict(all_task_ids)
+    return l2_weight, l2_residual, preds
 
 
 def parse_args() -> argparse.Namespace:
@@ -174,48 +222,53 @@ def run_threshold_sweep_for_dataset(
                     break
 
             if embedding_source is not None and data.baseline_abilities is not None:
-                # Run grid search for best hyperparameters
+                # Run grid search for best hyperparameters (in parallel)
                 l2_grid = [0.001, 0.01, 0.1, 1.0, 10.0]
-                best_auc = -1.0
-                best_predictor = None
 
                 baseline_ability_values = data.baseline_abilities["theta"].values
                 baseline_agent_ids = data.baseline_abilities.index.tolist()
 
-                for l2_w in l2_grid:
-                    for l2_r in l2_grid:
-                        predictor = FeatureIRTPredictor(
-                            source=embedding_source,
-                            use_residuals=True,
-                            init_from_baseline=True,
-                            l2_weight=l2_w,
-                            l2_residual=l2_r,
-                        )
-                        predictor.fit(
-                            task_ids=data.train_task_ids,
-                            ground_truth_b=data.baseline_ground_truth_b,
-                            responses=data.train_responses,
-                            baseline_abilities=baseline_ability_values,
-                            baseline_agent_ids=baseline_agent_ids,
-                        )
-                        preds = predictor.predict(data.config.all_task_ids)
+                # Fit all hyperparameter combinations in parallel
+                grid_results = Parallel(n_jobs=-1, backend="loky")(
+                    delayed(_fit_feature_irt_single)(
+                        l2_w,
+                        l2_r,
+                        embedding_source,
+                        data.train_task_ids,
+                        data.baseline_ground_truth_b,
+                        data.train_responses,
+                        baseline_ability_values,
+                        baseline_agent_ids,
+                        data.config.all_task_ids,
+                    )
+                    for l2_w in l2_grid
+                    for l2_r in l2_grid
+                )
 
-                        # Compute AUC (scale-invariant, no alignment needed)
-                        metrics = compute_mean_per_agent_auc(
-                            predicted_beta=preds,
-                            responses=data.config.responses,
-                            frontier_task_ids=frontier_tasks,
-                            eval_agents=eval_agents,
-                        )
+                # Find best result and track best hyperparameters
+                best_auc = -1.0
+                best_preds: Optional[Dict[str, float]] = None
+                best_l2_weight: Optional[float] = None
+                best_l2_residual: Optional[float] = None
 
-                        if metrics["mean_auc"] > best_auc:
-                            best_auc = metrics["mean_auc"]
-                            best_predictor = predictor
+                for l2_w, l2_r, preds in grid_results:
+                    # Compute AUC (scale-invariant, no alignment needed)
+                    metrics = compute_mean_per_agent_auc(
+                        predicted_beta=preds,
+                        responses=data.config.responses,
+                        frontier_task_ids=frontier_tasks,
+                        eval_agents=eval_agents,
+                    )
 
-                # Recompute metrics with best predictor for SEM
-                preds = best_predictor.predict(data.config.all_task_ids)
+                    if metrics["mean_auc"] > best_auc:
+                        best_auc = metrics["mean_auc"]
+                        best_preds = preds
+                        best_l2_weight = l2_w
+                        best_l2_residual = l2_r
+
+                # Compute final metrics with best predictions
                 feature_irt_metrics = compute_mean_per_agent_auc(
-                    predicted_beta=preds,
+                    predicted_beta=best_preds,
                     responses=data.config.responses,
                     frontier_task_ids=frontier_tasks,
                     eval_agents=eval_agents,
@@ -228,8 +281,11 @@ def run_threshold_sweep_for_dataset(
                     "sem": feature_irt_metrics["sem_auc"],
                     "n_agents": feature_irt_metrics["n_agents"],
                     "n_frontier_tasks": len(frontier_tasks),
+                    "best_l2_weight": best_l2_weight,
+                    "best_l2_residual": best_l2_residual,
                 })
-                print(f"  Feature-IRT: {feature_irt_metrics['mean_auc']:.4f} +/- {feature_irt_metrics['sem_auc']:.4f}")
+                print(f"  Feature-IRT: {feature_irt_metrics['mean_auc']:.4f} ± {feature_irt_metrics['sem_auc']:.4f} "
+                      f"(l2_w={best_l2_weight}, l2_r={best_l2_residual})")
 
         except Exception as e:
             print(f"  Error at threshold {threshold*100:.0f}%: {e}")
