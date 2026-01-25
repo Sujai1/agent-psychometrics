@@ -448,15 +448,37 @@ class GroupedRidgePredictor:
             best_score = float("inf")
             best_alphas = None
 
-            for alpha_combo in itertools.product(*source_grids):
-                # Apply per-group scaling AFTER standardization
-                X_scaled = self._apply_group_scaling(X_std, alpha_combo)
+            # Use manual CV to re-fit scalers per fold (avoids data leakage)
+            # This matches Daria's _select_block_alphas_inner_cv implementation
+            from sklearn.model_selection import KFold
+            inner_cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
-                # Cross-validate with standard ridge (alpha=1 after scaling)
-                scores = cross_val_score(
-                    Ridge(alpha=1.0), X_scaled, y, cv=5, scoring="neg_mean_squared_error"
-                )
-                mean_score = -scores.mean()  # Convert to positive MSE
+            for alpha_combo in itertools.product(*source_grids):
+                fold_mses = []
+                for train_idx, val_idx in inner_cv.split(X):
+                    X_train, X_val = X[train_idx], X[val_idx]
+                    y_train, y_val = y[train_idx], y[val_idx]
+
+                    # Fit per-source scalers on TRAINING fold only
+                    X_train_std = np.empty_like(X_train)
+                    X_val_std = np.empty_like(X_val)
+                    for source, slice_obj in zip(self.source.sources, self.source.group_slices):
+                        scaler = StandardScaler()
+                        X_train_std[:, slice_obj] = scaler.fit_transform(X_train[:, slice_obj])
+                        X_val_std[:, slice_obj] = scaler.transform(X_val[:, slice_obj])
+
+                    # Apply per-group alpha scaling
+                    X_train_scaled = self._apply_group_scaling(X_train_std, alpha_combo)
+                    X_val_scaled = self._apply_group_scaling(X_val_std, alpha_combo)
+
+                    # Fit and evaluate
+                    model = Ridge(alpha=1.0)
+                    model.fit(X_train_scaled, y_train)
+                    pred = model.predict(X_val_scaled)
+                    mse = float(np.mean((y_val - pred) ** 2))
+                    fold_mses.append(mse)
+
+                mean_score = np.mean(fold_mses)
 
                 if mean_score < best_score:
                     best_score = mean_score
