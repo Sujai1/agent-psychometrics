@@ -27,6 +27,7 @@ from experiment_b.shared import (
     build_feature_sources,
     FeatureIRTPredictor,
 )
+from experiment_b.shared.data_preparation import _train_baseline_irt_on_agents
 
 
 # Default thresholds to sweep
@@ -107,24 +108,33 @@ def parse_args() -> argparse.Namespace:
         default=Path("chris_output/threshold_sweep"),
         help="Directory to save results (default: chris_output/threshold_sweep)",
     )
+    parser.add_argument(
+        "--post_frontier_oracle",
+        action="store_true",
+        help="Train Oracle IRT on post-frontier agents only (instead of all agents)",
+    )
     return parser.parse_args()
 
 
 def run_threshold_sweep_for_dataset(
     dataset_name: str,
     thresholds: List[float],
+    post_frontier_oracle: bool = False,
 ) -> pd.DataFrame:
     """Run threshold sweep for a single dataset.
 
     Args:
         dataset_name: Name of the dataset to evaluate
         thresholds: List of pre_threshold values to sweep
+        post_frontier_oracle: If True, train Oracle IRT on post-frontier agents only
 
     Returns:
         DataFrame with columns: threshold, method, mean_auc, sem, n_agents, n_frontier_tasks
     """
     print(f"\n{'='*60}")
     print(f"Dataset: {dataset_name}")
+    if post_frontier_oracle:
+        print("Using POST-FRONTIER Oracle (trained on post-frontier agents only)")
     print(f"{'='*60}")
 
     config = get_dataset_config(dataset_name)
@@ -134,6 +144,26 @@ def run_threshold_sweep_for_dataset(
     # This establishes the fixed agent set for consistent comparison
     thresholds = sorted(thresholds)
     fixed_eval_agents: Optional[List[str]] = None
+
+    # Train post-frontier Oracle if requested
+    post_frontier_oracle_beta: Optional[Dict[str, float]] = None
+    if post_frontier_oracle:
+        # Get post-frontier agents
+        post_frontier_agents = [
+            a for a in config.all_agents
+            if config.agent_dates.get(a, "99999999") >= config.cutoff_date
+        ]
+        print(f"\nTraining Oracle IRT on {len(post_frontier_agents)} post-frontier agents...")
+
+        # Train IRT on post-frontier agents only
+        cache_dir = Path("chris_output/threshold_sweep") / f"post_frontier_oracle_{dataset_name}"
+        post_frontier_oracle_beta = _train_baseline_irt_on_agents(
+            responses_path=config.responses_path,
+            agent_subset=post_frontier_agents,
+            output_dir=cache_dir,
+            epochs=2000,
+        )
+        print(f"  Post-frontier Oracle trained: {len(post_frontier_oracle_beta)} tasks")
 
     for threshold in thresholds:
         print(f"\n--- Threshold: {threshold*100:.0f}% ---")
@@ -195,7 +225,14 @@ def run_threshold_sweep_for_dataset(
             print(f"  Eval agents: {len(eval_agents)} (of {len(fixed_eval_agents)} fixed)")
 
             # Compute metrics for Oracle
-            oracle_beta = data.oracle_items["b"].to_dict()
+            # Use post-frontier Oracle if trained, otherwise use standard Oracle
+            if post_frontier_oracle_beta is not None:
+                oracle_beta = post_frontier_oracle_beta
+                oracle_method_name = "Oracle (post-frontier only)"
+            else:
+                oracle_beta = data.oracle_items["b"].to_dict()
+                oracle_method_name = "Oracle (upper bound)"
+
             oracle_metrics = compute_mean_per_agent_auc(
                 predicted_beta=oracle_beta,
                 responses=data.config.responses,
@@ -204,7 +241,7 @@ def run_threshold_sweep_for_dataset(
             )
             results.append({
                 "threshold": threshold,
-                "method": "Oracle (upper bound)",
+                "method": oracle_method_name,
                 "mean_auc": oracle_metrics["mean_auc"],
                 "sem": oracle_metrics["sem_auc"],
                 "n_agents": oracle_metrics["n_agents"],
@@ -326,19 +363,21 @@ def plot_threshold_sweep(
     """
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Plot Oracle
-    oracle_df = df[df["method"] == "Oracle (upper bound)"]
-    ax.errorbar(
-        oracle_df["threshold"] * 100,
-        oracle_df["mean_auc"],
-        yerr=oracle_df["sem"],
-        label="Oracle (upper bound)",
-        color="blue",
-        marker="o",
-        capsize=3,
-        linewidth=2,
-        markersize=8,
-    )
+    # Plot Oracle (handle both standard and post-frontier oracle)
+    oracle_df = df[df["method"].str.startswith("Oracle")]
+    if not oracle_df.empty:
+        oracle_label = oracle_df["method"].iloc[0]
+        ax.errorbar(
+            oracle_df["threshold"] * 100,
+            oracle_df["mean_auc"],
+            yerr=oracle_df["sem"],
+            label=oracle_label,
+            color="blue",
+            marker="o",
+            capsize=3,
+            linewidth=2,
+            markersize=8,
+        )
 
     # Plot Baseline IRT
     baseline_df = df[df["method"] == "Baseline IRT (pre-frontier only)"]
@@ -394,10 +433,14 @@ def main():
     print(f"Datasets: {', '.join(args.datasets)}")
     print(f"Thresholds: {[f'{t*100:.0f}%' for t in args.thresholds]}")
     print(f"Output directory: {args.output_dir}")
+    if args.post_frontier_oracle:
+        print("Using POST-FRONTIER Oracle mode")
 
     for dataset_name in args.datasets:
         # Run sweep
-        df = run_threshold_sweep_for_dataset(dataset_name, args.thresholds)
+        df = run_threshold_sweep_for_dataset(
+            dataset_name, args.thresholds, post_frontier_oracle=args.post_frontier_oracle
+        )
 
         if df.empty:
             print(f"\nNo results for {dataset_name}, skipping")

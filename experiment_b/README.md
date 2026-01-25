@@ -510,6 +510,15 @@ python -m experiment_b.threshold_sweep --thresholds 0.0 0.1 0.2 0.3
 
 **Output**: Plots and CSVs saved to `chris_output/threshold_sweep/`. The CSV includes `best_l2_weight` and `best_l2_residual` columns showing the optimal hyperparameters at each threshold.
 
+**Fixed agent set**: The sweep uses a fixed set of evaluation agents (those with variance at threshold=0%) across all thresholds for consistent comparison. Without this, weaker agents joining at higher thresholds would cause misleading AUC drops.
+
+**Post-frontier Oracle**: By default, Oracle IRT is trained on all agents. Use `--post_frontier_oracle` to train Oracle on post-frontier agents only, which can reduce ranking inversions but doesn't eliminate them due to 1PL IRT's single-dimension limitation.
+
+```bash
+# Use post-frontier Oracle (experimental)
+python -m experiment_b.threshold_sweep --datasets gso --post_frontier_oracle
+```
+
 **Parallel execution**: Datasets are independent and can be run in parallel:
 ```bash
 python -m experiment_b.threshold_sweep --datasets swebench &
