@@ -403,6 +403,53 @@ Results saved to `chris_output/experiment_a/experiment_a_cv5_results.json`:
 }
 ```
 
+## Stacked Predictor Coefficient Analysis
+
+Analyze LLM judge feature coefficients from the stacked predictor across all datasets:
+
+```bash
+# Run analysis across all 4 datasets
+python -m experiment_a.analyze_stacked_coefficients
+
+# Run for single dataset (faster for testing)
+python -m experiment_a.analyze_stacked_coefficients --dataset swebench
+
+# Custom output path
+python -m experiment_a.analyze_stacked_coefficients --output_path my_results.json
+```
+
+This script:
+1. Runs 5-fold CV with only 6 methods: Oracle, Embedding, LLM Judge, Stacked (Emb→LLM), Constant, Agent-only
+2. Uses **unified LLM judge features** for consistent cross-dataset comparison
+3. Extracts coefficients from the stacked predictor's residual stage (LLM judge)
+4. Computes contribution analysis (embedding % vs LLM judge % of prediction variance)
+
+**Output includes:**
+- Per-dataset AUC tables
+- LLM judge coefficients ranked by magnitude
+- Contribution analysis (train and test sets)
+- Cross-dataset feature importance comparison
+
+Results saved to `chris_output/stacked_coefficient_analysis.json`.
+
+### Example Output
+
+```
+Feature Importance Ranking (by |coefficient|):
+Feature                   SWE  Pro  GSO  Term  Avg
+--------------------------------------------------
+verification_difficulty     5    7    1    1   3.5
+problem_clarity             1    6    6    8   5.2
+solution_complexity         8    1    4    9   5.5
+...
+
+Contribution Summary (Test Set):
+                    SWE      Pro      GSO     Term
+--------------------------------------------------
+Embedding %       73.1%    69.2%    65.3%    58.8%
+LLM Judge %        4.9%    11.9%    16.4%    17.4%
+```
+
 ## Caches
 
 | Cache | Location | When to Clear |

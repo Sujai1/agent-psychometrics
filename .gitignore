@@ -203,3 +203,6 @@ chris_output/terminal_bench_2.0_binomial_1pl/
 
 # Trajectory features (regenerable via LLM API)
 chris_output/trajectory_features/
+
+# Stacked coefficient analysis (regenerable)
+chris_output/stacked_coefficient_analysis.json
