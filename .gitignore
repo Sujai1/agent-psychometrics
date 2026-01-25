@@ -162,6 +162,7 @@ chris_output/iterative_refinement_n100/
 
 # SAD IRT outputs (regenerable)
 chris_output/sad_irt_long/
+chris_output/sad_irt_beta_values/
 
 # IRT fold splits (regenerable)
 chris_output/experiment_a/irt_splits/
