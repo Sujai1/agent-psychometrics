@@ -580,7 +580,7 @@ def format_qs_solution_instruction(*, question_statement: str, solution: str, in
     qs = _sanitize_text(str(question_statement or "")).strip()
     sol = _sanitize_text(str(solution or "")).strip()
     instr = _sanitize_text(str(instruction or "")).strip()
-    return f"Task statement:\n{qs}\n\nSolution:\n{sol}\n\n{instr}".strip()
+    return f"Task statement:\n{qs}\n\n{instr}".strip()
 
 
 # GSO (and other OOD-style) benchmarks can store the task statement as a *test script*
@@ -1652,18 +1652,38 @@ def _run_with_judge_features(
     _require("sklearn")
     from sklearn.metrics import roc_auc_score
 
-    # combined_features uses `--include_zero_success` (default exclude)
+    # IMPORTANT: match embedding-only behavior for zero-success items.
+    #
+    # Historically, judge mode used a separate boolean flag (--include_zero_success).
+    # That was easy to misuse because the rest of this script uses --zero_success_tasks
+    # with choices {exclude, include, mean}. We now treat --include_zero_success as a
+    # backwards-compatible alias for --zero_success_tasks=include.
     zero_success_ids = compute_zero_success_items(all_responses)
     zero_success_set = set(zero_success_ids)
-    exclude_zero_success = not bool(getattr(args, "include_zero_success", False))
-    if exclude_zero_success:
+    zero_success_mode = str(getattr(args, "zero_success_tasks", "exclude")).strip() or "exclude"
+    if bool(getattr(args, "include_zero_success", False)) and zero_success_mode == "exclude":
+        zero_success_mode = "include"
+
+    if zero_success_mode == "exclude":
         eligible = [tid for tid in overlap_ids if tid not in zero_success_set]
         print(
-            f"Excluding zero-success items: {len(overlap_ids) - len(eligible)}/{len(overlap_ids)} overlapped items "
+            f"Excluding zero-success items from CV/IRT: {len(overlap_ids) - len(eligible)}/{len(overlap_ids)} overlapped items "
             f"(agent_results={args.agent_results})"
         )
-    else:
+    elif zero_success_mode in ("include", "mean"):
         eligible = list(overlap_ids)
+        if zero_success_set and zero_success_mode == "include":
+            print(
+                f"Including zero-success items in CV/IRT: {len(zero_success_set)}/{len(overlap_ids)} overlapped items "
+                f"(agent_results={args.agent_results})"
+            )
+        if zero_success_set and zero_success_mode == "mean":
+            print(
+                f"Including zero-success items in CV; will mean-impute their fold-train IRT difficulties: "
+                f"{len(zero_success_set)}/{len(overlap_ids)} overlapped items (agent_results={args.agent_results})"
+            )
+    else:
+        raise AssertionError(f"Unhandled zero_success_mode: {zero_success_mode}")
     if not eligible:
         raise RuntimeError("After filtering, no items remain for CV.")
 
@@ -1743,6 +1763,17 @@ def _run_with_judge_features(
         seed_everything(int(args.seed), deterministic=True)
         if not theta_by_subject or not diff_by_item:
             raise RuntimeError(f"Fold {fold}: IRT produced empty outputs under {irt_dir}")
+
+        # Optional post-processing for zero-success items (same policy as embedding-only mode):
+        # Replace each zero-success item's IRT difficulty with the mean over
+        # zero-success difficulties in this fold's IRT training set.
+        if zero_success_mode == "mean" and zero_success_set:
+            zs_in_fold = [tid for tid in train_items if tid in zero_success_set and tid in diff_by_item]
+            if zs_in_fold:
+                zs_vals = np.asarray([float(diff_by_item[tid]) for tid in zs_in_fold], dtype=np.float64)
+                zs_mean = float(np.mean(zs_vals))
+                for tid in zs_in_fold:
+                    diff_by_item[tid] = float(zs_mean)
 
         train_labeled = [tid for tid in train_items if tid in diff_by_item]
         if len(train_labeled) < 2:
@@ -1957,6 +1988,7 @@ def _run_with_judge_features(
     weights_meta = {
         "script": os.path.abspath(__file__),
         "id_normalization": "strip instance_ prefix; strip -v.* suffix",
+        "zero_success_tasks": str(zero_success_mode),
         "seed": int(args.seed),
         "deterministic": True,
         "cv_n_splits": int(args.cv_folds),
@@ -1982,6 +2014,7 @@ def _run_with_judge_features(
     )
 
     # Predict on zero-success items (excluded from CV/IRT, if requested).
+    exclude_zero_success = bool(str(zero_success_mode) == "exclude")
     zero_embedded = [tid for tid in task_ids if tid in zero_success_set] if exclude_zero_success else []
     yhat_zero: Dict[str, float] = {}
     if zero_embedded:
@@ -2020,6 +2053,8 @@ def _run_with_judge_features(
             "judge_feature_names": list(judge_feature_names),
             "cv_folds": int(args.cv_folds),
             "seed": int(args.seed),
+            "zero_success_tasks": str(zero_success_mode),
+            # Backwards-compatible key (older analysis scripts may expect it).
             "exclude_zero_success": bool(exclude_zero_success),
             "n_items_total": int(len(task_ids)),
             "n_items_with_responses": int(len(overlap_ids)),
@@ -2167,7 +2202,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--include_zero_success",
         action="store_true",
-        help="(judge mode) Include items with 0 successes in CV/IRT (not recommended).",
+        help="(judge mode, deprecated) Alias for --zero_success_tasks=include. Prefer --zero_success_tasks include/mean/exclude.",
     )
     p.add_argument(
         "--ridge_alpha_emb",
