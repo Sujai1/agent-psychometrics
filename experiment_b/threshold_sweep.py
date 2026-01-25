@@ -45,9 +45,9 @@ from experiment_b.shared.data_preparation import (
 DEFAULT_THRESHOLDS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
 
 # Default hyperparameters for Feature-IRT (from grid search across thresholds)
-# These values optimize for good performance at both low and high thresholds
-DEFAULT_L2_WEIGHT = 0.0001
-DEFAULT_L2_RESIDUAL = 1.0
+# These values optimize for good combined AUC@0 and date forecasting MAE
+DEFAULT_L2_WEIGHT = 0.001
+DEFAULT_L2_RESIDUAL = 10.0
 
 # Datasets with sufficient agent date diversity for meaningful date forecasting
 # Other datasets have too few frontier points for reliable ability-over-time regression
