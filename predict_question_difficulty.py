@@ -580,7 +580,7 @@ def format_qs_solution_instruction(*, question_statement: str, solution: str, in
     qs = _sanitize_text(str(question_statement or "")).strip()
     sol = _sanitize_text(str(solution or "")).strip()
     instr = _sanitize_text(str(instruction or "")).strip()
-    return f"Task statement:\n{qs}\n\n{instr}".strip()
+    return f"Task statement:\n{qs}\n\nSolution:\n{sol}\n\n{instr}".strip()
 
 
 # GSO (and other OOD-style) benchmarks can store the task statement as a *test script*
