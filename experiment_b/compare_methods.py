@@ -47,7 +47,6 @@ from experiment_b.shared import (
     evaluate_all_frontier_definitions,
     # Output
     save_results_csv,
-    save_and_plot_diagnostics,
 )
 
 
@@ -160,17 +159,6 @@ def parse_args() -> argparse.Namespace:
         "--verbose",
         action="store_true",
         help="Print alignment parameters for each method",
-    )
-    parser.add_argument(
-        "--grid_search",
-        action="store_true",
-        help="Run grid search over Feature-IRT hyperparameters",
-    )
-    parser.add_argument(
-        "--diagnostic_mode",
-        action="store_true",
-        help="Run extended diagnostics for Feature-IRT: wider hyperparameter grid, "
-             "training loss curves, and feature/residual contribution analysis",
     )
     parser.add_argument(
         "--forecast_dates",
@@ -293,7 +281,7 @@ def main():
         )
     )
 
-    # Run Feature-IRT methods
+    # Run Feature-IRT methods (with grid search over hyperparameters)
     primary_frontier_tasks = data.frontier_tasks_by_def[args.frontier_definitions[0]]
     feature_irt = collect_feature_irt_predictions(
         feature_sources=feature_sources,
@@ -306,13 +294,21 @@ def main():
         frontier_task_ids=primary_frontier_tasks,
         anchor_task_ids=data.anchor_task_ids,
         post_frontier_agents=data.post_frontier_agents,
+        baseline_abilities=data.baseline_abilities,
         alignment_method=args.alignment_method,
-        grid_search=args.grid_search,
-        diagnostic_mode=args.diagnostic_mode,
         verbose=args.verbose,
     )
     raw_predictions.update(feature_irt.predictions)
     method_abilities.update(feature_irt.abilities)
+
+    # Print baseline-init diagnostics if available
+    if args.verbose and feature_irt.baseline_init_diagnostics:
+        for source_name, diag in feature_irt.baseline_init_diagnostics.items():
+            print(f"\n=== Diagnostics: Baseline-Init ({source_name}) ===")
+            print(f"  Weight norm: {diag['weight_norm']:.4f}")
+            print(f"  Difficulty drift (mean): {diag['difficulty_drift_mean']:.4f}")
+            print(f"  Ability drift (mean): {diag['ability_drift_mean']:.4f}")
+            print(f"  Feature contribution: {diag['feature_contribution_ratio']:.2%}")
 
     # =========================================================================
     # 3. Setup date forecasting (optional)
@@ -340,9 +336,6 @@ def main():
     if args.output_csv:
         primary_def = args.frontier_definitions[0]
         save_results_csv(all_results[primary_def], args.output_csv)
-
-    if args.diagnostic_mode and feature_irt.diagnostics:
-        save_and_plot_diagnostics(feature_irt.diagnostics, config.output_dir)
 
 
 if __name__ == "__main__":

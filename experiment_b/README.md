@@ -57,6 +57,9 @@ python -m experiment_b.compare_methods --dataset gso
 # Run with multiple frontier definitions
 python -m experiment_b.compare_methods --frontier_definitions passrate irt
 
+# Run threshold sweep analysis (0% to 30% pre-frontier threshold)
+python -m experiment_b.threshold_sweep --datasets swebench
+
 # Enable date forecasting (slower)
 python -m experiment_b.compare_methods --forecast_dates
 
@@ -163,10 +166,32 @@ P(success) = sigmoid(θ_j - b_i)
 - Per-task residuals (r_i) with strong L2 regularization encourage feature-based predictions
 - Ridge warm-start initialization for feature weights
 
-**Hyperparameters** (grid search available via `--grid_search`):
-- `l2_weight`: Regularization on feature weights (default: 0.01)
-- `l2_residual`: Regularization on per-task residuals (default: 10.0)
+**Hyperparameters** (grid search over l2_weight and l2_residual):
+- `l2_weight`: Regularization on feature weights (grid: 0.001 to 10.0)
+- `l2_residual`: Regularization on per-task residuals (grid: 0.001 to 10.0)
 - `use_residuals`: Whether to include per-task residuals (default: True)
+
+### Baseline-Init Feature-IRT
+
+A variant of Feature-IRT that initializes from Baseline IRT values, then learns feature-based corrections:
+
+```
+b_i = w^T f_i + r_i           (task difficulty)
+θ_j initialized from baseline (agent ability)
+
+Initialization:
+- r_i starts at baseline IRT difficulty (b_baseline)
+- θ_j starts at baseline IRT ability (θ_baseline)
+- w starts at zero (features contribute nothing initially)
+```
+
+**Key insight**: When the frontier threshold is high (e.g., 20-30%), Baseline IRT already has strong signal from pre-frontier agents. Initializing from baseline and learning residual corrections helps preserve this signal while allowing features to add information.
+
+**Diagnostics** (via `get_baseline_init_diagnostics()`):
+- Weight norm: How much feature weights deviate from zero
+- Difficulty drift: Mean |b_final - b_baseline|
+- Ability drift: Mean |θ_final - θ_baseline|
+- Feature contribution: |w^T f| / (|w^T f| + |r|)
 
 ## Evaluation Methodology
 
@@ -299,7 +324,8 @@ predictor.fit(task_ids, ground_truth_b, responses)  # responses = pre-frontier o
 
 ```
 experiment_b/
-├── compare_methods.py        # Thin orchestration (~275 lines)
+├── compare_methods.py        # Main evaluation script
+├── threshold_sweep.py        # Threshold sweep analysis
 ├── shared/
 │   ├── config_base.py        # DatasetConfig base class with lazy-loaded properties
 │   ├── data_preparation.py   # Data loading, frontier ID, baseline IRT
@@ -466,6 +492,25 @@ Data Summary:
 | **Baseline IRT** | `chris_output/experiment_b/{dataset}/baseline_irt/` | Auto-invalidated when training data changes |
 | **Embeddings** | `chris_output/experiment_a{_terminalbench}/embeddings/` | When changing backbone |
 | **LLM Features** | `chris_output/experiment_a{_terminalbench}/llm_judge_features/` | When re-extracting |
+
+## Threshold Sweep Analysis
+
+The `threshold_sweep.py` script analyzes how method performance changes as the frontier task definition threshold varies from 0% to 30%.
+
+```bash
+# Run threshold sweep on all datasets
+python -m experiment_b.threshold_sweep
+
+# Run on specific datasets
+python -m experiment_b.threshold_sweep --datasets swebench terminalbench
+
+# Custom thresholds
+python -m experiment_b.threshold_sweep --thresholds 0.0 0.1 0.2 0.3
+```
+
+**Output**: Plots saved to `chris_output/threshold_sweep/` showing Oracle, Baseline IRT, and Baseline-Init Feature-IRT performance across thresholds.
+
+**Key insight**: At low thresholds (0-5%), Baseline IRT has little signal on frontier tasks. As threshold increases, Baseline IRT catches up to Oracle. The Baseline-Init Feature-IRT can sometimes improve over Baseline IRT by leveraging task features.
 
 ## Related Experiments
 
