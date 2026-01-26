@@ -42,6 +42,7 @@ import os
 import re
 import sys
 import tempfile
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
@@ -661,6 +662,166 @@ def evaluate_ood_auroc(
         "obs_scored_assumed_scaffold": int(n_obs_scored_assumed_scaffold),
         "obs_skipped_no_theta": int(n_obs_skipped_no_theta),
         "obs_skipped_no_item": int(n_obs_skipped_no_item),
+        "obs_skipped_bad_score": int(n_obs_skipped_bad_score),
+        "labels_pos": int(n_pos),
+        "labels_neg": int(n_neg),
+    }
+    return auc, meta
+
+
+def compute_empirical_success_prob_by_model(
+    *,
+    all_responses_tagged: Sequence[Tuple[str, str, Dict[str, int]]],
+    agent_to_ms_pair: Dict[str, Tuple[str, str]],
+    train_item_ids: Set[str],
+) -> Tuple[Dict[str, float], dict]:
+    """
+    Compute per-model empirical success probabilities on the *training* item set:
+      p_hat(model) = (# successes) / (# attempts)  over all responses with item_id in train_item_ids.
+
+    Scaffold is ignored. This is useful as a simple baseline.
+    """
+    filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
+    split_mod = _import_swebench_irt_module("split_agents_model_scaffold")
+
+    # model -> (n_obs, n_success)
+    counts: Dict[str, List[int]] = defaultdict(lambda: [0, 0])
+    n_subjects = 0
+    n_obs_total = 0
+    n_obs_used = 0
+    n_obs_skipped_no_model = 0
+    n_obs_skipped_not_train_item = 0
+
+    train_set = set([str(x) for x in train_item_ids])
+
+    for bench, sid, resp in all_responses_tagged:
+        n_subjects += 1
+        bench_s = str(bench)
+        sid_s = str(sid)
+        key = f"{bench_s}::{sid_s}"
+
+        model_name: Optional[str] = None
+        pair = agent_to_ms_pair.get(key, None)
+        if pair is not None:
+            model_name = str(pair[0])
+        if not model_name:
+            # Best-effort fallback parsing.
+            try:
+                m = filt._model_for_subject(sid_s, treat_as_pro=bool(bench_s == "pro"))  # type: ignore[attr-defined]
+                if m is not None:
+                    model_name = str(m)
+            except Exception:
+                model_name = None
+        if not model_name:
+            try:
+                model_name = str(split_mod._canonical_model(sid_s))  # type: ignore[attr-defined]
+            except Exception:
+                model_name = sid_s
+        model_name = str(model_name or "").strip() or None
+
+        for item_id, y_obs in resp.items():
+            n_obs_total += 1
+            tid = str(item_id)
+            if tid not in train_set:
+                n_obs_skipped_not_train_item += 1
+                continue
+            if model_name is None:
+                n_obs_skipped_no_model += 1
+                continue
+            counts[model_name][0] += 1
+            counts[model_name][1] += int(y_obs)
+            n_obs_used += 1
+
+    probs: Dict[str, float] = {}
+    for m, (n, k) in counts.items():
+        if int(n) <= 0:
+            continue
+        probs[str(m)] = float(k) / float(n)
+
+    meta = {
+        "subjects_total": int(n_subjects),
+        "models_total": int(len(counts)),
+        "models_with_prob": int(len(probs)),
+        "obs_total": int(n_obs_total),
+        "obs_used": int(n_obs_used),
+        "obs_skipped_not_train_item": int(n_obs_skipped_not_train_item),
+        "obs_skipped_no_model": int(n_obs_skipped_no_model),
+    }
+    return probs, meta
+
+
+def evaluate_empirical_model_success_auroc(
+    *,
+    agent_results_jsonl: str,
+    normalize_item_ids: bool,
+    treat_as_pro: bool,
+    p_success_by_model: Dict[str, float],
+) -> Tuple[float, dict]:
+    """
+    Evaluate AUROC using constant-per-model predicted probabilities p_success_by_model[model].
+
+    Unfamiliar models (missing from p_success_by_model) are skipped.
+    """
+    filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
+    split_mod = _import_swebench_irt_module("split_agents_model_scaffold")
+
+    scores: List[float] = []
+    labels: List[int] = []
+    n_subjects_total = 0
+    n_subjects_used = 0
+    n_obs_total = 0
+    n_obs_scored = 0
+    n_obs_skipped_unfamiliar_model = 0
+    n_obs_skipped_bad_score = 0
+
+    for sid, resp in iter_subject_responses_jsonl_generic(str(agent_results_jsonl), normalize_item_ids=bool(normalize_item_ids)):
+        n_subjects_total += 1
+
+        model_name: Optional[str] = None
+        try:
+            m = filt._model_for_subject(sid, treat_as_pro=bool(treat_as_pro))  # type: ignore[attr-defined]
+            if m is not None:
+                model_name = str(m)
+        except Exception:
+            model_name = None
+        if not model_name:
+            try:
+                model_name = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
+            except Exception:
+                model_name = str(sid)
+        model_name = str(model_name or "").strip() or None
+        if model_name is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_model += int(len(resp))
+            continue
+
+        p = p_success_by_model.get(str(model_name), None)
+        if p is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_model += int(len(resp))
+            continue
+
+        n_subjects_used += 1
+        for _, y_obs in resp.items():
+            n_obs_total += 1
+            s = float(p)
+            if not math.isfinite(s):
+                n_obs_skipped_bad_score += 1
+                continue
+            scores.append(float(s))
+            labels.append(int(y_obs))
+            n_obs_scored += 1
+
+    auc = float(base._compute_binary_auroc(scores, labels))
+    n_pos = int(sum(int(x) for x in labels))
+    n_neg = int(len(labels) - n_pos)
+    meta = {
+        "subjects_total": int(n_subjects_total),
+        "subjects_used": int(n_subjects_used),
+        "models_with_prob": int(len(p_success_by_model)),
+        "obs_total": int(n_obs_total),
+        "obs_scored": int(n_obs_scored),
+        "obs_skipped_unfamiliar_model": int(n_obs_skipped_unfamiliar_model),
         "obs_skipped_bad_score": int(n_obs_skipped_bad_score),
         "labels_pos": int(n_pos),
         "labels_neg": int(n_neg),
@@ -2124,6 +2285,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
         cv_test_auc_folds_embedding_only: List[float] = []
+        cv_test_auc_folds_empirical_model: List[float] = []
         cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         cv_test_n_items_scored_folds: List[int] = []
@@ -2302,6 +2464,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             emb_pred_test = emb_model.predict(X_test).astype(base.np.float64)
             emb_pred_by_item_test = {tid: float(z) for tid, z in zip(test_items, emb_pred_test.tolist())}
 
+            # Empirical model-success baseline on fold train items (ignore scaffold).
+            p_emp_by_model, _ = compute_empirical_success_prob_by_model(
+                all_responses_tagged=all_responses_tagged,
+                agent_to_ms_pair=agent_to_ms_pair,
+                train_item_ids=set(train_items),
+            )
+
             # Joint block-ridge training uses only train items with judge features available.
             joint_emb_train_rows = []
             joint_judge_train_rows = []
@@ -2393,6 +2562,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             scores_final: List[float] = []
             scores_emb: List[float] = []
             labels: List[int] = []
+            scores_emp: List[float] = []
+            labels_emp: List[int] = []
             scores_oracle: List[float] = []
             labels_oracle: List[int] = []
             test_set = set(test_items)
@@ -2421,6 +2592,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores_emb.append(_sigmoid(th - float(z_emb)))
                     labels.append(int(y_obs))
 
+                    # Empirical model success probability (skip unfamiliar models).
+                    p_emp = p_emp_by_model.get(str(model_name), None)
+                    if p_emp is not None:
+                        scores_emp.append(float(p_emp))
+                        labels_emp.append(int(y_obs))
+
                     # Oracle IRT score: uses IRT trained on all items (includes fold test items).
                     tm_o = oracle_theta_by_model.get(model_name, None)
                     ts_o = oracle_theta_by_scaffold.get(scaffold, None)
@@ -2431,14 +2608,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
             fold_auc = float(base._compute_binary_auroc(scores_final, labels))
             fold_auc_emb = float(base._compute_binary_auroc(scores_emb, labels))
+            fold_auc_emp = float(base._compute_binary_auroc(scores_emp, labels_emp))
             fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
             cv_test_auc_folds_embedding_only.append(float(fold_auc_emb))
+            cv_test_auc_folds_empirical_model.append(float(fold_auc_emp))
             cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             cv_test_n_items_scored_folds.append(int(len(scored_items)))
 
-            print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}")
+            print(
+                f"Fold {fold:02d}: auc={fold_auc} emp_model_auc={fold_auc_emp} "
+                f"oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}"
+            )
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
                 best_fold_auc = float(fold_auc)
                 best_fold = int(fold)
@@ -2513,6 +2695,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
             "cv_test_auc_folds_embedding_only": [float(x) for x in cv_test_auc_folds_embedding_only],
+            "cv_test_auc_folds_empirical_model_success": [float(x) for x in cv_test_auc_folds_empirical_model],
             "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
             "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
             "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
@@ -2566,6 +2749,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # -----------------------------
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
+        cv_test_auc_folds_empirical_model: List[float] = []
         cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         cv_test_n_items_scored_folds: List[int] = []
@@ -2694,6 +2878,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             train_items = [eligible[int(i)] for i in tr.tolist()]
             test_items = [eligible[int(i)] for i in te.tolist()]
 
+            # Empirical model-success baseline on fold train items (ignore scaffold).
+            p_emp_by_model, _ = compute_empirical_success_prob_by_model(
+                all_responses_tagged=all_responses_tagged,
+                agent_to_ms_pair=agent_to_ms_pair,
+                train_item_ids=set(train_items),
+            )
+
             fold_root = os.path.join(str(args.out_dir), "irt_folds", f"fold_{int(fold):02d}")
             base.ensure_dir(fold_root)
 
@@ -2784,6 +2975,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             scored_items = set(final_pred_by_item.keys())
             scores: List[float] = []
             labels: List[int] = []
+            scores_emp: List[float] = []
+            labels_emp: List[int] = []
             scores_oracle: List[float] = []
             labels_oracle: List[int] = []
             test_set = set(test_items)
@@ -2810,6 +3003,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores.append(_sigmoid(th - float(z)))
                     labels.append(int(y_obs))
 
+                    p_emp = p_emp_by_model.get(str(model_name), None)
+                    if p_emp is not None:
+                        scores_emp.append(float(p_emp))
+                        labels_emp.append(int(y_obs))
+
                     tm_o = oracle_theta_by_model.get(model_name, None)
                     ts_o = oracle_theta_by_scaffold.get(scaffold, None)
                     b_o = oracle_diff_by_item.get(item_id, None)
@@ -2818,13 +3016,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         labels_oracle.append(int(y_obs))
 
             fold_auc = float(base._compute_binary_auroc(scores, labels))
+            fold_auc_emp = float(base._compute_binary_auroc(scores_emp, labels_emp))
             fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
+            cv_test_auc_folds_empirical_model.append(float(fold_auc_emp))
             cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             cv_test_n_items_scored_folds.append(int(len(scored_items)))
 
-            print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}")
+            print(
+                f"Fold {fold:02d}: auc={fold_auc} emp_model_auc={fold_auc_emp} "
+                f"oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}"
+            )
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
                 best_fold_auc = float(fold_auc)
                 best_fold = int(fold)
@@ -2905,6 +3108,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
+            "cv_test_auc_folds_empirical_model_success": [float(x) for x in cv_test_auc_folds_empirical_model],
             "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
             "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
             "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
@@ -2945,6 +3149,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # -----------------------------
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
+        cv_test_auc_folds_empirical_model: List[float] = []
         cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         yhat_oof = base.np.full((int(len(eligible)),), base.np.nan, dtype=base.np.float64)
@@ -2957,6 +3162,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for fold, (tr, te) in enumerate(outer_cv.split(Xy), start=1):
             train_items = [eligible[int(i)] for i in tr.tolist()]
             test_items = [eligible[int(i)] for i in te.tolist()]
+
+            # Empirical model-success baseline on fold train items (ignore scaffold).
+            p_emp_by_model, _ = compute_empirical_success_prob_by_model(
+                all_responses_tagged=all_responses_tagged,
+                agent_to_ms_pair=agent_to_ms_pair,
+                train_item_ids=set(train_items),
+            )
 
             fold_root = os.path.join(str(args.out_dir), "irt_folds", f"fold_{int(fold):02d}")
             base.ensure_dir(fold_root)
@@ -3010,6 +3222,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             z_by_item = {tid: float(z) for tid, z in zip(test_items, pred.tolist())}
             scores: List[float] = []
             labels: List[int] = []
+            scores_emp: List[float] = []
+            labels_emp: List[int] = []
             scores_oracle: List[float] = []
             labels_oracle: List[int] = []
             test_set = set(test_items)
@@ -3034,6 +3248,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores.append(1.0 / (1.0 + math.exp(-(th - float(z)))))
                     labels.append(int(y_obs))
 
+                    p_emp = p_emp_by_model.get(str(model), None)
+                    if p_emp is not None:
+                        scores_emp.append(float(p_emp))
+                        labels_emp.append(int(y_obs))
+
                     tm_o = oracle_theta_by_model.get(model, None)
                     ts_o = oracle_theta_by_scaffold.get(scaffold, None)
                     b_o = oracle_diff_by_item.get(item_id, None)
@@ -3042,8 +3261,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         labels_oracle.append(int(y_obs))
 
             fold_auc = float(base._compute_binary_auroc(scores, labels))
+            fold_auc_emp = float(base._compute_binary_auroc(scores_emp, labels_emp))
             fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
+            cv_test_auc_folds_empirical_model.append(float(fold_auc_emp))
             cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
@@ -3096,6 +3317,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
+            "cv_test_auc_folds_empirical_model_success": [float(x) for x in cv_test_auc_folds_empirical_model],
             "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
             "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
             "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
@@ -3865,6 +4087,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             theta_by_scaffold=theta_by_scaffold,
         )
         print(f"OOD ROC-AUC (4th benchmark): {ood_auc}  (agent_results={ood_agent_results})")
+
+        # Baseline: always predict per-model empirical training success probability (ignore scaffold).
+        p_emp_by_model, p_emp_meta = compute_empirical_success_prob_by_model(
+            all_responses_tagged=all_responses_tagged,
+            agent_to_ms_pair=agent_to_ms_pair,
+            train_item_ids=set(train_items),
+        )
+        ood_emp_auc, ood_emp_meta = evaluate_empirical_model_success_auroc(
+            agent_results_jsonl=str(ood_agent_results),
+            normalize_item_ids=bool(ood_normalize_item_ids),
+            treat_as_pro=bool(ood_treat_as_pro),
+            p_success_by_model=p_emp_by_model,
+        )
+        print(f"Baseline: {ood_emp_auc}")
         try:
             print(
                 "OOD eval details: "
@@ -3963,7 +4199,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 theta_by_model=oracle_theta_by_model_ood,
                 theta_by_scaffold=oracle_theta_by_scaffold_ood,
             )
-            print(f"OOD oracle IRT ROC-AUC (IRT trained on train+OOD): {ood_oracle_auc}")
+            print(f"Oracle: {ood_oracle_auc}")
         except Exception as e:
             try:
                 base.set_torch_determinism(True)
@@ -3980,12 +4216,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "method": str(method),
                 "ood_benchmark": str(ood_key),
                 "auc": float(ood_auc),
+                "empirical_model_success_auc": float(ood_emp_auc),
                 "oracle_irt_auc": float(ood_oracle_auc),
                 "agent_results": str(ood_agent_results),
                 "dataset_name": (ood_dataset_name or None),
                 "split": str(ood_split),
                 "normalize_item_ids": bool(ood_normalize_item_ids),
                 "ood_judge_features_dir": str(ood_feat_dir or "").strip() or None,
+                "empirical_model_success_train_meta": dict(p_emp_meta),
+                **{f"empirical_model_success_{k}": v for k, v in (ood_emp_meta or {}).items()},
                 **ood_meta,
                 **{f"oracle_irt_{k}": v for k, v in (ood_oracle_meta or {}).items()},
             },
