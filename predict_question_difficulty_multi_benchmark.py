@@ -2090,6 +2090,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # We still run the default training-only flow and save regression weights.
         eval_mode = "train"
 
+    # -----------------------------
+    # Oracle IRT (ID eval only): fit IRT on ALL eligible items (train + test).
+    # This intentionally leaks fold test items; it is meant as an upper bound.
+    # -----------------------------
+    oracle_theta_by_model: Dict[str, float] = {}
+    oracle_theta_by_scaffold: Dict[str, float] = {}
+    oracle_diff_by_item: Dict[str, float] = {}
+    if eval_mode == "id":
+        print("Training oracle IRT on all eligible items (train+test; leakage).")
+        base.set_torch_determinism(False)
+        base.seed_everything(int(args.seed), deterministic=False)
+        obs_oracle = build_multibench_obs_for_items(obs_full=obs_full, keep_item_ids=list(eligible))
+        oracle_theta_by_model, oracle_theta_by_scaffold, oracle_diff_by_item = train_irt_model_scaffold_1pl(
+            obs_train=obs_oracle,
+            irt_model=str(irt_model),
+            epochs=int(args.irt_epochs),
+            device=str(args.irt_device),
+            seed=int(args.seed),
+            lr=float(args.irt_lr),
+            out_dir=os.path.join(str(args.out_dir), "irt_oracle_full", _irt_out_dir_name(irt_model)),
+        )
+        base.set_torch_determinism(True)
+        print(
+            "Oracle IRT training complete. "
+            f"labeled_items={len(oracle_diff_by_item)} models={len(oracle_theta_by_model)} scaffolds={len(oracle_theta_by_scaffold)}"
+        )
+
     if eval_mode == "id" and method == "combined":
         # -----------------------------
         # K-fold CV over items (joint block-ridge: embeddings + judge features)
@@ -2097,6 +2124,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
         cv_test_auc_folds_embedding_only: List[float] = []
+        cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         cv_test_n_items_scored_folds: List[int] = []
         yhat_oof = base.np.full((int(len(eligible)),), base.np.nan, dtype=base.np.float64)
@@ -2365,6 +2393,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             scores_final: List[float] = []
             scores_emb: List[float] = []
             labels: List[int] = []
+            scores_oracle: List[float] = []
+            labels_oracle: List[int] = []
             test_set = set(test_items)
 
             for bench, sid, resp in all_responses_tagged:
@@ -2391,14 +2421,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores_emb.append(_sigmoid(th - float(z_emb)))
                     labels.append(int(y_obs))
 
+                    # Oracle IRT score: uses IRT trained on all items (includes fold test items).
+                    tm_o = oracle_theta_by_model.get(model_name, None)
+                    ts_o = oracle_theta_by_scaffold.get(scaffold, None)
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if tm_o is not None and ts_o is not None and b_o is not None:
+                        scores_oracle.append(_sigmoid((float(tm_o) + float(ts_o)) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
+
             fold_auc = float(base._compute_binary_auroc(scores_final, labels))
             fold_auc_emb = float(base._compute_binary_auroc(scores_emb, labels))
+            fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
             cv_test_auc_folds_embedding_only.append(float(fold_auc_emb))
+            cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             cv_test_n_items_scored_folds.append(int(len(scored_items)))
 
-            print(f"Fold {fold:02d}: auc={fold_auc} missing_judge={n_missing_judge}")
+            print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}")
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
                 best_fold_auc = float(fold_auc)
                 best_fold = int(fold)
@@ -2412,6 +2452,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         auc_std = float(base.np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
         print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
         print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+        oracle_auc_arr = base.np.asarray(cv_test_auc_folds_oracle_irt, dtype=base.np.float64)
+        oracle_auc_mean = float(base.np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+        oracle_auc_std = float(base.np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+        print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
+        print("Per-fold oracle IRT ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds_oracle_irt]))
 
         # Save regression weights from the best fold.
         weights_meta = {
@@ -2467,6 +2513,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
             "cv_test_auc_folds_embedding_only": [float(x) for x in cv_test_auc_folds_embedding_only],
+            "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
+            "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
+            "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
             "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
             "cv_test_n_items_scored_folds": [int(x) for x in cv_test_n_items_scored_folds],
             "cv_selected_alpha_emb_folds": [float(x) for x in fold_alpha_emb],
@@ -2517,6 +2566,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # -----------------------------
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
+        cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         cv_test_n_items_scored_folds: List[int] = []
         yhat_oof = base.np.full((int(len(eligible)),), base.np.nan, dtype=base.np.float64)
@@ -2734,6 +2784,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             scored_items = set(final_pred_by_item.keys())
             scores: List[float] = []
             labels: List[int] = []
+            scores_oracle: List[float] = []
+            labels_oracle: List[int] = []
             test_set = set(test_items)
 
             for bench, sid, resp in all_responses_tagged:
@@ -2758,12 +2810,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores.append(_sigmoid(th - float(z)))
                     labels.append(int(y_obs))
 
+                    tm_o = oracle_theta_by_model.get(model_name, None)
+                    ts_o = oracle_theta_by_scaffold.get(scaffold, None)
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if tm_o is not None and ts_o is not None and b_o is not None:
+                        scores_oracle.append(_sigmoid((float(tm_o) + float(ts_o)) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
+
             fold_auc = float(base._compute_binary_auroc(scores, labels))
+            fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
+            cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             cv_test_n_items_scored_folds.append(int(len(scored_items)))
 
-            print(f"Fold {fold:02d}: auc={fold_auc} missing_judge={n_missing_judge}")
+            print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}")
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
                 best_fold_auc = float(fold_auc)
                 best_fold = int(fold)
@@ -2777,6 +2838,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         auc_std = float(base.np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
         print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
         print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+        oracle_auc_arr = base.np.asarray(cv_test_auc_folds_oracle_irt, dtype=base.np.float64)
+        oracle_auc_mean = float(base.np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+        oracle_auc_std = float(base.np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+        print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
+        print("Per-fold oracle IRT ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds_oracle_irt]))
 
         # Save regression weights from the best fold.
         model = best_model
@@ -2838,6 +2905,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
+            "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
+            "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
+            "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
             "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
             "cv_test_n_items_scored_folds": [int(x) for x in cv_test_n_items_scored_folds],
             "irt_epochs": int(args.irt_epochs),
@@ -2875,6 +2945,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # -----------------------------
         outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
         cv_test_auc_folds: List[float] = []
+        cv_test_auc_folds_oracle_irt: List[float] = []
         cv_test_n_obs_folds: List[int] = []
         yhat_oof = base.np.full((int(len(eligible)),), base.np.nan, dtype=base.np.float64)
         fold_of_item = base.np.full((int(len(eligible)),), -1, dtype=base.np.int32)
@@ -2939,6 +3010,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             z_by_item = {tid: float(z) for tid, z in zip(test_items, pred.tolist())}
             scores: List[float] = []
             labels: List[int] = []
+            scores_oracle: List[float] = []
+            labels_oracle: List[int] = []
             test_set = set(test_items)
 
             for bench, sid, resp in all_responses_tagged:
@@ -2961,8 +3034,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     scores.append(1.0 / (1.0 + math.exp(-(th - float(z)))))
                     labels.append(int(y_obs))
 
+                    tm_o = oracle_theta_by_model.get(model, None)
+                    ts_o = oracle_theta_by_scaffold.get(scaffold, None)
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if tm_o is not None and ts_o is not None and b_o is not None:
+                        scores_oracle.append(_sigmoid((float(tm_o) + float(ts_o)) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
+
             fold_auc = float(base._compute_binary_auroc(scores, labels))
+            fold_auc_oracle = float(base._compute_binary_auroc(scores_oracle, labels_oracle))
             cv_test_auc_folds.append(float(fold_auc))
+            cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
             cv_test_n_obs_folds.append(int(len(labels)))
             if fold_auc == fold_auc and fold_auc > best_fold_auc:
                 best_fold_auc = float(fold_auc)
@@ -2979,6 +3061,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         auc_std = float(base.np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
         print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
         print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+        oracle_auc_arr = base.np.asarray(cv_test_auc_folds_oracle_irt, dtype=base.np.float64)
+        oracle_auc_mean = float(base.np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+        oracle_auc_std = float(base.np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+        print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
+        print("Per-fold oracle IRT ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds_oracle_irt]))
 
         # Use the best-fold model for saving weights + predicting excluded items.
         model = best_model
@@ -3008,6 +3096,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
+            "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
+            "cv_test_auc_oracle_irt_mean": float(oracle_auc_mean),
+            "cv_test_auc_oracle_irt_std": float(oracle_auc_std),
             "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
             "irt_epochs": int(args.irt_epochs),
             "irt_device": str(args.irt_device),
@@ -3795,6 +3886,93 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     print("NOTE: OOD ROC-AUC is NaN because only one label class was present among scored observations.")
         except Exception:
             pass
+
+        # -----------------------------
+        # Oracle OOD AUROC: fit IRT on train + OOD benchmarks (intentional leakage)
+        # and evaluate AUROC using oracle IRT item difficulties.
+        # -----------------------------
+        ood_oracle_auc = float("nan")
+        ood_oracle_meta: Dict[str, object] = {}
+        try:
+            # Filter + normalize the OOD response matrix using the same rules as training.
+            ood_oracle_filtered = os.path.join(str(tmp_dir), f"{ood_key}.oracle.filtered.jsonl")
+            ood_oracle_norm = os.path.join(str(tmp_dir), f"{ood_key}.oracle.normalized.jsonl")
+            if ood_key == "gso":
+                filter_subjects_gso_model_only(
+                    input_jsonl=str(ood_agent_results),
+                    output_jsonl=str(ood_oracle_filtered),
+                    min_models_per_scaffold=int(args.min_models_per_scaffold),
+                    assumed_scaffold="OpenHands",
+                )
+            else:
+                filter_subjects_by_min_models_per_scaffold(
+                    input_jsonl=str(ood_agent_results),
+                    output_jsonl=str(ood_oracle_filtered),
+                    min_models_per_scaffold=int(args.min_models_per_scaffold),
+                    treat_as_pro=bool(ood_treat_as_pro),
+                )
+            normalize_responses_jsonl(
+                in_path=str(ood_oracle_filtered),
+                out_path=str(ood_oracle_norm),
+                benchmark=str(ood_key),
+                normalize_item_ids=bool(ood_normalize_item_ids),
+            )
+
+            # Build a combined multibench obs object that includes both train benchmarks and the OOD benchmark.
+            oracle_verified_path = str(ood_oracle_norm) if ood_key == "verified" else str(verified_norm)
+            oracle_pro_path = str(ood_oracle_norm) if ood_key == "pro" else str(pro_norm)
+            oracle_terminal_path = (
+                str(ood_oracle_norm) if ood_key == "terminal_bench" else (str(term_path_for_irt) if term_path_for_irt else None)
+            )
+            oracle_gso_path = str(ood_oracle_norm) if ood_key == "gso" else (str(gso_path_for_irt) if gso_path_for_irt else None)
+
+            obs_oracle_full = ms.load_multibench_split_irt_data(
+                verified_path=ms.resolve_path(oracle_verified_path),
+                pro_path=ms.resolve_path(oracle_pro_path),
+                terminal_bench_path=ms.resolve_path(oracle_terminal_path) if oracle_terminal_path else None,
+                gso_path=ms.resolve_path(oracle_gso_path) if oracle_gso_path else None,
+            )
+
+            # Train oracle IRT on the union of training items and the OOD items we predicted (z_by_item keys).
+            oracle_items = sorted(set([str(x) for x in list(train_items)]) | set([str(x) for x in list(z_by_item.keys())]))
+            base.set_torch_determinism(False)
+            base.seed_everything(int(args.seed), deterministic=False)
+            obs_oracle = build_multibench_obs_for_items(obs_full=obs_oracle_full, keep_item_ids=oracle_items)
+            oracle_theta_by_model_ood, oracle_theta_by_scaffold_ood, oracle_diff_by_item_ood = train_irt_model_scaffold_1pl(
+                obs_train=obs_oracle,
+                irt_model=str(irt_model),
+                epochs=int(args.irt_epochs),
+                device=str(args.irt_device),
+                seed=int(args.seed),
+                lr=float(args.irt_lr),
+                out_dir=os.path.join(str(args.out_dir), "irt_oracle_full_including_ood", _irt_out_dir_name(irt_model)),
+            )
+            base.set_torch_determinism(True)
+
+            z_oracle_by_item = {
+                str(iid): float(oracle_diff_by_item_ood[str(iid)])
+                for iid in list(z_by_item.keys())
+                if str(iid) in oracle_diff_by_item_ood
+            }
+            ood_oracle_auc, ood_oracle_meta = evaluate_ood_auroc(
+                ood_agent_results_jsonl=ood_agent_results,
+                ood_normalize_item_ids=bool(ood_normalize_item_ids),
+                ood_treat_as_pro=bool(ood_treat_as_pro),
+                ood_default_scaffold=ood_default_scaffold,
+                z_by_item=z_oracle_by_item,
+                theta_by_model=oracle_theta_by_model_ood,
+                theta_by_scaffold=oracle_theta_by_scaffold_ood,
+            )
+            print(f"OOD oracle IRT ROC-AUC (IRT trained on train+OOD): {ood_oracle_auc}")
+        except Exception as e:
+            try:
+                base.set_torch_determinism(True)
+            except Exception:
+                pass
+            ood_oracle_auc = float("nan")
+            ood_oracle_meta = {"error": f"{type(e).__name__}: {e}"}
+            print(f"WARNING: Failed to compute OOD oracle IRT AUROC: {type(e).__name__}: {e}")
+
         base.save_json(
             os.path.join(str(args.out_dir), "metrics.json"),
             {
@@ -3802,12 +3980,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "method": str(method),
                 "ood_benchmark": str(ood_key),
                 "auc": float(ood_auc),
+                "oracle_irt_auc": float(ood_oracle_auc),
                 "agent_results": str(ood_agent_results),
                 "dataset_name": (ood_dataset_name or None),
                 "split": str(ood_split),
                 "normalize_item_ids": bool(ood_normalize_item_ids),
                 "ood_judge_features_dir": str(ood_feat_dir or "").strip() or None,
                 **ood_meta,
+                **{f"oracle_irt_{k}": v for k, v in (ood_oracle_meta or {}).items()},
             },
         )
     return 0
