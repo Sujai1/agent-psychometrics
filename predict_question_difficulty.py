@@ -2183,7 +2183,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Regression model (same options as trajectory-based script).",
     )
     p.add_argument("--ridge_alpha", type=float, default=10000.0)
-    p.add_argument("--ridge_alphas", type=str, default="1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
+    p.add_argument("--ridge_alphas", type=str, default="1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
     p.add_argument("--cv_folds", type=int, default=5)
     p.add_argument(
         "--inner_splits",

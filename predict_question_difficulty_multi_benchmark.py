@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -1291,7 +1292,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default="gso",
         help=(
             "Which benchmark to evaluate as OOD (out-of-distribution). Must be one of "
-            "{Verified, Pro, Terminal-Bench, GSO} and must NOT appear in --train_benchmarks."
+            "{Verified, Pro, Terminal-Bench, GSO} and must NOT appear in --train_benchmarks. "
+            "Set to the empty string ('') to disable evaluation entirely (train on --train_benchmarks only, save weights, no eval)."
         ),
     )
 
@@ -1354,7 +1356,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="Regression model (same options as single-benchmark script).",
     )
     p.add_argument("--ridge_alpha", type=float, default=10000.0)
-    p.add_argument("--ridge_alphas", type=str, default="1e-6,1e-5,1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
+    p.add_argument("--ridge_alphas", type=str, default="1e-4,1e-3,1e-2,1e-1,1,10,100,1000,10000")
     p.add_argument("--cv_folds", type=int, default=5)
     p.add_argument(
         "--inner_splits",
@@ -1483,13 +1485,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     base.seed_everything(int(args.seed), deterministic=True)
 
     train_benchmarks = _parse_benchmark_list(str(args.train_benchmarks))
-    ood_benchmark = _canon_benchmark_name(str(args.ood_benchmark))
+    ood_benchmark_raw = str(getattr(args, "ood_benchmark", "") or "").strip()
+    disable_eval = (ood_benchmark_raw == "")
+    ood_benchmark: Optional[str] = None
+    if not disable_eval:
+        ood_benchmark = _canon_benchmark_name(ood_benchmark_raw)
     if len(train_benchmarks) < 2:
         raise ValueError(
             f"--train_benchmarks must include at least 2 benchmarks (got {train_benchmarks}). "
             "Allowed: Verified, Pro, Terminal-Bench, GSO."
         )
-    if ood_benchmark in set(train_benchmarks):
+    if ood_benchmark is not None and ood_benchmark in set(train_benchmarks):
         raise ValueError(
             f"--ood_benchmark={ood_benchmark!r} must not be present in --train_benchmarks={train_benchmarks}."
         )
@@ -1674,10 +1680,70 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     subset_flag = "__embedsubset_response_items"
     emb_cache = str(args.embeddings_cache or "").strip()
     if not emb_cache:
-        emb_cache = os.path.join(
-            args.out_dir,
-            f"embeddings__{safe_backbone}__pool-lasttoken{layer_flag}__qs-sol-instr__{instr_sig}{idnorm_flag}{zs_flag}{subset_flag}__{ds_flag}__maxlen{int(args.max_length)}.npz",
+        # Historically, we encoded lots of config into the cache filename. On many
+        # filesystems, individual path components are limited (often 255 bytes),
+        # so long model/dataset/config strings can crash at save time.
+        long_basename = (
+            f"embeddings__{safe_backbone}__pool-lasttoken{layer_flag}"
+            f"__qs-sol-instr__{instr_sig}{idnorm_flag}{zs_flag}{subset_flag}"
+            f"__{ds_flag}__maxlen{int(args.max_length)}.npz"
         )
+        long_path = os.path.join(args.out_dir, long_basename)
+
+        # Short, stable cache key: hash the *full* (untruncated) configuration.
+        cache_meta = {
+            "backbone": str(args.backbone),
+            "max_length": int(args.max_length),
+            "batch_size": int(args.batch_size),
+            "device_map": str(args.device_map),
+            "torch_dtype": str(args.torch_dtype),
+            "attn_implementation": str(args.attn_implementation),
+            "instruction": str(args.instruction),
+            "instruction_sig": str(instr_sig),
+            "embedding_layer": int(args.embedding_layer),
+            "include_zero_success": bool(args.include_zero_success),
+            "normalize_item_ids": True,  # multibench uses normalized ids for SWE-bench + GSO
+            "embed_subset": "response_items",
+            "dataset_sources": str(dataset_sources_str),
+        }
+        cache_key = hashlib.sha1(json.dumps(cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+        model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
+        short_basename = f"embeddings__{model_short}__{cache_key}__maxlen{int(args.max_length)}.npz"
+        short_path = os.path.join(args.out_dir, short_basename)
+
+        # Prefer an existing cache (either naming scheme), else pick a safe name.
+        if os.path.exists(long_path):
+            emb_cache = long_path
+        elif os.path.exists(short_path):
+            emb_cache = short_path
+        else:
+            # Leave some headroom under common 255-byte component limits.
+            emb_cache = long_path if len(long_basename.encode("utf-8")) <= 200 else short_path
+            if emb_cache == short_path and len(long_basename.encode("utf-8")) > 200:
+                print(
+                    f"NOTE: embeddings cache filename would be too long; using short cache name: {short_basename} "
+                    f"(key={cache_key})."
+                )
+
+        # Write a sidecar with full config for traceability.
+        # (Best-effort; failure here should never kill the run.)
+        try:
+            meta_path = str(emb_cache).replace(".npz", ".meta.json")
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "cache_path": str(emb_cache),
+                        "cache_key": str(cache_key),
+                        "long_basename": str(long_basename),
+                        "short_basename": str(short_basename),
+                        "meta": cache_meta,
+                    },
+                    f,
+                    indent=2,
+                    sort_keys=True,
+                )
+        except Exception:
+            pass
 
     # -----------------------------
     # Load or compute embeddings (pool items from 3 benchmarks)
@@ -1991,6 +2057,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     eval_mode = str(args.eval_mode or "ood").strip().lower()
     if eval_mode not in {"id", "ood"}:
         raise ValueError(f"Unknown --eval_mode: {args.eval_mode!r}")
+    if disable_eval:
+        # User explicitly requested no evaluation by passing --ood_benchmark "".
+        # We still run the default training-only flow and save regression weights.
+        eval_mode = "train"
 
     if eval_mode == "id" and use_joint:
         # -----------------------------

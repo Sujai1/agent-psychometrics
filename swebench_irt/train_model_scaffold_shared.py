@@ -52,7 +52,7 @@ import json
 import os
 import random
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -120,7 +120,12 @@ and downstream analyses (e.g. auroc_model_scaffold.py), we import the splitter
 from that script rather than duplicating logic here.
 """
 
-from split_agents_model_scaffold import split_agent_name, _version_scaffold_for_agent  # type: ignore
+from split_agents_model_scaffold import (  # type: ignore
+    _canonical_model,
+    _canonical_scaffold,
+    split_agent_name,
+    _version_scaffold_for_agent,
+)
 
 
 # -----------------------------
@@ -198,6 +203,7 @@ class MultiBenchObs:
     pro_item_ids: set[str]
     terminal_bench_item_ids: set[str]
     agent_split_df: pd.DataFrame
+    gso_item_ids: set[str] = field(default_factory=set)
 
 
 def _agent_key(benchmark: str, agent: str) -> str:
@@ -209,9 +215,17 @@ def load_multibench_split_irt_data(
     verified_path: Path,
     pro_path: Path,
     terminal_bench_path: Optional[Path] = None,
+    gso_path: Optional[Path] = None,
+    gso_default_scaffold: str = "OpenHands",
 ) -> MultiBenchObs:
     """
-    Load Verified + Pro (+ optional Terminal-Bench) JSONL and share model/scaffold vocab across all.
+    Load multiple benchmark JSONLs and share model/scaffold vocab across all.
+
+    Supported benchmarks:
+    - Verified: subject_id is an agent id; split into (model, scaffold) via split_agent_name
+    - Pro: subject_id is a model name; assigns scaffold="SWE-agent 1.0"
+    - Terminal-Bench: subject_id is an agent id; split into (model, scaffold) via split_agent_name
+    - GSO: subject_id is typically a model name; assigns scaffold=gso_default_scaffold
     """
     agent_rows: list[dict] = []
     model_set: set[str] = set()
@@ -220,6 +234,7 @@ def load_multibench_split_irt_data(
     verified_item_ids: set[str] = set()
     pro_item_ids: set[str] = set()
     terminal_bench_item_ids: set[str] = set()
+    gso_item_ids: set[str] = set()
 
     # Pre-load Pro records so we can enforce "prefer paper" for specific models.
     pro_records = list(_iter_jsonl(pro_path))
@@ -310,6 +325,29 @@ def load_multibench_split_irt_data(
             terminal_bench_item_ids.update(str(it) for it in r["responses"].keys())
             item_set.update(str(it) for it in r["responses"].keys())
 
+    if gso_path is not None:
+        scaffold_raw = str(gso_default_scaffold or "").strip() or "OpenHands"
+        scaffold = _canonical_scaffold(scaffold_raw)
+        for r in _iter_jsonl(gso_path):
+            agent = str(r["subject_id"])
+            model_raw = agent
+            model = _canonical_model(agent)
+
+            model_set.add(model)
+            scaffold_set.add(scaffold)
+            agent_rows.append(
+                {
+                    "benchmark": "gso",
+                    "agent": agent,
+                    "model": model,
+                    "scaffold": scaffold,
+                    "model_raw": model_raw,
+                    "scaffold_raw": scaffold_raw,
+                }
+            )
+            gso_item_ids.update(str(it) for it in r["responses"].keys())
+            item_set.update(str(it) for it in r["responses"].keys())
+
     model_ids = sorted(model_set)
     scaffold_ids = sorted(scaffold_set)
     item_ids = sorted(item_set)
@@ -375,6 +413,21 @@ def load_multibench_split_irt_data(
                 i_list.append(item_to_idx[it])
                 y_list.append(int(y))
 
+    if gso_path is not None:
+        for r in _iter_jsonl(gso_path):
+            benchmark = "gso"
+            agent = str(r["subject_id"])
+            pair = agent_to_pair.get(_agent_key(benchmark, agent))
+            if pair is None:
+                continue
+            m_idx, s_idx = pair
+            for item_id, y in r["responses"].items():
+                it = str(item_id)
+                m_list.append(m_idx)
+                s_list.append(s_idx)
+                i_list.append(item_to_idx[it])
+                y_list.append(int(y))
+
     agent_split_df = pd.DataFrame(agent_rows).sort_values(["benchmark", "model", "scaffold", "agent"])
 
     return MultiBenchObs(
@@ -388,6 +441,7 @@ def load_multibench_split_irt_data(
         verified_item_ids=verified_item_ids,
         pro_item_ids=pro_item_ids,
         terminal_bench_item_ids=terminal_bench_item_ids,
+        gso_item_ids=gso_item_ids,
         agent_split_df=agent_split_df,
     )
 
@@ -693,6 +747,7 @@ def save_outputs(*, out_dir: Path, obs: MultiBenchObs, model_type: str) -> None:
     _write_items_subset(obs.verified_item_ids, "items_verified.csv")
     _write_items_subset(obs.pro_item_ids, "items_pro.csv")
     _write_items_subset(obs.terminal_bench_item_ids, "items_terminal_bench.csv")
+    _write_items_subset(getattr(obs, "gso_item_ids", set()), "items_gso.csv")
 
     theta_m_loc_raw = pyro.param("loc_theta_model_raw").detach().cpu()
     theta_m_scale = pyro.param("scale_theta_model_raw").detach().cpu()
@@ -772,6 +827,18 @@ def main() -> None:
         help="Path to Terminal-Bench 2.0 agent×task JSONL (subject_id, responses)",
     )
     parser.add_argument(
+        "--gso_path",
+        type=str,
+        default="",
+        help="Optional path to GSO agent×task JSONL (subject_id, responses; model-only subject ids).",
+    )
+    parser.add_argument(
+        "--gso_default_scaffold",
+        type=str,
+        default="OpenHands",
+        help="Scaffold label to assign to all GSO subjects (model-only exports).",
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         default="clean_data/training_results_shared_verified_pro",
@@ -801,6 +868,7 @@ def main() -> None:
     verified_path = resolve_path(args.verified_path)
     pro_path = resolve_path(args.pro_path)
     terminal_bench_path = resolve_path(args.terminal_bench_path) if args.terminal_bench_path else None
+    gso_path = resolve_path(args.gso_path) if str(args.gso_path or "").strip() else None
     out_root = resolve_output_dir(args.output_dir)
     out_root.mkdir(parents=True, exist_ok=True)
 
@@ -808,8 +876,14 @@ def main() -> None:
     print(f"Loading Pro from:       {pro_path}")
     if terminal_bench_path is not None:
         print(f"Loading Terminal-Bench: {terminal_bench_path}")
+    if gso_path is not None:
+        print(f"Loading GSO:           {gso_path}")
     obs = load_multibench_split_irt_data(
-        verified_path=verified_path, pro_path=pro_path, terminal_bench_path=terminal_bench_path
+        verified_path=verified_path,
+        pro_path=pro_path,
+        terminal_bench_path=terminal_bench_path,
+        gso_path=gso_path,
+        gso_default_scaffold=str(args.gso_default_scaffold or "").strip() or "OpenHands",
     )
 
     # Quick breakdown
