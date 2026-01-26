@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false
 """
 Analyze and plot IRT difficulty ("b") distributions across benchmarks.
 
@@ -6,6 +7,7 @@ Reads:
 - SWE-bench Verified: items_verified.csv
 - SWE-bench Pro:      items_pro.csv
 - Terminal-Bench:     items_terminal_bench.csv
+- GSO:                items_gso.csv
 
 Each CSV is expected to contain a 'b' column (difficulty) and optionally 'b_std'.
 We compute mean and variance of 'b' per benchmark and save an overlapping histogram.
@@ -20,7 +22,7 @@ import argparse
 import csv
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 
 def _require(pkg: str) -> None:
@@ -43,11 +45,26 @@ matplotlib.use("Agg")  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 
+Scores = np.ndarray
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def resolve_path(p: str) -> Path:
+    """
+    Interpret relative paths as relative to this script's directory, so the script
+    behaves consistently no matter the current working directory.
+    """
+    path = Path(p)
+    if path.is_absolute():
+        return path
+    return (SCRIPT_DIR / path).resolve()
+
+
 @dataclass(frozen=True)
 class BenchmarkScores:
     name: str
     path: Path
-    scores: np.ndarray
+    scores: Scores
 
 
 def _guess_id_field(fieldnames: Sequence[str]) -> Optional[str]:
@@ -66,7 +83,7 @@ def _guess_id_field(fieldnames: Sequence[str]) -> Optional[str]:
     return None
 
 
-def load_b_scores(csv_path: Path) -> np.ndarray:
+def load_b_scores(csv_path: Path) -> Scores:
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV not found: {csv_path}")
     scores: List[float] = []
@@ -150,7 +167,6 @@ def plot_overlapping_histograms(
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    default_root = Path(__file__).resolve().parent
     return argparse.ArgumentParser(description=__doc__).parse_args(argv)
 
 
@@ -173,6 +189,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=str,
         default="out/multi_benchmark_ood/irt_model_scaffold_1pl/items_terminal_bench.csv",
         help="Path to Terminal-Bench items CSV (must contain column 'b').",
+    )
+    p.add_argument(
+        "--items_gso_csv",
+        type=str,
+        default="out/multi_benchmark_ood/irt_model_scaffold_1pl/items_gso.csv",
+        help="Path to GSO items CSV (must contain column 'b').",
     )
     p.add_argument(
         "--out_plot",
@@ -200,15 +222,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     args = p.parse_args(argv)
 
-    # Resolve relative paths from repo/workspace root (current working directory).
-    verified_path = Path(args.items_verified_csv)
-    pro_path = Path(args.items_pro_csv)
-    tb_path = Path(args.items_terminal_bench_csv)
+    verified_path = resolve_path(args.items_verified_csv)
+    pro_path = resolve_path(args.items_pro_csv)
+    tb_path = resolve_path(args.items_terminal_bench_csv)
+    gso_path = resolve_path(args.items_gso_csv)
+    out_plot_path = resolve_path(args.out_plot)
 
     benchmarks = [
         BenchmarkScores("SWE-bench Verified", verified_path, load_b_scores(verified_path)),
         BenchmarkScores("SWE-bench Pro", pro_path, load_b_scores(pro_path)),
         BenchmarkScores("Terminal-Bench", tb_path, load_b_scores(tb_path)),
+        BenchmarkScores("GSO", gso_path, load_b_scores(gso_path)),
     ]
 
     print("Benchmark difficulty statistics (b):")
@@ -227,13 +251,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     plot_overlapping_histograms(
         benchmarks=benchmarks,
-        out_path=Path(args.out_plot),
+        out_path=out_plot_path,
         bins=bins,
         title=str(args.title),
         alpha=float(args.alpha),
         normalize=bool(args.normalize),
     )
-    print(f"Wrote plot: {args.out_plot}")
+    print(f"Wrote plot: {out_plot_path}")
     return 0
 
 
