@@ -1349,6 +1349,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # Regressor settings
     # -----------------------------
     p.add_argument(
+        "--method",
+        type=str,
+        default="embedding",
+        choices=["embedding", "judge", "combined"],
+        help=(
+            "Which features to use for difficulty prediction. "
+            "'embedding' (default) trains ridge/linear on the embedding vector only (historical default). "
+            "'combined' concatenates embedding + LLM-judge features and trains a joint (block) ridge with "
+            "separate penalties for embedding vs judge blocks. "
+            "'judge' trains ridge on judge features only (no embeddings)."
+        ),
+    )
+    p.add_argument(
         "--regressor",
         type=str,
         default="ridge_cv",
@@ -1366,16 +1379,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     # -----------------------------
-    # Optional joint ridge training (embeddings + judge features)
+    # Judge feature settings (used by --method=judge/combined)
     # -----------------------------
-    p.add_argument(
-        "--include_judge",
-        action="store_true",
-        help=(
-            "Train a joint (block) ridge model over [embeddings, LLM-judge features] with separate ridge penalties "
-            "for the embedding vs judge blocks. If unset, preserves historical embeddings-only behavior."
-        ),
-    )
     p.add_argument(
         "--verified_judge_features_dir",
         type=str,
@@ -1406,7 +1411,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=float,
         default=float("nan"),
         help=(
-            "Embedding block ridge alpha (only used when --include_judge and --regressor=ridge). "
+            "Embedding block ridge alpha (only used when --method=combined and --regressor=ridge). "
             "Defaults to --ridge_alpha when unset."
         ),
     )
@@ -1415,7 +1420,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=float,
         default=float("nan"),
         help=(
-            "Judge block ridge alpha (only used when --include_judge and --regressor=ridge). "
+            "Judge block ridge alpha (only used when --method=combined and --regressor=ridge). "
             "Defaults to --ridge_alpha when unset."
         ),
     )
@@ -1424,7 +1429,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=str,
         default="",
         help=(
-            "Embedding alpha grid for inner CV (only used when --include_judge and --regressor=ridge_cv). "
+            "Embedding alpha grid for inner CV (only used when --method=combined and --regressor=ridge_cv). "
             "Defaults to --ridge_alphas when unset."
         ),
     )
@@ -1433,7 +1438,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         type=str,
         default="",
         help=(
-            "Judge alpha grid for inner CV (only used when --include_judge and --regressor=ridge_cv). "
+            "Judge alpha grid for inner CV (only used when --method=combined and --regressor=ridge_cv). "
             "Defaults to --ridge_alphas when unset."
         ),
     )
@@ -1483,6 +1488,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = p.parse_args(argv)
     base.ensure_dir(args.out_dir)
     base.seed_everything(int(args.seed), deterministic=True)
+
+    # -----------------------------
+    # Feature selection / method
+    # -----------------------------
+    method = str(getattr(args, "method", "embedding") or "embedding").strip().lower()
+    if method not in {"embedding", "judge", "combined"}:
+        raise ValueError(f"Unknown --method: {getattr(args, 'method', None)!r}")
 
     train_benchmarks = _parse_benchmark_list(str(args.train_benchmarks))
     ood_benchmark_raw = str(getattr(args, "ood_benchmark", "") or "").strip()
@@ -1678,255 +1690,266 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     idnorm_flag = "__idnorm_multibench"
     zs_flag = f"__include_zero_success{int(bool(args.include_zero_success))}"
     subset_flag = "__embedsubset_response_items"
+    # For judge-only mode we should not embed items at all.
+    task_ids: List[str] = []
+    X = None
+    id_to_row: Dict[str, int] = {}
+    Xy = None
     emb_cache = str(args.embeddings_cache or "").strip()
-    if not emb_cache:
-        # Historically, we encoded lots of config into the cache filename. On many
-        # filesystems, individual path components are limited (often 255 bytes),
-        # so long model/dataset/config strings can crash at save time.
-        long_basename = (
-            f"embeddings__{safe_backbone}__pool-lasttoken{layer_flag}"
-            f"__qs-sol-instr__{instr_sig}{idnorm_flag}{zs_flag}{subset_flag}"
-            f"__{ds_flag}__maxlen{int(args.max_length)}.npz"
-        )
-        long_path = os.path.join(args.out_dir, long_basename)
 
-        # Short, stable cache key: hash the *full* (untruncated) configuration.
-        cache_meta = {
-            "backbone": str(args.backbone),
-            "max_length": int(args.max_length),
-            "batch_size": int(args.batch_size),
-            "device_map": str(args.device_map),
-            "torch_dtype": str(args.torch_dtype),
-            "attn_implementation": str(args.attn_implementation),
-            "instruction": str(args.instruction),
-            "instruction_sig": str(instr_sig),
-            "embedding_layer": int(args.embedding_layer),
-            "include_zero_success": bool(args.include_zero_success),
-            "normalize_item_ids": True,  # multibench uses normalized ids for SWE-bench + GSO
-            "embed_subset": "response_items",
-            "dataset_sources": str(dataset_sources_str),
-        }
-        cache_key = hashlib.sha1(json.dumps(cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
-        model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
-        short_basename = f"embeddings__{model_short}__{cache_key}__maxlen{int(args.max_length)}.npz"
-        short_path = os.path.join(args.out_dir, short_basename)
+    # -----------------------------
+    # Load or compute embeddings (only for embedding/combined methods)
+    # -----------------------------
+    if method in {"embedding", "combined"}:
+        if not emb_cache:
+            # Historically, we encoded lots of config into the cache filename. On many
+            # filesystems, individual path components are limited (often 255 bytes),
+            # so long model/dataset/config strings can crash at save time.
+            long_basename = (
+                f"embeddings__{safe_backbone}__pool-lasttoken{layer_flag}"
+                f"__qs-sol-instr__{instr_sig}{idnorm_flag}{zs_flag}{subset_flag}"
+                f"__{ds_flag}__maxlen{int(args.max_length)}.npz"
+            )
+            long_path = os.path.join(args.out_dir, long_basename)
 
-        # Prefer an existing cache (either naming scheme), else pick a safe name.
-        if os.path.exists(long_path):
-            emb_cache = long_path
-        elif os.path.exists(short_path):
-            emb_cache = short_path
+            # Short, stable cache key: hash the *full* (untruncated) configuration.
+            cache_meta = {
+                "backbone": str(args.backbone),
+                "max_length": int(args.max_length),
+                "batch_size": int(args.batch_size),
+                "device_map": str(args.device_map),
+                "torch_dtype": str(args.torch_dtype),
+                "attn_implementation": str(args.attn_implementation),
+                "instruction": str(args.instruction),
+                "instruction_sig": str(instr_sig),
+                "embedding_layer": int(args.embedding_layer),
+                "include_zero_success": bool(args.include_zero_success),
+                "normalize_item_ids": True,  # multibench uses normalized ids for SWE-bench + GSO
+                "embed_subset": "response_items",
+                "dataset_sources": str(dataset_sources_str),
+            }
+            cache_key = hashlib.sha1(json.dumps(cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+            model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
+            short_basename = f"embeddings__{model_short}__{cache_key}__maxlen{int(args.max_length)}.npz"
+            short_path = os.path.join(args.out_dir, short_basename)
+
+            # Prefer an existing cache (either naming scheme), else pick a safe name.
+            if os.path.exists(long_path):
+                emb_cache = long_path
+            elif os.path.exists(short_path):
+                emb_cache = short_path
+            else:
+                # Leave some headroom under common 255-byte component limits.
+                emb_cache = long_path if len(long_basename.encode("utf-8")) <= 200 else short_path
+                if emb_cache == short_path and len(long_basename.encode("utf-8")) > 200:
+                    print(
+                        f"NOTE: embeddings cache filename would be too long; using short cache name: {short_basename} "
+                        f"(key={cache_key})."
+                    )
+
+            # Write a sidecar with full config for traceability.
+            # (Best-effort; failure here should never kill the run.)
+            try:
+                meta_path = str(emb_cache).replace(".npz", ".meta.json")
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(
+                        {
+                            "cache_path": str(emb_cache),
+                            "cache_key": str(cache_key),
+                            "long_basename": str(long_basename),
+                            "short_basename": str(short_basename),
+                            "meta": cache_meta,
+                        },
+                        f,
+                        indent=2,
+                        sort_keys=True,
+                    )
+            except Exception:
+                pass
+
+        cache_exists = bool(os.path.exists(emb_cache))
+        if str(args.embeddings_cache or "").strip() and not cache_exists and not bool(args.overwrite):
+            print(
+                f"WARNING: --embeddings_cache was provided but file does not exist: {emb_cache} "
+                f"(cwd={os.getcwd()}). Will recompute embeddings."
+            )
+
+        if os.path.exists(emb_cache) and not args.overwrite:
+            data = base.np.load(emb_cache, allow_pickle=True)
+            task_ids = [str(x) for x in list(data["task_ids"].tolist())]
+            X = data["X"].astype(base.np.float32)
+            counts_kind = str(base._npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
+            cached_layer = int(base._npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
+            if int(args.embedding_layer) != int(cached_layer):
+                raise RuntimeError(
+                    f"Embeddings cache was created with embedding_layer={cached_layer}, but you requested "
+                    f"--embedding_layer={int(args.embedding_layer)}. Use --overwrite, or pick a different cache file."
+                )
+            print(
+                f"Loaded embeddings cache: {emb_cache} (n={len(task_ids)}, dim={X.shape[1]}, counts_kind={counts_kind or 'unknown'}, embedding_layer={cached_layer})"
+            )
         else:
-            # Leave some headroom under common 255-byte component limits.
-            emb_cache = long_path if len(long_basename.encode("utf-8")) <= 200 else short_path
-            if emb_cache == short_path and len(long_basename.encode("utf-8")) > 200:
+            items: List[base.ItemRecord] = []
+
+            if use_verified:
+                verified_ids = list(item_ids_by_bench.get("verified", []))
+                if exclude_zero_success and zero_success_set:
+                    verified_ids = [tid for tid in verified_ids if tid not in zero_success_set]
+                if not verified_ids:
+                    raise RuntimeError(
+                        "Verified training benchmark: 0 item_ids remain after response-driven filtering "
+                        f"(include_zero_success={bool(args.include_zero_success)})."
+                    )
+                verified_items, verified_missing = load_swebench_items_by_ids(
+                    dataset_name=str(args.verified_dataset_name),
+                    split=str(args.verified_split),
+                    item_ids=verified_ids,
+                    normalize_item_ids=True,
+                )
+                if verified_missing:
+                    print(
+                        f"WARNING: Verified training benchmark: {len(verified_missing)}/{len(verified_ids)} item_ids were not found in the dataset. "
+                        f"Example: {verified_missing[:10]}"
+                    )
+                if not verified_items:
+                    raise RuntimeError("Verified training benchmark: loaded 0 items to embed; cannot proceed.")
+                items.extend(list(verified_items))
+
+            if use_pro:
+                pro_ids = list(item_ids_by_bench.get("pro", []))
+                if exclude_zero_success and zero_success_set:
+                    pro_ids = [tid for tid in pro_ids if tid not in zero_success_set]
+                if not pro_ids:
+                    raise RuntimeError(
+                        "Pro training benchmark: 0 item_ids remain after response-driven filtering "
+                        f"(include_zero_success={bool(args.include_zero_success)})."
+                    )
+                pro_items, pro_missing = load_swebench_items_by_ids(
+                    dataset_name=str(args.pro_dataset_name),
+                    split=str(args.pro_split),
+                    item_ids=pro_ids,
+                    normalize_item_ids=True,
+                )
+                if pro_missing:
+                    print(
+                        f"WARNING: Pro training benchmark: {len(pro_missing)}/{len(pro_ids)} item_ids were not found in the dataset. "
+                        f"Example: {pro_missing[:10]}"
+                    )
+                if not pro_items:
+                    raise RuntimeError("Pro training benchmark: loaded 0 items to embed; cannot proceed.")
+                items.extend(list(pro_items))
+
+            if use_terminal:
+                terminal_ids = list(item_ids_by_bench.get("terminal_bench", []))
+                if exclude_zero_success and zero_success_set:
+                    terminal_ids = [tid for tid in terminal_ids if tid not in zero_success_set]
+                if not terminal_ids:
+                    raise RuntimeError(
+                        "Terminal-Bench training benchmark: 0 task_ids remain after response-driven filtering "
+                        f"(include_zero_success={bool(args.include_zero_success)})."
+                    )
+                terminal_items, terminal_missing = load_terminal_bench_items_by_ids(
+                    tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
+                    item_ids=terminal_ids,
+                )
+                if terminal_missing:
+                    print(
+                        f"WARNING: Terminal-Bench training benchmark: {len(terminal_missing)}/{len(terminal_ids)} task_ids were not found in tasks JSONL. "
+                        f"Example: {terminal_missing[:10]}"
+                    )
+                if not terminal_items:
+                    raise RuntimeError("Terminal-Bench training benchmark: loaded 0 items to embed; cannot proceed.")
+                items.extend(list(terminal_items))
+
+            if use_gso:
+                gso_ids = list(item_ids_by_bench.get("gso", []))
+                if exclude_zero_success and zero_success_set:
+                    gso_ids = [tid for tid in gso_ids if tid not in zero_success_set]
+                if not gso_ids:
+                    raise RuntimeError(
+                        "GSO training benchmark: 0 item_ids remain after response-driven filtering "
+                        f"(include_zero_success={bool(args.include_zero_success)})."
+                    )
+                gso_dataset_name = str(args.gso_dataset_name or "").strip()
+                if not gso_dataset_name:
+                    raise ValueError("GSO training requires --gso_dataset_name to load tasks.")
+                gso_items, gso_missing = load_ood_items_by_ids(
+                    dataset_name=gso_dataset_name,
+                    split=str(args.gso_split),
+                    item_ids=gso_ids,
+                    normalize_item_ids=True,
+                    wrap_with_gso_prompt=True,
+                )
+                if gso_missing:
+                    print(
+                        f"WARNING: GSO training benchmark: {len(gso_missing)}/{len(gso_ids)} item_ids were not found in the dataset. "
+                        f"Example: {gso_missing[:10]}"
+                    )
+                if not gso_items:
+                    raise RuntimeError("GSO training benchmark: loaded 0 items to embed; cannot proceed.")
+                items.extend(list(gso_items))
+
+            by_id: Dict[str, base.ItemRecord] = {}
+            collisions: List[str] = []
+            for it in items:
+                iid = str(it.item_id)
+                if iid in by_id:
+                    collisions.append(iid)
+                    continue
+                by_id[iid] = it
+            if collisions:
                 print(
-                    f"NOTE: embeddings cache filename would be too long; using short cache name: {short_basename} "
-                    f"(key={cache_key})."
+                    f"WARNING: {len(collisions)} duplicate item_ids across benchmarks; keeping first occurrence. "
+                    f"Example: {collisions[:10]}"
                 )
+            items = list(by_id.values())
 
-        # Write a sidecar with full config for traceability.
-        # (Best-effort; failure here should never kill the run.)
-        try:
-            meta_path = str(emb_cache).replace(".npz", ".meta.json")
-            with open(meta_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "cache_path": str(emb_cache),
-                        "cache_key": str(cache_key),
-                        "long_basename": str(long_basename),
-                        "short_basename": str(short_basename),
-                        "meta": cache_meta,
-                    },
-                    f,
-                    indent=2,
-                    sort_keys=True,
-                )
-        except Exception:
-            pass
+            print(f"Loaded dataset items to embed: {len(items)} (sources={dataset_sources_str})")
 
-    # -----------------------------
-    # Load or compute embeddings (pool items from 3 benchmarks)
-    # -----------------------------
-    cache_exists = bool(os.path.exists(emb_cache))
-    if str(args.embeddings_cache or "").strip() and not cache_exists and not bool(args.overwrite):
-        print(
-            f"WARNING: --embeddings_cache was provided but file does not exist: {emb_cache} "
-            f"(cwd={os.getcwd()}). Will recompute embeddings."
-        )
-
-    if os.path.exists(emb_cache) and not args.overwrite:
-        data = base.np.load(emb_cache, allow_pickle=True)
-        task_ids = [str(x) for x in list(data["task_ids"].tolist())]
-        X = data["X"].astype(base.np.float32)
-        counts_kind = str(base._npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
-        cached_layer = int(base._npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
-        if int(args.embedding_layer) != int(cached_layer):
-            raise RuntimeError(
-                f"Embeddings cache was created with embedding_layer={cached_layer}, but you requested "
-                f"--embedding_layer={int(args.embedding_layer)}. Use --overwrite, or pick a different cache file."
+            ids_sorted, emb_by_id, counts_by_id, emb_dim = base.embed_items(
+                items=items,
+                backbone=str(args.backbone),
+                trust_remote_code=bool(args.trust_remote_code),
+                max_length=int(args.max_length),
+                batch_size=int(args.batch_size),
+                device_map=str(args.device_map),
+                torch_dtype=str(args.torch_dtype),
+                attn_implementation=str(args.attn_implementation),
+                instruction=str(args.instruction),
+                embedding_layer=int(args.embedding_layer),
             )
-        print(
-            f"Loaded embeddings cache: {emb_cache} (n={len(task_ids)}, dim={X.shape[1]}, counts_kind={counts_kind or 'unknown'}, embedding_layer={cached_layer})"
-        )
+            if not ids_sorted:
+                raise RuntimeError("No embeddings were produced (empty ids set).")
+
+            X = base.np.stack([emb_by_id[r] for r in ids_sorted], axis=0).astype(base.np.float32)
+            counts_arr = base.np.array([int(counts_by_id.get(r, 0)) for r in ids_sorted], dtype=base.np.int64)
+
+            base.np.savez_compressed(
+                emb_cache,
+                task_ids=base.np.array(ids_sorted, dtype=object),
+                X=X,
+                counts_kind=base.np.array(["text_len_chars"], dtype=object),
+                counts=counts_arr,
+                dataset_name=base.np.array([str(dataset_sources_str)], dtype=object),
+                embedding_layer=base.np.array([int(args.embedding_layer)], dtype=base.np.int64),
+            )
+            print(f"Saved embeddings cache: {emb_cache} (n={len(ids_sorted)}, dim={emb_dim})")
+            task_ids = list(ids_sorted)
+
+        if X is None:
+            raise RuntimeError("Internal error: embeddings matrix X was None in embedding/combined mode.")
+        id_to_row = {tid: int(i) for i, tid in enumerate(task_ids)}
+
+        # Resolve overlap + eligible items (responses-driven).
+        overlap_ids = [tid for tid in task_ids if tid in response_items]
+        if not overlap_ids:
+            raise RuntimeError("No overlap between embedded task_ids and item_ids found in the provided responses.")
     else:
-        items: List[base.ItemRecord] = []
-
-        if use_verified:
-            # SWE-bench Verified: load only items present in responses (and optionally exclude zero-success).
-            verified_ids = list(item_ids_by_bench.get("verified", []))
-            if exclude_zero_success and zero_success_set:
-                verified_ids = [tid for tid in verified_ids if tid not in zero_success_set]
-            if not verified_ids:
-                raise RuntimeError(
-                    "Verified training benchmark: 0 item_ids remain after response-driven filtering "
-                    f"(include_zero_success={bool(args.include_zero_success)})."
-                )
-            verified_items, verified_missing = load_swebench_items_by_ids(
-                dataset_name=str(args.verified_dataset_name),
-                split=str(args.verified_split),
-                item_ids=verified_ids,
-                normalize_item_ids=True,
-            )
-            if verified_missing:
-                print(
-                    f"WARNING: Verified training benchmark: {len(verified_missing)}/{len(verified_ids)} item_ids were not found in the dataset. "
-                    f"Example: {verified_missing[:10]}"
-                )
-            if not verified_items:
-                raise RuntimeError("Verified training benchmark: loaded 0 items to embed; cannot proceed.")
-            items.extend(list(verified_items))
-
-        if use_pro:
-            # SWE-bench Pro: load only items present in responses (and optionally exclude zero-success).
-            pro_ids = list(item_ids_by_bench.get("pro", []))
-            if exclude_zero_success and zero_success_set:
-                pro_ids = [tid for tid in pro_ids if tid not in zero_success_set]
-            if not pro_ids:
-                raise RuntimeError(
-                    "Pro training benchmark: 0 item_ids remain after response-driven filtering "
-                    f"(include_zero_success={bool(args.include_zero_success)})."
-                )
-            pro_items, pro_missing = load_swebench_items_by_ids(
-                dataset_name=str(args.pro_dataset_name),
-                split=str(args.pro_split),
-                item_ids=pro_ids,
-                normalize_item_ids=True,
-            )
-            if pro_missing:
-                print(
-                    f"WARNING: Pro training benchmark: {len(pro_missing)}/{len(pro_ids)} item_ids were not found in the dataset. "
-                    f"Example: {pro_missing[:10]}"
-                )
-            if not pro_items:
-                raise RuntimeError("Pro training benchmark: loaded 0 items to embed; cannot proceed.")
-            items.extend(list(pro_items))
-
-        if use_terminal:
-            # Terminal-Bench: load only tasks present in responses (and optionally exclude zero-success).
-            terminal_ids = list(item_ids_by_bench.get("terminal_bench", []))
-            if exclude_zero_success and zero_success_set:
-                terminal_ids = [tid for tid in terminal_ids if tid not in zero_success_set]
-            if not terminal_ids:
-                raise RuntimeError(
-                    "Terminal-Bench training benchmark: 0 task_ids remain after response-driven filtering "
-                    f"(include_zero_success={bool(args.include_zero_success)})."
-                )
-            terminal_items, terminal_missing = load_terminal_bench_items_by_ids(
-                tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
-                item_ids=terminal_ids,
-            )
-            if terminal_missing:
-                print(
-                    f"WARNING: Terminal-Bench training benchmark: {len(terminal_missing)}/{len(terminal_ids)} task_ids were not found in tasks JSONL. "
-                    f"Example: {terminal_missing[:10]}"
-                )
-            if not terminal_items:
-                raise RuntimeError("Terminal-Bench training benchmark: loaded 0 items to embed; cannot proceed.")
-            items.extend(list(terminal_items))
-
-        if use_gso:
-            # GSO: load only items present in responses (and optionally exclude zero-success).
-            gso_ids = list(item_ids_by_bench.get("gso", []))
-            if exclude_zero_success and zero_success_set:
-                gso_ids = [tid for tid in gso_ids if tid not in zero_success_set]
-            if not gso_ids:
-                raise RuntimeError(
-                    "GSO training benchmark: 0 item_ids remain after response-driven filtering "
-                    f"(include_zero_success={bool(args.include_zero_success)})."
-                )
-            gso_dataset_name = str(args.gso_dataset_name or "").strip()
-            if not gso_dataset_name:
-                raise ValueError("GSO training requires --gso_dataset_name to load tasks.")
-            gso_items, gso_missing = load_ood_items_by_ids(
-                dataset_name=gso_dataset_name,
-                split=str(args.gso_split),
-                item_ids=gso_ids,
-                normalize_item_ids=True,
-                wrap_with_gso_prompt=True,
-            )
-            if gso_missing:
-                print(
-                    f"WARNING: GSO training benchmark: {len(gso_missing)}/{len(gso_ids)} item_ids were not found in the dataset. "
-                    f"Example: {gso_missing[:10]}"
-                )
-            if not gso_items:
-                raise RuntimeError("GSO training benchmark: loaded 0 items to embed; cannot proceed.")
-            items.extend(list(gso_items))
-
-        # Deduplicate by id (keep first; warn on collisions).
-        by_id: Dict[str, base.ItemRecord] = {}
-        collisions: List[str] = []
-        for it in items:
-            iid = str(it.item_id)
-            if iid in by_id:
-                collisions.append(iid)
-                continue
-            by_id[iid] = it
-        if collisions:
-            print(f"WARNING: {len(collisions)} duplicate item_ids across benchmarks; keeping first occurrence. Example: {collisions[:10]}")
-        items = list(by_id.values())
-
-        print(f"Loaded dataset items to embed: {len(items)} (sources={dataset_sources_str})")
-
-        ids_sorted, emb_by_id, counts_by_id, emb_dim = base.embed_items(
-            items=items,
-            backbone=str(args.backbone),
-            trust_remote_code=bool(args.trust_remote_code),
-            max_length=int(args.max_length),
-            batch_size=int(args.batch_size),
-            device_map=str(args.device_map),
-            torch_dtype=str(args.torch_dtype),
-            attn_implementation=str(args.attn_implementation),
-            instruction=str(args.instruction),
-            embedding_layer=int(args.embedding_layer),
-        )
-        if not ids_sorted:
-            raise RuntimeError("No embeddings were produced (empty ids set).")
-
-        X = base.np.stack([emb_by_id[r] for r in ids_sorted], axis=0).astype(base.np.float32)
-        counts_arr = base.np.array([int(counts_by_id.get(r, 0)) for r in ids_sorted], dtype=base.np.int64)
-
-        base.np.savez_compressed(
-            emb_cache,
-            task_ids=base.np.array(ids_sorted, dtype=object),
-            X=X,
-            counts_kind=base.np.array(["text_len_chars"], dtype=object),
-            counts=counts_arr,
-            dataset_name=base.np.array([str(dataset_sources_str)], dtype=object),
-            embedding_layer=base.np.array([int(args.embedding_layer)], dtype=base.np.int64),
-        )
-        print(f"Saved embeddings cache: {emb_cache} (n={len(ids_sorted)}, dim={emb_dim})")
-        task_ids = list(ids_sorted)
-
-    id_to_row: Dict[str, int] = {tid: int(i) for i, tid in enumerate(task_ids)}
-
-    # -----------------------------
-    # Resolve overlap + eligible items (responses-driven)
-    # -----------------------------
-    overlap_ids = [tid for tid in task_ids if tid in response_items]
-    if not overlap_ids:
-        raise RuntimeError("No overlap between embedded task_ids and item_ids found in the provided responses.")
+        if str(args.embeddings_cache or "").strip():
+            print("NOTE: --method=judge ignores --embeddings_cache (no embedding is performed).")
+        emb_cache = ""
+        task_ids = sorted([str(t) for t in response_items])
+        overlap_ids = list(task_ids)
 
     if exclude_zero_success:
         eligible = [tid for tid in overlap_ids if tid not in zero_success_set]
@@ -1939,7 +1962,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not eligible:
         raise RuntimeError("After filtering, no items remain for CV/IRT.")
 
-    Xy = base.np.stack([X[id_to_row[tid]] for tid in eligible], axis=0).astype(base.np.float32)
+    if method in {"embedding", "combined"}:
+        Xy = base.np.stack([X[id_to_row[tid]] for tid in eligible], axis=0).astype(base.np.float32)
 
     # -----------------------------
     # Prepare shared IRT obs + agent decomposition
@@ -2049,9 +2073,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         raise AssertionError(f"Unhandled regressor: {regressor_name}")
 
-    use_joint = bool(getattr(args, "include_judge", False))
-    if use_joint and str(regressor_name) not in {"ridge", "ridge_cv"}:
-        raise ValueError("--include_judge requires --regressor to be ridge or ridge_cv (linear is not supported).")
+    # `method` was validated near argument parsing.
+    use_joint = method == "combined"
+    use_judge = method in {"judge", "combined"}
+
+    # Constraints: judge-based methods require ridge/ridge_cv (block ridge for combined; ridge on judge for judge-only).
+    if use_judge and str(regressor_name) not in {"ridge", "ridge_cv"}:
+        raise ValueError(f"--method={method!r} requires --regressor to be ridge or ridge_cv (linear is not supported).")
 
     # Normalize early; argparse choices are lowercase.
     eval_mode = str(args.eval_mode or "ood").strip().lower()
@@ -2062,7 +2090,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # We still run the default training-only flow and save regression weights.
         eval_mode = "train"
 
-    if eval_mode == "id" and use_joint:
+    if eval_mode == "id" and method == "combined":
         # -----------------------------
         # K-fold CV over items (joint block-ridge: embeddings + judge features)
         # -----------------------------
@@ -2194,7 +2222,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         fold_alpha_emb: List[float] = []
         fold_alpha_judge: List[float] = []
 
-        for fold, (tr, te) in enumerate(outer_cv.split(Xy), start=1):
+        dummy = base.np.zeros((int(len(eligible)), 1), dtype=base.np.float32)
+        for fold, (tr, te) in enumerate(outer_cv.split(dummy), start=1):
             train_items = [eligible[int(i)] for i in tr.tolist()]
             test_items = [eligible[int(i)] for i in te.tolist()]
 
@@ -2388,7 +2417,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         weights_meta = {
             "eval_mode": "id",
             "script": os.path.abspath(__file__),
-            "include_judge": True,
+            "method": "combined",
             "id_normalization": "Verified/Pro: strip instance_ prefix; strip -v.* suffix. Terminal-Bench: identity.",
             "min_models_per_scaffold": int(args.min_models_per_scaffold),
             "seed": int(args.seed),
@@ -2419,7 +2448,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         metrics = {
             "eval_mode": "id",
-            "include_judge": True,
+            "method": "combined",
             "n_items_total": int(len(task_ids)),
             "n_items_with_responses": int(len(overlap_ids)),
             "n_items_eligible_cv_irt": int(len(eligible)),
@@ -2461,6 +2490,364 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "torch_dtype": str(args.torch_dtype),
             "attn_implementation": str(args.attn_implementation),
             "embeddings_cache": emb_cache,
+            "regression_weights_json": str(weights_json),
+            "regression_weights_npz": str(weights_npz),
+        }
+        base.save_json(os.path.join(args.out_dir, "metrics.json"), metrics)
+
+        # Write per-item predictions (OOF CV; NaNs are written as missing_judge).
+        pred_path = os.path.join(args.out_dir, "predictions.csv")
+        with open(pred_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["item_id", "diff_pred", "split", "fold"])
+            w.writeheader()
+            for i, tid in enumerate(eligible):
+                v = float(yhat_oof[int(i)])
+                fold_id = int(fold_of_item[int(i)]) if int(fold_of_item[int(i)]) > 0 else ""
+                split = "cv_val" if (v == v) else "missing_judge"
+                w.writerow({"item_id": tid, "diff_pred": (v if v == v else ""), "split": split, "fold": fold_id})
+
+        print(f"Wrote predictions: {pred_path}")
+        print(f"Wrote metrics: {os.path.join(args.out_dir, 'metrics.json')}")
+        print(f"Wrote regression weights: {weights_json} (arrays in {weights_npz})")
+        return 0
+
+    if eval_mode == "id" and method == "judge":
+        # -----------------------------
+        # K-fold CV over items (judge-only ridge: LLM-judge features)
+        # -----------------------------
+        outer_cv = base.KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
+        cv_test_auc_folds: List[float] = []
+        cv_test_n_obs_folds: List[int] = []
+        cv_test_n_items_scored_folds: List[int] = []
+        yhat_oof = base.np.full((int(len(eligible)),), base.np.nan, dtype=base.np.float64)
+        fold_of_item = base.np.full((int(len(eligible)),), -1, dtype=base.np.int32)
+
+        eligible_index = {tid: i for i, tid in enumerate(eligible)}
+
+        verified_item_set = set(obs_full.verified_item_ids)
+        pro_item_set = set(obs_full.pro_item_ids)
+        terminal_item_set = set(obs_full.terminal_bench_item_ids)
+        gso_item_set = set(getattr(obs_full, "gso_item_ids", set()))
+
+        # Judge feature vector is a fixed concat of per-benchmark schemas.
+        verified_off = 0
+        pro_off = verified_off + int(len(VERIFIED_JUDGE_FEATURE_NAMES))
+        terminal_off = pro_off + int(len(PRO_JUDGE_FEATURE_NAMES))
+        judge_dim = terminal_off + int(len(TERMINAL_BENCH_JUDGE_FEATURE_NAMES))
+        judge_feature_names_full: List[str] = (
+            [f"verified::{k}" for k in VERIFIED_JUDGE_FEATURE_NAMES]
+            + [f"pro::{k}" for k in PRO_JUDGE_FEATURE_NAMES]
+            + [f"terminal_bench::{k}" for k in TERMINAL_BENCH_JUDGE_FEATURE_NAMES]
+        )
+
+        verified_feat_dir = str(args.verified_judge_features_dir)
+        pro_feat_dir = str(args.pro_judge_features_dir)
+        terminal_feat_dir = str(args.terminal_bench_judge_features_dir)
+        verified_idx = _build_judge_index(verified_feat_dir, normalize_item_ids=True)
+        pro_idx = _build_judge_index(pro_feat_dir, normalize_item_ids=True)
+        terminal_idx = _build_judge_index(terminal_feat_dir, normalize_item_ids=False)
+        gso_feat_dir = str(getattr(args, "gso_judge_features_dir", "") or "").strip()
+        gso_idx = _build_judge_index(gso_feat_dir, normalize_item_ids=True) if (gso_item_set and gso_feat_dir) else {}
+
+        def _judge_full_vec_for_item(item_id: str):
+            tid = str(item_id)
+            x = base.np.zeros((int(judge_dim),), dtype=base.np.float32)
+            if tid in verified_item_set:
+                v = _load_judge_vector(
+                    tid,
+                    features_dir=verified_feat_dir,
+                    feature_names=VERIFIED_JUDGE_FEATURE_NAMES,
+                    index=verified_idx,
+                    normalize_item_ids=True,
+                )
+                if v is None:
+                    return None
+                x[verified_off:pro_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
+            if tid in pro_item_set:
+                v = _load_judge_vector(
+                    tid,
+                    features_dir=pro_feat_dir,
+                    feature_names=PRO_JUDGE_FEATURE_NAMES,
+                    index=pro_idx,
+                    normalize_item_ids=True,
+                )
+                if v is None:
+                    return None
+                x[pro_off:terminal_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
+            if tid in terminal_item_set:
+                v = _load_judge_vector(
+                    tid,
+                    features_dir=terminal_feat_dir,
+                    feature_names=TERMINAL_BENCH_JUDGE_FEATURE_NAMES,
+                    index=terminal_idx,
+                    normalize_item_ids=False,
+                )
+                if v is None:
+                    return None
+                x[terminal_off:] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
+            if tid in gso_item_set and gso_feat_dir:
+                # GSO schema differs; map overlapping keys into the fixed V/P/T judge vector.
+                obj = None
+                try:
+                    pth = os.path.join(str(gso_feat_dir), f"{tid}.json")
+                    if not os.path.exists(pth):
+                        key = base.normalize_swebench_item_id(tid)
+                        pth = gso_idx.get(str(key), "")
+                    if pth and os.path.exists(pth):
+                        with open(pth, "r", encoding="utf-8") as f:
+                            tmp = json.load(f)
+                        if isinstance(tmp, dict):
+                            obj = tmp
+                except Exception:
+                    obj = None
+                if isinstance(obj, dict):
+                    gso_keys = list(GSO_JUDGE_FEATURE_NAMES)
+                    if gso_keys:
+                        gso_alias = {"solution_in_problem": "solution_in_instruction"}
+                        vpos = {k: i for i, k in enumerate(VERIFIED_JUDGE_FEATURE_NAMES)}
+                        ppos = {k: i for i, k in enumerate(PRO_JUDGE_FEATURE_NAMES)}
+                        tpos = {k: i for i, k in enumerate(TERMINAL_BENCH_JUDGE_FEATURE_NAMES)}
+                        n_set = 0
+                        for k in gso_keys:
+                            if k not in obj:
+                                n_set = 0
+                                break
+                            kk = gso_alias.get(str(k), str(k))
+                            try:
+                                fv = float(obj.get(k))
+                            except Exception:
+                                n_set = 0
+                                break
+                            if kk in ppos:
+                                x[pro_off + int(ppos[kk])] = float(fv)
+                                n_set += 1
+                            elif kk in vpos:
+                                x[verified_off + int(vpos[kk])] = float(fv)
+                                n_set += 1
+                            elif kk in tpos:
+                                x[terminal_off + int(tpos[kk])] = float(fv)
+                                n_set += 1
+                            else:
+                                continue
+                        if n_set > 0:
+                            return x
+            return None
+
+        best_fold_auc = -float("inf")
+        best_fold = -1
+        best_model = None
+
+        for fold, (tr, te) in enumerate(outer_cv.split(Xy), start=1):
+            train_items = [eligible[int(i)] for i in tr.tolist()]
+            test_items = [eligible[int(i)] for i in te.tolist()]
+
+            fold_root = os.path.join(str(args.out_dir), "irt_folds", f"fold_{int(fold):02d}")
+            base.ensure_dir(fold_root)
+
+            # Save train/test item lists (debugging / provenance).
+            base.save_json(os.path.join(fold_root, "train_items.json"), {"items": list(train_items)})
+            base.save_json(os.path.join(fold_root, "test_items.json"), {"items": list(test_items)})
+
+            # IRT on train items only (no leakage).
+            base.set_torch_determinism(False)
+            base.seed_everything(int(args.seed), deterministic=False)
+
+            obs_train = build_multibench_obs_for_items(obs_full=obs_full, keep_item_ids=train_items)
+            theta_by_model, theta_by_scaffold, diff_by_item = train_irt_model_scaffold_1pl(
+                obs_train=obs_train,
+                irt_model=str(irt_model),
+                epochs=int(args.irt_epochs),
+                device=str(args.irt_device),
+                seed=int(args.seed),
+                lr=float(args.irt_lr),
+                out_dir=os.path.join(fold_root, _irt_out_dir_name(irt_model)),
+            )
+
+            # Restore determinism for downstream sklearn/regression steps.
+            base.set_torch_determinism(True)
+
+            if not theta_by_model or not theta_by_scaffold:
+                raise RuntimeError(f"Fold {fold}: IRT produced 0 model/scaffold thetas (unexpected).")
+            if not diff_by_item:
+                raise RuntimeError(f"Fold {fold}: IRT produced 0 item difficulties (unexpected).")
+
+            train_labeled = [tid for tid in train_items if tid in diff_by_item]
+            if len(train_labeled) < 2:
+                raise RuntimeError(
+                    f"Fold {fold}: only {len(train_labeled)} train items had IRT difficulties; cannot fit regressor."
+                )
+
+            # Judge-only training uses only train items with judge features available.
+            judge_train_rows = []
+            judge_y_train_rows = []
+            judge_train_items_used: List[str] = []
+            for tid in train_labeled:
+                jv = _judge_full_vec_for_item(tid)
+                if jv is None:
+                    continue
+                judge_train_rows.append(base.np.asarray(jv, dtype=base.np.float32).reshape(-1))
+                judge_y_train_rows.append(float(diff_by_item[tid]))
+                judge_train_items_used.append(tid)
+            if len(judge_train_items_used) < 2:
+                raise RuntimeError(
+                    f"Fold {fold}: only {len(judge_train_items_used)} train items had judge features; cannot fit judge ridge."
+                )
+
+            base.seed_everything(int(args.seed) + int(fold), deterministic=True)
+            X_judge_train = base.np.stack(judge_train_rows, axis=0).astype(base.np.float32)
+            y_judge_train = base.np.asarray(judge_y_train_rows, dtype=base.np.float32)
+
+            m = _make_model(n_train=int(len(judge_train_items_used)), fold_seed=int(args.seed) + int(fold))
+            m.fit(X_judge_train, y_judge_train)
+
+            # Predict held-out items where judge features exist.
+            final_pred_by_item: Dict[str, float] = {}
+            n_missing_judge = 0
+            test_items_used: List[str] = []
+            test_rows: List[base.np.ndarray] = []
+            for tid in test_items:
+                jv = _judge_full_vec_for_item(tid)
+                if jv is None:
+                    n_missing_judge += 1
+                    continue
+                test_items_used.append(tid)
+                test_rows.append(base.np.asarray(jv, dtype=base.np.float32).reshape(-1))
+            if test_items_used:
+                X_judge_test = base.np.stack(test_rows, axis=0).astype(base.np.float32)
+                pred = m.predict(X_judge_test).astype(base.np.float64)
+                for tid, z in zip(test_items_used, pred.tolist()):
+                    final_pred_by_item[tid] = float(z)
+
+            # Fill OOF predictions (NaN if missing judge).
+            for tid in test_items:
+                i = eligible_index.get(tid, None)
+                if i is None:
+                    continue
+                fold_of_item[int(i)] = int(fold)
+                if tid in final_pred_by_item:
+                    yhat_oof[int(i)] = float(final_pred_by_item[tid])
+
+            # Held-out AUROC: score only items with judge predictions.
+            scored_items = set(final_pred_by_item.keys())
+            scores: List[float] = []
+            labels: List[int] = []
+            test_set = set(test_items)
+
+            for bench, sid, resp in all_responses_tagged:
+                key = f"{bench}::{sid}"
+                pair = agent_to_ms_pair.get(key, None)
+                if pair is None:
+                    continue
+                model_name, scaffold = pair
+                tm = theta_by_model.get(model_name, None)
+                ts = theta_by_scaffold.get(scaffold, None)
+                if tm is None or ts is None:
+                    continue
+                th = float(tm) + float(ts)
+                for item_id, y_obs in resp.items():
+                    if item_id not in test_set:
+                        continue
+                    if item_id not in scored_items:
+                        continue
+                    z = final_pred_by_item.get(item_id, None)
+                    if z is None:
+                        continue
+                    scores.append(_sigmoid(th - float(z)))
+                    labels.append(int(y_obs))
+
+            fold_auc = float(base._compute_binary_auroc(scores, labels))
+            cv_test_auc_folds.append(float(fold_auc))
+            cv_test_n_obs_folds.append(int(len(labels)))
+            cv_test_n_items_scored_folds.append(int(len(scored_items)))
+
+            print(f"Fold {fold:02d}: auc={fold_auc} missing_judge={n_missing_judge}")
+            if fold_auc == fold_auc and fold_auc > best_fold_auc:
+                best_fold_auc = float(fold_auc)
+                best_fold = int(fold)
+                best_model = m
+
+        if best_model is None or best_fold < 1:
+            raise RuntimeError("Failed to select a best CV fold judge model by ROC-AUC (all folds NaN?).")
+
+        auc_arr = base.np.asarray(cv_test_auc_folds, dtype=base.np.float64)
+        auc_mean = float(base.np.nanmean(auc_arr)) if auc_arr.size else float("nan")
+        auc_std = float(base.np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
+        print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
+        print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+        # Save regression weights from the best fold.
+        model = best_model
+
+        ridge_alpha = None
+        try:
+            ridge_alpha = float(model.named_steps["ridge"].alpha_)
+        except Exception:
+            ridge_alpha = None
+
+        weights_meta = {
+            "eval_mode": "id",
+            "method": "judge",
+            "script": os.path.abspath(__file__),
+            "id_normalization": "Verified/Pro: strip instance_ prefix; strip -v.* suffix. Terminal-Bench: identity.",
+            "min_models_per_scaffold": int(args.min_models_per_scaffold),
+            "seed": int(args.seed),
+            "deterministic": True,
+            "irt_seeded": True,
+            "irt_deterministic": False,
+            "cv_n_splits": int(args.cv_folds),
+            "cv_best_auc_fold": int(best_fold),
+            "cv_best_auc": float(best_fold_auc),
+            "irt_model": str(irt_model_label),
+            "regressor": str(regressor_name),
+            "ridge_alpha": ridge_alpha,
+            "ridge_alphas_searched": [float(x) for x in base.np.asarray(alphas).tolist()],
+            "inner_splits": int(args.inner_splits),
+            "verified_judge_features_dir": str(args.verified_judge_features_dir),
+            "pro_judge_features_dir": str(args.pro_judge_features_dir),
+            "terminal_bench_judge_features_dir": str(args.terminal_bench_judge_features_dir),
+            "judge_feature_names": list(judge_feature_names_full),
+            "judge_feature_dim": int(judge_dim),
+        }
+        weights_json, weights_npz = base.save_regression_weights(
+            out_dir=str(args.out_dir),
+            model=model,
+            regressor_name=str(regressor_name),
+            feature_dim=int(judge_dim),
+            metadata=weights_meta,
+        )
+
+        metrics = {
+            "eval_mode": "id",
+            "method": "judge",
+            "n_items_total": int(len(task_ids)),
+            "n_items_with_responses": int(len(overlap_ids)),
+            "n_items_eligible_cv_irt": int(len(eligible)),
+            "exclude_zero_success": bool(exclude_zero_success),
+            "n_items_zero_success_in_responses": int(len(zero_success_ids)),
+            "judge_feature_dim": int(judge_dim),
+            "seed": int(args.seed),
+            "deterministic": True,
+            "irt_seeded": True,
+            "irt_deterministic": False,
+            "cv_n_splits": int(args.cv_folds),
+            "cv_best_auc_fold": int(best_fold),
+            "cv_best_auc": float(best_fold_auc),
+            "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
+            "cv_test_auc_mean": float(auc_mean),
+            "cv_test_auc_std": float(auc_std),
+            "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
+            "cv_test_n_items_scored_folds": [int(x) for x in cv_test_n_items_scored_folds],
+            "irt_epochs": int(args.irt_epochs),
+            "irt_device": str(args.irt_device),
+            "irt_lr": float(args.irt_lr),
+            "irt_model": str(irt_model_label),
+            "regressor": str(regressor_name),
+            "ridge_alpha": ridge_alpha,
+            "ridge_alphas_searched": [float(x) for x in base.np.asarray(alphas).tolist()],
+            "inner_splits": int(args.inner_splits),
             "regression_weights_json": str(weights_json),
             "regression_weights_npz": str(weights_npz),
         }
@@ -2779,7 +3166,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     # Fit regressor on train split only (no evaluation).
     base.seed_everything(int(args.seed), deterministic=True)
-    X_train = base.np.stack([X[id_to_row[tid]] for tid in train_labeled], axis=0).astype(base.np.float32)
     y_train = base.np.array([float(diff_by_item[tid]) for tid in train_labeled], dtype=base.np.float32)
 
     model = None
@@ -2787,14 +3173,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     judge_feature_names_full: List[str] = []
     judge_dim = 0
 
-    if not use_joint:
+    if method == "embedding":
+        if X is None or not id_to_row:
+            raise RuntimeError("Internal error: embeddings were not available for --method=embedding.")
+        X_train = base.np.stack([X[id_to_row[tid]] for tid in train_labeled], axis=0).astype(base.np.float32)
         model = _make_model(n_train=int(len(train_labeled)), fold_seed=int(args.seed))
         model.fit(X_train, y_train)
     else:
         print(
-            f"Building joint (emb+judge) training matrix for {len(train_labeled)} labeled items "
+            f"Building judge feature training matrix for {len(train_labeled)} labeled items "
             f"(verified={len(obs_full.verified_item_ids)}, pro={len(obs_full.pro_item_ids)}, "
-            f"terminal_bench={len(obs_full.terminal_bench_item_ids)}, gso={len(getattr(obs_full, 'gso_item_ids', set()))})"
+            f"terminal_bench={len(obs_full.terminal_bench_item_ids)}, gso={len(getattr(obs_full, 'gso_item_ids', set()))}; "
+            f"method={method})"
         )
         verified_item_set = set(obs_full.verified_item_ids)
         pro_item_set = set(obs_full.pro_item_ids)
@@ -2906,7 +3296,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                             return x
             return None
 
-        joint_emb_train_rows = []
         joint_judge_train_rows = []
         joint_y_train_rows = []
         joint_train_items_used: List[str] = []
@@ -2919,62 +3308,68 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             jv = _judge_full_vec_for_item(tid)
             if jv is None:
                 continue
-            joint_emb_train_rows.append(X[id_to_row[tid]].astype(base.np.float32))
             joint_judge_train_rows.append(base.np.asarray(jv, dtype=base.np.float32))
             joint_y_train_rows.append(float(diff_by_item[tid]))
             joint_train_items_used.append(tid)
         if len(joint_train_items_used) < 2:
             raise RuntimeError(
-                f"Training-only mode: only {len(joint_train_items_used)} train items had judge features; cannot fit joint ridge."
+                f"Training-only mode: only {len(joint_train_items_used)} train items had judge features; cannot fit judge-based regressor."
             )
-        print(
-            f"Judge features loaded for {len(joint_train_items_used)}/{len(train_labeled)} labeled items. "
-            f"Fitting joint block-ridge (regressor={regressor_name})."
-        )
+        print(f"Judge features loaded for {len(joint_train_items_used)}/{len(train_labeled)} labeled items.")
 
-        X_emb_joint_train = base.np.stack(joint_emb_train_rows, axis=0).astype(base.np.float32)
         X_judge_joint_train = base.np.stack(joint_judge_train_rows, axis=0).astype(base.np.float32)
         y_joint_train = base.np.asarray(joint_y_train_rows, dtype=base.np.float32)
 
-        reg = str(regressor_name or "ridge_cv").strip()
-        if reg == "ridge":
-            alpha_emb = float(args.ridge_alpha_emb) if math.isfinite(float(args.ridge_alpha_emb)) else float(args.ridge_alpha)
-            alpha_judge = (
-                float(args.ridge_alpha_judge) if math.isfinite(float(args.ridge_alpha_judge)) else float(args.ridge_alpha)
-            )
-            joint_state = _fit_block_ridge(
-                X_emb=X_emb_joint_train,
-                X_judge=X_judge_joint_train,
-                y=y_joint_train,
-                alpha_emb=float(alpha_emb),
-                alpha_judge=float(alpha_judge),
-            )
+        if method == "judge":
+            print(f"Fitting judge-only ridge (regressor={regressor_name}).")
+            model = _make_model(n_train=int(len(joint_train_items_used)), fold_seed=int(args.seed))
+            model.fit(X_judge_joint_train, y_joint_train)
         else:
-            ae_grid_s = str(args.ridge_alphas_emb or "").strip() or str(args.ridge_alphas)
-            aj_grid_s = str(args.ridge_alphas_judge or "").strip() or str(args.ridge_alphas)
-            ae_grid = _parse_alpha_list(ae_grid_s)
-            aj_grid = _parse_alpha_list(aj_grid_s)
-            alpha_emb, alpha_judge, _ = _select_block_alphas_inner_cv(
-                X_emb=X_emb_joint_train,
-                X_judge=X_judge_joint_train,
-                y=y_joint_train,
-                alphas_emb=ae_grid,
-                alphas_judge=aj_grid,
-                inner_splits=int(args.inner_splits),
-                seed=int(args.seed) + 2000,
-                verbose=True,
-            )
-            joint_state = _fit_block_ridge(
-                X_emb=X_emb_joint_train,
-                X_judge=X_judge_joint_train,
-                y=y_joint_train,
-                alpha_emb=float(alpha_emb),
-                alpha_judge=float(alpha_judge),
-            )
+            # combined: block ridge over [embeddings, judge] with separate penalties.
+            print(f"Fitting joint block-ridge (regressor={regressor_name}).")
+            X_emb_joint_train = base.np.stack(
+                [X[id_to_row[tid]].astype(base.np.float32) for tid in joint_train_items_used], axis=0
+            ).astype(base.np.float32)
+
+            reg = str(regressor_name or "ridge_cv").strip()
+            if reg == "ridge":
+                alpha_emb = float(args.ridge_alpha_emb) if math.isfinite(float(args.ridge_alpha_emb)) else float(args.ridge_alpha)
+                alpha_judge = (
+                    float(args.ridge_alpha_judge) if math.isfinite(float(args.ridge_alpha_judge)) else float(args.ridge_alpha)
+                )
+                joint_state = _fit_block_ridge(
+                    X_emb=X_emb_joint_train,
+                    X_judge=X_judge_joint_train,
+                    y=y_joint_train,
+                    alpha_emb=float(alpha_emb),
+                    alpha_judge=float(alpha_judge),
+                )
+            else:
+                ae_grid_s = str(args.ridge_alphas_emb or "").strip() or str(args.ridge_alphas)
+                aj_grid_s = str(args.ridge_alphas_judge or "").strip() or str(args.ridge_alphas)
+                ae_grid = _parse_alpha_list(ae_grid_s)
+                aj_grid = _parse_alpha_list(aj_grid_s)
+                alpha_emb, alpha_judge, _ = _select_block_alphas_inner_cv(
+                    X_emb=X_emb_joint_train,
+                    X_judge=X_judge_joint_train,
+                    y=y_joint_train,
+                    alphas_emb=ae_grid,
+                    alphas_judge=aj_grid,
+                    inner_splits=int(args.inner_splits),
+                    seed=int(args.seed) + 2000,
+                    verbose=True,
+                )
+                joint_state = _fit_block_ridge(
+                    X_emb=X_emb_joint_train,
+                    X_judge=X_judge_joint_train,
+                    y=y_joint_train,
+                    alpha_emb=float(alpha_emb),
+                    alpha_judge=float(alpha_judge),
+                )
 
     ridge_alpha = None
     if regressor_name in ("ridge", "ridge_cv"):
-        if not use_joint:
+        if method in {"embedding", "judge"}:
             try:
                 ridge_alpha = float(model.named_steps["ridge"].alpha_)
             except Exception:
@@ -2982,6 +3377,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     weights_meta = {
         "eval_mode": str(eval_mode),
+        "method": str(method),
         "script": os.path.abspath(__file__),
         "backbone": str(args.backbone),
         "trust_remote_code": bool(args.trust_remote_code),
@@ -3015,7 +3411,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "n_items_zero_success_in_responses": int(len(zero_success_ids)),
         "embeddings_cache": emb_cache,
     }
-    if not use_joint:
+    if method == "embedding":
         base.save_regression_weights(
             out_dir=str(args.out_dir),
             model=model,
@@ -3023,12 +3419,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             feature_dim=int(Xy.shape[1]),
             metadata=weights_meta,
         )
+    elif method == "judge":
+        weights_meta.update(
+            {
+                "verified_judge_features_dir": str(args.verified_judge_features_dir),
+                "pro_judge_features_dir": str(args.pro_judge_features_dir),
+                "terminal_bench_judge_features_dir": str(args.terminal_bench_judge_features_dir),
+                "judge_feature_names": list(judge_feature_names_full),
+                "judge_feature_dim": int(judge_dim),
+            }
+        )
+        base.save_regression_weights(
+            out_dir=str(args.out_dir),
+            model=model,
+            regressor_name=str(regressor_name),
+            feature_dim=int(judge_dim),
+            metadata=weights_meta,
+        )
     else:
         if joint_state is None:
             raise RuntimeError("Internal error: joint_state was None after joint training.")
         weights_meta.update(
             {
-                "include_judge": True,
                 "ridge_alpha": float(args.ridge_alpha),
                 "ridge_alphas": str(args.ridge_alphas),
                 "ridge_alphas_emb": str(args.ridge_alphas_emb or "").strip() or str(args.ridge_alphas),
@@ -3138,202 +3550,210 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if not ood_item_ids:
             raise RuntimeError("OOD benchmark: after excluding zero-success items, 0 items remain to embed/evaluate.")
 
-        # Load OOD tasks (statement+solution) for those ids.
+        # Load OOD tasks (statement+solution) only when we need embeddings.
         ood_items: List[base.ItemRecord] = []
         ood_missing: List[str] = []
-        if ood_key in {"verified", "pro"}:
-            if not ood_dataset_name:
-                raise ValueError(f"OOD benchmark {ood_key!r} requires dataset_name to load tasks.")
-            ood_items, ood_missing = load_swebench_items_by_ids(
-                dataset_name=ood_dataset_name,
-                split=str(ood_split),
-                item_ids=ood_item_ids,
-                normalize_item_ids=True,
-            )
-        elif ood_key == "terminal_bench":
-            ood_items, ood_missing = load_terminal_bench_items_by_ids(
-                tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
-                item_ids=ood_item_ids,
-            )
-        else:
-            # GSO (or other OOD datasets in the future that follow the prob_script/gt_diff schema).
-            if not ood_dataset_name:
-                raise ValueError("OOD mode requires a dataset_name to load OOD benchmark tasks.")
-            ood_items, ood_missing = load_ood_items_by_ids(
-                dataset_name=ood_dataset_name,
-                split=str(ood_split),
-                item_ids=ood_item_ids,
-                normalize_item_ids=bool(ood_normalize_item_ids),
-                wrap_with_gso_prompt=(ood_key == "gso"),
-            )
-        if ood_missing:
-            print(f"WARNING: OOD benchmark: {len(ood_missing)}/{len(ood_item_ids)} item_ids were not found in the dataset. Example: {ood_missing[:10]}")
-        if not ood_items:
-            raise RuntimeError("OOD benchmark: loaded 0 items to embed; cannot evaluate AUROC.")
+        if method in {"embedding", "combined"}:
+            if ood_key in {"verified", "pro"}:
+                if not ood_dataset_name:
+                    raise ValueError(f"OOD benchmark {ood_key!r} requires dataset_name to load tasks.")
+                ood_items, ood_missing = load_swebench_items_by_ids(
+                    dataset_name=ood_dataset_name,
+                    split=str(ood_split),
+                    item_ids=ood_item_ids,
+                    normalize_item_ids=True,
+                )
+            elif ood_key == "terminal_bench":
+                ood_items, ood_missing = load_terminal_bench_items_by_ids(
+                    tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
+                    item_ids=ood_item_ids,
+                )
+            else:
+                # GSO (or other OOD datasets in the future that follow the prob_script/gt_diff schema).
+                if not ood_dataset_name:
+                    raise ValueError("OOD mode requires a dataset_name to load OOD benchmark tasks.")
+                ood_items, ood_missing = load_ood_items_by_ids(
+                    dataset_name=ood_dataset_name,
+                    split=str(ood_split),
+                    item_ids=ood_item_ids,
+                    normalize_item_ids=bool(ood_normalize_item_ids),
+                    wrap_with_gso_prompt=(ood_key == "gso"),
+                )
+            if ood_missing:
+                print(
+                    f"WARNING: OOD benchmark: {len(ood_missing)}/{len(ood_item_ids)} item_ids were not found in the dataset. "
+                    f"Example: {ood_missing[:10]}"
+                )
+            if not ood_items:
+                raise RuntimeError("OOD benchmark: loaded 0 items to embed; cannot evaluate AUROC.")
 
-        # Embed OOD items using the same backbone/settings.
-        ood_ids_sorted, ood_emb_by_id, _, _ = base.embed_items(
-            items=list(ood_items),
-            backbone=str(args.backbone),
-            trust_remote_code=bool(args.trust_remote_code),
-            max_length=int(args.max_length),
-            batch_size=int(args.batch_size),
-            device_map=str(args.device_map),
-            torch_dtype=str(args.torch_dtype),
-            attn_implementation=str(args.attn_implementation),
-            instruction=str(args.instruction),
-            embedding_layer=int(args.embedding_layer),
+        ood_feat_dir_effective = str(ood_feat_dir or "").strip()
+        ood_idx: Dict[str, str] = (
+            _build_judge_index(ood_feat_dir_effective, normalize_item_ids=bool(ood_normalize_item_ids))
+            if ood_feat_dir_effective
+            else {}
         )
-        if not ood_ids_sorted:
-            raise RuntimeError("OOD benchmark: embeddings produced 0 ids (unexpected).")
 
-        X_ood = base.np.stack([ood_emb_by_id[iid] for iid in ood_ids_sorted], axis=0).astype(base.np.float32)
-        if not use_joint:
-            z_pred = model.predict(X_ood).astype(base.np.float64)
-        else:
-            if joint_state is None:
-                raise RuntimeError("Internal error: joint_state was None for OOD evaluation in joint mode.")
-            if int(judge_dim) != int(joint_state["n_judge"]):
-                raise RuntimeError("Joint ridge: internal judge_dim mismatch vs trained model (cannot predict).")
+        def _ood_judge_full_vec_for_item(item_id: str):
+            """
+            Load OOD judge vector from a single directory and map to the fixed full vector of size `judge_dim`.
+            Returns None if not found/parsable.
+            """
+            tid = str(item_id)
+            x = base.np.zeros((int(judge_dim),), dtype=base.np.float32)
 
-            ood_feat_dir_effective = str(ood_feat_dir or "").strip()
-            ood_idx: Dict[str, str] = (
-                _build_judge_index(ood_feat_dir_effective, normalize_item_ids=bool(ood_normalize_item_ids))
-                if ood_feat_dir_effective
-                else {}
-            )
-
-            def _ood_judge_full_vec_for_item(item_id: str):
-                """
-                Load OOD judge vector from a single directory.
-
-                - For the default GSO OOD benchmark, the per-item JSON schema differs from
-                  Verified/Pro/Terminal-Bench. We infer the GSO feature keys from the dir
-                  and map overlapping keys into the trained joint judge vector.
-                - Otherwise, we fall back to trying the known schemas directly.
-                Returns a full-length vector of size `judge_dim`, or None if not found/parsable.
-                """
-                tid = str(item_id)
-                x = base.np.zeros((int(judge_dim),), dtype=base.np.float32)
-
-                # First try the GSO OOD schema (default `--ood_judge_features_dir`).
-                # We load the raw JSON dict because we need key-level mapping.
+            # First try the GSO OOD schema (default `--*_judge_features_dir` for gso).
+            obj = None
+            try:
+                pth = os.path.join(str(ood_feat_dir_effective), f"{tid}.json")
+                if not os.path.exists(pth):
+                    key = base.normalize_swebench_item_id(tid) if bool(ood_normalize_item_ids) else tid
+                    pth = ood_idx.get(str(key), "")
+                if pth and os.path.exists(pth):
+                    with open(pth, "r", encoding="utf-8") as f:
+                        tmp = json.load(f)
+                    if isinstance(tmp, dict):
+                        obj = tmp
+            except Exception:
                 obj = None
-                try:
-                    p = os.path.join(str(ood_feat_dir_effective), f"{tid}.json")
-                    if not os.path.exists(p):
-                        key = base.normalize_swebench_item_id(tid) if bool(ood_normalize_item_ids) else tid
-                        p = ood_idx.get(str(key), "")
-                    if p and os.path.exists(p):
-                        with open(p, "r", encoding="utf-8") as f:
-                            tmp = json.load(f)
-                        if isinstance(tmp, dict):
-                            obj = tmp
-                except Exception:
-                    obj = None
 
-                if isinstance(obj, dict):
-                    gso_keys = list(GSO_JUDGE_FEATURE_NAMES)
-                    if gso_keys:
-                        # Map GSO keys into the trained "full" judge feature vector.
-                        # Note: some keys differ by name between schemas.
-                        gso_alias = {
-                            # GSO "solution included in prompt" ~= Terminal-Bench "solution_in_instruction"
-                            "solution_in_problem": "solution_in_instruction",
-                        }
-                        vpos = {k: i for i, k in enumerate(VERIFIED_JUDGE_FEATURE_NAMES)}
-                        ppos = {k: i for i, k in enumerate(PRO_JUDGE_FEATURE_NAMES)}
-                        tpos = {k: i for i, k in enumerate(TERMINAL_BENCH_JUDGE_FEATURE_NAMES)}
+            if isinstance(obj, dict):
+                gso_keys = list(GSO_JUDGE_FEATURE_NAMES)
+                if gso_keys:
+                    gso_alias = {"solution_in_problem": "solution_in_instruction"}
+                    vpos = {k: i for i, k in enumerate(VERIFIED_JUDGE_FEATURE_NAMES)}
+                    ppos = {k: i for i, k in enumerate(PRO_JUDGE_FEATURE_NAMES)}
+                    tpos = {k: i for i, k in enumerate(TERMINAL_BENCH_JUDGE_FEATURE_NAMES)}
+                    n_set = 0
+                    for k in gso_keys:
+                        if k not in obj:
+                            n_set = 0
+                            break
+                        kk = gso_alias.get(str(k), str(k))
+                        try:
+                            fv = float(obj.get(k))
+                        except Exception:
+                            n_set = 0
+                            break
+                        if kk in ppos:
+                            x[pro_off + int(ppos[kk])] = float(fv)
+                            n_set += 1
+                        elif kk in vpos:
+                            x[verified_off + int(vpos[kk])] = float(fv)
+                            n_set += 1
+                        elif kk in tpos:
+                            x[terminal_off + int(tpos[kk])] = float(fv)
+                            n_set += 1
+                        else:
+                            continue
+                    if n_set > 0:
+                        return x
 
-                        n_set = 0
-                        for k in gso_keys:
-                            if k not in obj:
-                                # Treat missing as "not parsable" to match strict schema loading.
-                                n_set = 0
-                                break
-                            kk = gso_alias.get(str(k), str(k))
-                            try:
-                                fv = float(obj.get(k))
-                            except Exception:
-                                n_set = 0
-                                break
+            v = _load_judge_vector(
+                tid,
+                features_dir=ood_feat_dir_effective,
+                feature_names=VERIFIED_JUDGE_FEATURE_NAMES,
+                index=ood_idx,
+                normalize_item_ids=bool(ood_normalize_item_ids),
+            )
+            if v is not None:
+                x[verified_off:pro_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
 
-                            # Deterministic precedence when a key exists in multiple schemas.
-                            if kk in ppos:
-                                x[pro_off + int(ppos[kk])] = float(fv)
-                                n_set += 1
-                            elif kk in vpos:
-                                x[verified_off + int(vpos[kk])] = float(fv)
-                                n_set += 1
-                            elif kk in tpos:
-                                x[terminal_off + int(tpos[kk])] = float(fv)
-                                n_set += 1
-                            else:
-                                # Feature not present in trained schemas; ignore.
-                                continue
+            v = _load_judge_vector(
+                tid,
+                features_dir=ood_feat_dir_effective,
+                feature_names=PRO_JUDGE_FEATURE_NAMES,
+                index=ood_idx,
+                normalize_item_ids=bool(ood_normalize_item_ids),
+            )
+            if v is not None:
+                x[pro_off:terminal_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
 
-                        if n_set > 0:
-                            return x
+            v = _load_judge_vector(
+                tid,
+                features_dir=ood_feat_dir_effective,
+                feature_names=TERMINAL_BENCH_JUDGE_FEATURE_NAMES,
+                index=ood_idx,
+                normalize_item_ids=bool(ood_normalize_item_ids),
+            )
+            if v is not None:
+                x[terminal_off:] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
+                return x
 
-                v = _load_judge_vector(
-                    tid,
-                    features_dir=ood_feat_dir_effective,
-                    feature_names=VERIFIED_JUDGE_FEATURE_NAMES,
-                    index=ood_idx,
-                    normalize_item_ids=bool(ood_normalize_item_ids),
-                )
-                if v is not None:
-                    x[verified_off:pro_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
-                    return x
+            return None
 
-                v = _load_judge_vector(
-                    tid,
-                    features_dir=ood_feat_dir_effective,
-                    feature_names=PRO_JUDGE_FEATURE_NAMES,
-                    index=ood_idx,
-                    normalize_item_ids=bool(ood_normalize_item_ids),
-                )
-                if v is not None:
-                    x[pro_off:terminal_off] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
-                    return x
+        z_by_item: Dict[str, float] = {}
+        if method in {"embedding", "combined"}:
+            # Embed OOD items using the same backbone/settings.
+            ood_ids_sorted, ood_emb_by_id, _, _ = base.embed_items(
+                items=list(ood_items),
+                backbone=str(args.backbone),
+                trust_remote_code=bool(args.trust_remote_code),
+                max_length=int(args.max_length),
+                batch_size=int(args.batch_size),
+                device_map=str(args.device_map),
+                torch_dtype=str(args.torch_dtype),
+                attn_implementation=str(args.attn_implementation),
+                instruction=str(args.instruction),
+                embedding_layer=int(args.embedding_layer),
+            )
+            if not ood_ids_sorted:
+                raise RuntimeError("OOD benchmark: embeddings produced 0 ids (unexpected).")
 
-                v = _load_judge_vector(
-                    tid,
-                    features_dir=ood_feat_dir_effective,
-                    feature_names=TERMINAL_BENCH_JUDGE_FEATURE_NAMES,
-                    index=ood_idx,
-                    normalize_item_ids=bool(ood_normalize_item_ids),
-                )
-                if v is not None:
-                    x[terminal_off:] = base.np.asarray(v, dtype=base.np.float32).reshape(-1)
-                    return x
+            X_ood = base.np.stack([ood_emb_by_id[iid] for iid in ood_ids_sorted], axis=0).astype(base.np.float32)
+            if method == "embedding":
+                z_pred = model.predict(X_ood).astype(base.np.float64)
+                z_by_item = {iid: float(z) for iid, z in zip(ood_ids_sorted, z_pred.tolist())}
+            else:
+                if joint_state is None:
+                    raise RuntimeError("Internal error: joint_state was None for OOD evaluation in combined mode.")
+                if int(judge_dim) != int(joint_state["n_judge"]):
+                    raise RuntimeError("Joint ridge: internal judge_dim mismatch vs trained model (cannot predict).")
 
-                return None
+                # Behave like in-distribution combined mode: only predict items with judge features.
+                ood_ids_used: List[str] = []
+                ood_emb_rows: List[base.np.ndarray] = []
+                ood_judge_rows: List[base.np.ndarray] = []
+                for iid in ood_ids_sorted:
+                    jv = _ood_judge_full_vec_for_item(iid) if ood_feat_dir else None
+                    if jv is None:
+                        continue
+                    ood_ids_used.append(str(iid))
+                    ood_emb_rows.append(base.np.asarray(ood_emb_by_id[iid], dtype=base.np.float32).reshape(-1))
+                    ood_judge_rows.append(base.np.asarray(jv, dtype=base.np.float32).reshape(-1))
 
-            # Behave like in-distribution joint mode: only predict items with judge features.
+                if not ood_ids_used:
+                    raise RuntimeError(
+                        "OOD benchmark: 0 items had OOD judge features; cannot run combined (emb+judge) prediction. "
+                        "Provide per-item judge feature JSONs or run with --method=embedding."
+                    )
+
+                X_emb_ood_used = base.np.stack(ood_emb_rows, axis=0).astype(base.np.float32)
+                X_judge_ood_used = base.np.stack(ood_judge_rows, axis=0).astype(base.np.float32)
+                z_pred_used = _predict_block_ridge(joint_state, X_emb=X_emb_ood_used, X_judge=X_judge_ood_used).astype(base.np.float64)
+                z_by_item = {iid: float(z) for iid, z in zip(ood_ids_used, z_pred_used.tolist())}
+        else:
+            # Judge-only: do not embed OOD items; only predict items with judge features.
             ood_ids_used: List[str] = []
-            ood_emb_rows: List[base.np.ndarray] = []
             ood_judge_rows: List[base.np.ndarray] = []
-            for iid in ood_ids_sorted:
+            for iid in ood_item_ids:
                 jv = _ood_judge_full_vec_for_item(iid) if ood_feat_dir else None
                 if jv is None:
                     continue
                 ood_ids_used.append(str(iid))
-                ood_emb_rows.append(base.np.asarray(ood_emb_by_id[iid], dtype=base.np.float32).reshape(-1))
                 ood_judge_rows.append(base.np.asarray(jv, dtype=base.np.float32).reshape(-1))
 
             if not ood_ids_used:
                 raise RuntimeError(
-                    "OOD benchmark: 0 items had OOD judge features; cannot run joint (emb+judge) prediction. "
-                    "Provide --ood_judge_features_dir with per-item JSONs or run without --include_judge."
+                    "OOD benchmark: 0 items had OOD judge features; cannot run judge-only prediction. "
+                    "Provide per-item judge feature JSONs or run with --method=embedding."
                 )
 
-            X_emb_ood_used = base.np.stack(ood_emb_rows, axis=0).astype(base.np.float32)
             X_judge_ood_used = base.np.stack(ood_judge_rows, axis=0).astype(base.np.float32)
-            z_pred_used = _predict_block_ridge(joint_state, X_emb=X_emb_ood_used, X_judge=X_judge_ood_used).astype(base.np.float64)
+            z_pred_used = model.predict(X_judge_ood_used).astype(base.np.float64)
             z_by_item = {iid: float(z) for iid, z in zip(ood_ids_used, z_pred_used.tolist())}
-        if not use_joint:
-            z_by_item = {iid: float(z) for iid, z in zip(ood_ids_sorted, z_pred.tolist())}
 
         # Write per-item OOD predictions for the 4th benchmark.
         pred_path = os.path.join(str(args.out_dir), "predictions.csv")
@@ -3379,9 +3799,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             os.path.join(str(args.out_dir), "metrics.json"),
             {
                 "eval_mode": "ood",
+                "method": str(method),
                 "ood_benchmark": str(ood_key),
                 "auc": float(ood_auc),
-                "include_judge": bool(use_joint),
                 "agent_results": str(ood_agent_results),
                 "dataset_name": (ood_dataset_name or None),
                 "split": str(ood_split),
