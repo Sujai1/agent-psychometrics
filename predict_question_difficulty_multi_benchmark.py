@@ -552,6 +552,8 @@ def evaluate_ood_auroc(
     n_obs_scored_model_only = 0
     n_obs_scored_assumed_scaffold = 0
     n_obs_skipped_no_theta = 0
+    n_obs_skipped_unfamiliar_model = 0
+    n_obs_skipped_unfamiliar_scaffold = 0
     n_obs_skipped_no_item = 0
     n_obs_skipped_bad_score = 0
 
@@ -562,62 +564,72 @@ def evaluate_ood_auroc(
 
         assume_scaffold = str(ood_default_scaffold or "").strip()
 
-        # Prefer using the canonical (model, scaffold) parsing from the IRT scripts,
-        # but fall back to "model-only" for OOD benchmarks that store subject_id as
-        # just the base model name (e.g. GSO), where scaffold is unavailable.
+        # OOD scoring requires BOTH model and scaffold to be recognized (present in the
+        # learned training thetas). If either is missing/unparseable/unseen, skip the
+        # subject entirely (all its observations are excluded from AUROC).
+        #
+        # We keep `ood_default_scaffold` only to support OOD benchmarks that store
+        # subject_id as model-only strings (e.g., GSO exports).
         used_model_only = False
         used_assumed_scaffold = False
         th: Optional[float] = None
+
+        model_name: Optional[str] = None
+        scaffold_name: Optional[str] = None
 
         # If caller requests a fixed scaffold (e.g. GSO => OpenHands), treat the subject_id
         # as a model string and canonicalize it using shared parsing rules.
         if assume_scaffold:
             try:
-                model_canon = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
-                scaffold_canon = str(split_mod._canonical_scaffold(str(assume_scaffold)))  # type: ignore[attr-defined]
+                model_name = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
             except Exception:
-                model_canon = str(sid)
-                scaffold_canon = str(assume_scaffold)
-
-            tm = theta_by_model.get(model_canon, None)
-            ts = theta_by_scaffold.get(scaffold_canon, None)
-            if ts is None:
-                raise ValueError(
-                    f"OOD assumed scaffold {scaffold_canon!r} not found in theta_by_scaffold "
-                    f"(available={sorted(list(theta_by_scaffold.keys()))[:50]} ...)"
-                )
-            if tm is not None:
-                th = float(tm) + float(ts)
-                used_assumed_scaffold = True
-
-        # Otherwise try to parse subject_id as (model, scaffold).
-        m = filt._model_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
-        sc = filt._scaffold_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
-        if th is None and m is not None and sc is not None:
-            tm = theta_by_model.get(str(m), None)
-            ts = theta_by_scaffold.get(str(sc), None)
-            if tm is not None and ts is not None:
-                th = float(tm) + float(ts)
-
-        # Final fallback: if we couldn't parse scaffold, treat subject_id as a model string.
-        # Canonicalize the model and (if possible) use OpenHands scaffold (GSO convention),
-        # otherwise fall back to model-only.
-        if th is None:
+                model_name = str(sid)
             try:
-                model_canon = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
+                scaffold_name = str(split_mod._canonical_scaffold(str(assume_scaffold)))  # type: ignore[attr-defined]
             except Exception:
-                model_canon = str(sid)
+                scaffold_name = str(assume_scaffold)
+            used_assumed_scaffold = True
+        else:
+            # Otherwise try to parse subject_id as (model, scaffold).
+            try:
+                m = filt._model_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
+            except Exception:
+                m = None
+            try:
+                sc = filt._scaffold_for_subject(sid, treat_as_pro=bool(ood_treat_as_pro))  # type: ignore[attr-defined]
+            except Exception:
+                sc = None
+            model_name = str(m) if m is not None else None
+            scaffold_name = str(sc) if sc is not None else None
 
-            tm = theta_by_model.get(model_canon, None)
-            if tm is not None:
-                # Prefer OpenHands when it exists in the trained scaffold list.
-                ts = theta_by_scaffold.get("OpenHands", None)
-                if ts is not None:
-                    th = float(tm) + float(ts)
-                    used_assumed_scaffold = True
-                else:
-                    th = float(tm)
-                    used_model_only = True
+        model_name = str(model_name or "").strip() or None
+        scaffold_name = str(scaffold_name or "").strip() or None
+
+        if model_name is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_model += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+        if scaffold_name is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_scaffold += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+
+        tm = theta_by_model.get(str(model_name), None)
+        if tm is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_model += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+        ts = theta_by_scaffold.get(str(scaffold_name), None)
+        if ts is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_scaffold += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+
+        th = float(tm) + float(ts)
 
         if th is None:
             n_obs_skipped_no_theta += int(len(resp))
@@ -661,6 +673,8 @@ def evaluate_ood_auroc(
         "obs_scored_model_only": int(n_obs_scored_model_only),
         "obs_scored_assumed_scaffold": int(n_obs_scored_assumed_scaffold),
         "obs_skipped_no_theta": int(n_obs_skipped_no_theta),
+        "obs_skipped_unfamiliar_model": int(n_obs_skipped_unfamiliar_model),
+        "obs_skipped_unfamiliar_scaffold": int(n_obs_skipped_unfamiliar_scaffold),
         "obs_skipped_no_item": int(n_obs_skipped_no_item),
         "obs_skipped_bad_score": int(n_obs_skipped_bad_score),
         "labels_pos": int(n_pos),
@@ -755,12 +769,16 @@ def evaluate_empirical_model_success_auroc(
     agent_results_jsonl: str,
     normalize_item_ids: bool,
     treat_as_pro: bool,
+    ood_default_scaffold: Optional[str],
     p_success_by_model: Dict[str, float],
+    theta_by_scaffold: Dict[str, float],
 ) -> Tuple[float, dict]:
     """
     Evaluate AUROC using constant-per-model predicted probabilities p_success_by_model[model].
 
-    Unfamiliar models (missing from p_success_by_model) are skipped.
+    This baseline ignores scaffold in the *score* (it is constant per model), but it uses the
+    same OOD skipping policy as the main method: a subject is skipped unless BOTH its model
+    and scaffold are recognized (present in the learned training thetas / baseline tables).
     """
     filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
     split_mod = _import_swebench_irt_module("split_agents_model_scaffold")
@@ -771,34 +789,65 @@ def evaluate_empirical_model_success_auroc(
     n_subjects_used = 0
     n_obs_total = 0
     n_obs_scored = 0
+    n_obs_skipped_no_theta = 0
     n_obs_skipped_unfamiliar_model = 0
+    n_obs_skipped_unfamiliar_scaffold = 0
     n_obs_skipped_bad_score = 0
 
     for sid, resp in iter_subject_responses_jsonl_generic(str(agent_results_jsonl), normalize_item_ids=bool(normalize_item_ids)):
         n_subjects_total += 1
 
+        assume_scaffold = str(ood_default_scaffold or "").strip()
+
         model_name: Optional[str] = None
-        try:
-            m = filt._model_for_subject(sid, treat_as_pro=bool(treat_as_pro))  # type: ignore[attr-defined]
-            if m is not None:
-                model_name = str(m)
-        except Exception:
-            model_name = None
-        if not model_name:
+        scaffold_name: Optional[str] = None
+        if assume_scaffold:
             try:
                 model_name = str(split_mod._canonical_model(str(sid)))  # type: ignore[attr-defined]
             except Exception:
                 model_name = str(sid)
+            try:
+                scaffold_name = str(split_mod._canonical_scaffold(str(assume_scaffold)))  # type: ignore[attr-defined]
+            except Exception:
+                scaffold_name = str(assume_scaffold)
+        else:
+            # Prefer canonical (model, scaffold) parsing; no fallbacks beyond that because
+            # we intentionally skip when scaffold is unknown/unavailable.
+            try:
+                m = filt._model_for_subject(sid, treat_as_pro=bool(treat_as_pro))  # type: ignore[attr-defined]
+            except Exception:
+                m = None
+            try:
+                sc = filt._scaffold_for_subject(sid, treat_as_pro=bool(treat_as_pro))  # type: ignore[attr-defined]
+            except Exception:
+                sc = None
+            model_name = str(m) if m is not None else None
+            scaffold_name = str(sc) if sc is not None else None
+
         model_name = str(model_name or "").strip() or None
+        scaffold_name = str(scaffold_name or "").strip() or None
+
         if model_name is None:
             n_obs_total += int(len(resp))
             n_obs_skipped_unfamiliar_model += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+        if scaffold_name is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_scaffold += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
             continue
 
         p = p_success_by_model.get(str(model_name), None)
         if p is None:
             n_obs_total += int(len(resp))
             n_obs_skipped_unfamiliar_model += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
+            continue
+        if theta_by_scaffold.get(str(scaffold_name), None) is None:
+            n_obs_total += int(len(resp))
+            n_obs_skipped_unfamiliar_scaffold += int(len(resp))
+            n_obs_skipped_no_theta += int(len(resp))
             continue
 
         n_subjects_used += 1
@@ -821,7 +870,9 @@ def evaluate_empirical_model_success_auroc(
         "models_with_prob": int(len(p_success_by_model)),
         "obs_total": int(n_obs_total),
         "obs_scored": int(n_obs_scored),
+        "obs_skipped_no_theta": int(n_obs_skipped_no_theta),
         "obs_skipped_unfamiliar_model": int(n_obs_skipped_unfamiliar_model),
+        "obs_skipped_unfamiliar_scaffold": int(n_obs_skipped_unfamiliar_scaffold),
         "obs_skipped_bad_score": int(n_obs_skipped_bad_score),
         "labels_pos": int(n_pos),
         "labels_neg": int(n_neg),
@@ -1135,7 +1186,7 @@ def filter_subjects_gso_model_only(
         for row in rows:
             f_out.write(json.dumps(row) + "\n")
             kept += 1
-    print(f"Filtered subjects (GSO model-only): {in_path} -> {out_path}")
+    print(f"Filtered subjects: {in_path} -> {out_path}")
     print(
         f"min_models_per_scaffold={int(k)} assumed_scaffold={assumed_scaffold!r} total={int(len(rows))} kept={int(kept)} "
         f"distinct_models={int(len(models))}"
@@ -4098,7 +4149,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             agent_results_jsonl=str(ood_agent_results),
             normalize_item_ids=bool(ood_normalize_item_ids),
             treat_as_pro=bool(ood_treat_as_pro),
+            ood_default_scaffold=ood_default_scaffold,
             p_success_by_model=p_emp_by_model,
+            theta_by_scaffold=theta_by_scaffold,
         )
         print(f"Baseline: {ood_emp_auc}")
         try:
