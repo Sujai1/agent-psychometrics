@@ -358,18 +358,37 @@ def run_single_dataset(
     if "Embedding" in source_dict:
         feature_configs.append(("Embedding", source_dict["Embedding"]))
 
-    # Test Trajectory and combined if enabled
+    # Test all feature configurations if enabled
     if test_all_feature_configs:
+        # Single sources
+        if "LLM Judge" in source_dict:
+            feature_configs.append(("LLM Judge", source_dict["LLM Judge"]))
         if "Trajectory" in source_dict:
             feature_configs.append(("Trajectory", source_dict["Trajectory"]))
 
-        # Combined Embedding + Trajectory
+        # Two-source combinations with Embedding
+        if "Embedding" in source_dict and "LLM Judge" in source_dict:
+            combined_source = GroupedFeatureSource([
+                RegularizedFeatureSource(source_dict["Embedding"]),
+                RegularizedFeatureSource(source_dict["LLM Judge"]),
+            ])
+            feature_configs.append(("Embedding + LLM Judge", combined_source))
+
         if "Embedding" in source_dict and "Trajectory" in source_dict:
             combined_source = GroupedFeatureSource([
                 RegularizedFeatureSource(source_dict["Embedding"]),
                 RegularizedFeatureSource(source_dict["Trajectory"]),
             ])
             feature_configs.append(("Embedding + Trajectory", combined_source))
+
+        # Three-source combination
+        if "Embedding" in source_dict and "LLM Judge" in source_dict and "Trajectory" in source_dict:
+            combined_source = GroupedFeatureSource([
+                RegularizedFeatureSource(source_dict["Embedding"]),
+                RegularizedFeatureSource(source_dict["LLM Judge"]),
+                RegularizedFeatureSource(source_dict["Trajectory"]),
+            ])
+            feature_configs.append(("Embedding + LLM Judge + Trajectory", combined_source))
 
     print(f"  Feature configs to test: {[name for name, _ in feature_configs]}")
 
