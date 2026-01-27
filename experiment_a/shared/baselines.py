@@ -808,17 +808,23 @@ class FullFeatureIRTAdapter:
         self._predictor = FeatureIRTPredictor(
             source=self.source,
             use_residuals=self.use_residuals,
-            init_from_baseline=False,
+            init_from_baseline=True,
             l2_weight=self.l2_weight,
             l2_residual=self.l2_residual,
             l2_ability=self.l2_ability,
             verbose=self.verbose,
         )
 
+        # Get baseline abilities from Oracle (full IRT model)
+        baseline_abilities = data.full_abilities["ability"].values
+        baseline_agent_ids = list(data.full_abilities.index)
+
         self._predictor.fit(
             task_ids=all_task_ids,
             ground_truth_b=ground_truth_b,
             responses=responses,
+            baseline_abilities=baseline_abilities,
+            baseline_agent_ids=baseline_agent_ids,
         )
 
         # Cache predictions for all tasks
