@@ -50,6 +50,11 @@ class ExperimentAConfig:
     )
     llm_judge_max_features: Optional[int] = None  # None = use all features
 
+    # Trajectory features config (from experiment B)
+    trajectory_features_path: Optional[Path] = Path(
+        "chris_output/trajectory_features/aggregated_features.csv"
+    )
+
     # Task filtering
     exclude_unsolved: bool = False  # Exclude tasks no agent solved
 
@@ -69,7 +74,8 @@ class ExperimentAConfig:
         """Create config from dict, converting strings to Paths."""
         path_fields = {
             "abilities_path", "items_path", "responses_path",
-            "output_dir", "embeddings_path", "llm_judge_features_path"
+            "output_dir", "embeddings_path", "llm_judge_features_path",
+            "trajectory_features_path"
         }
         converted = {}
         for k, v in d.items():

@@ -303,12 +303,14 @@ class GroupedRidgePredictor:
     """
 
     # Per-source alpha grids for common feature types.
-    # Wide range spanning 1e-6 to 1e4, matching Daria's predict_question_difficulty.py defaults.
-    # Sources not in this dict must have alpha_grids explicitly provided.
+    # Grids are tailored to feature dimensionality:
+    # - High-dim (Embedding ~5120): needs stronger regularization (higher alphas)
+    # - Low-dim (LLM Judge ~9, Trajectory ~20): needs weaker regularization (lower alphas)
+    # This keeps the grid search tractable: 3 × 4 × 4 = 48 combos vs 11³ = 1331.
     SOURCE_ALPHA_GRIDS = {
-        "Embedding": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0],
-        "LLM Judge": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0],
-        "Trajectory": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0, 10000.0],
+        "Embedding": [100.0, 1000.0, 10000.0],  # High-dim: strong regularization
+        "LLM Judge": [0.01, 0.1, 1.0, 10.0],    # Low-dim: weak regularization
+        "Trajectory": [0.01, 0.1, 1.0, 10.0],   # Low-dim: weak regularization
     }
 
     def __init__(

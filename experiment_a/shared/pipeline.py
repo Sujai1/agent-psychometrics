@@ -52,6 +52,7 @@ from experiment_a.shared.baselines import (
     OraclePredictor,
     DifficultyPredictorAdapter,
     FeatureIRTCVPredictor,
+    FullFeatureIRTAdapter,
 )
 
 # Default SWE-bench LLM Judge features (all 9 semantic features)
@@ -110,6 +111,8 @@ def build_cv_predictors(
     root: Path,
     llm_judge_features: Optional[List[str]] = None,
     include_feature_irt: bool = False,
+    full_firt_l2_weight: float = 0.01,
+    full_firt_l2_residual: float = 10.0,
 ) -> List[CVPredictorConfig]:
     """Build list of CVPredictor configurations for cross-validation.
 
@@ -145,12 +148,18 @@ def build_cv_predictors(
         if config.llm_judge_features_path is not None
         else None
     )
+    trajectory_path = (
+        root / config.trajectory_features_path
+        if getattr(config, "trajectory_features_path", None) is not None
+        else None
+    )
 
     # Build feature sources once using shared utility (verbose=False to avoid extra output)
     feature_source_list = build_feature_sources(
         embeddings_path=embeddings_path,
         llm_judge_path=llm_judge_path,
         llm_judge_feature_cols=llm_judge_features,
+        trajectory_features_path=trajectory_path,
         verbose=False,
     )
 
@@ -172,13 +181,19 @@ def build_cv_predictors(
             )
         )
 
-        # Feature-IRT with embeddings (joint learning)
+        # Full Feature-IRT with embeddings (trains on ALL tasks like Oracle)
+        # Tests whether features + IRT can improve on Oracle IRT alone
         if include_feature_irt:
             configs.append(
                 CVPredictorConfig(
-                    predictor=FeatureIRTCVPredictor(source, verbose=False),
-                    name="feature_irt_embedding",
-                    display_name="Feature-IRT (Embedding)",
+                    predictor=FullFeatureIRTAdapter(
+                        source,
+                        l2_weight=full_firt_l2_weight,
+                        l2_residual=full_firt_l2_residual,
+                        verbose=True,
+                    ),
+                    name="full_feature_irt_embedding",
+                    display_name="Full Feature-IRT (Embedding)",
                 )
             )
 
@@ -197,13 +212,48 @@ def build_cv_predictors(
             )
         )
 
-        # Feature-IRT with LLM Judge features (joint learning)
+        # Full Feature-IRT with LLM Judge (trains on ALL tasks like Oracle)
         if include_feature_irt:
             configs.append(
                 CVPredictorConfig(
-                    predictor=FeatureIRTCVPredictor(source, verbose=False),
-                    name="feature_irt_llm_judge",
-                    display_name="Feature-IRT (LLM Judge)",
+                    predictor=FullFeatureIRTAdapter(
+                        source,
+                        l2_weight=full_firt_l2_weight,
+                        l2_residual=full_firt_l2_residual,
+                        verbose=True,
+                    ),
+                    name="full_feature_irt_llm_judge",
+                    display_name="Full Feature-IRT (LLM Judge)",
+                )
+            )
+
+    # Trajectory features predictor (Ridge regression)
+    if "Trajectory" in source_by_name:
+        source = source_by_name["Trajectory"]
+        difficulty_predictor = FeatureBasedPredictor(
+            source,
+            alphas=list(config.ridge_alphas),
+        )
+        configs.append(
+            CVPredictorConfig(
+                predictor=DifficultyPredictorAdapter(difficulty_predictor),
+                name="trajectory_predictor",
+                display_name="Trajectory",
+            )
+        )
+
+        # Full Feature-IRT with Trajectory (trains on ALL tasks like Oracle)
+        if include_feature_irt:
+            configs.append(
+                CVPredictorConfig(
+                    predictor=FullFeatureIRTAdapter(
+                        source,
+                        l2_weight=full_firt_l2_weight,
+                        l2_residual=full_firt_l2_residual,
+                        verbose=True,
+                    ),
+                    name="full_feature_irt_trajectory",
+                    display_name="Full Feature-IRT (Trajectory)",
                 )
             )
 
@@ -228,6 +278,21 @@ def build_cv_predictors(
                     predictor=DifficultyPredictorAdapter(grouped_predictor),
                     name="grouped_ridge",
                     display_name=f"Grouped Ridge ({grouped_source.name})",
+                )
+            )
+
+        # Full Feature-IRT with grouped features (trains on ALL tasks like Oracle)
+        if include_feature_irt:
+            configs.append(
+                CVPredictorConfig(
+                    predictor=FullFeatureIRTAdapter(
+                        grouped_source,
+                        l2_weight=full_firt_l2_weight,
+                        l2_residual=full_firt_l2_residual,
+                        verbose=True,
+                    ),
+                    name="full_feature_irt_grouped",
+                    display_name=f"Full Feature-IRT ({grouped_source.name})",
                 )
             )
 
@@ -262,6 +327,66 @@ def build_cv_predictors(
                 display_name="Stacked (LLM → Emb)",
             )
         )
+
+    # Stacked variants with Trajectory
+    if "Trajectory" in source_by_name:
+        traj_source = source_by_name["Trajectory"]
+
+        # If Embedding exists, add Emb -> Traj and Traj -> Emb
+        if "Embedding" in source_by_name:
+            emb_source = source_by_name["Embedding"]
+
+            stacked_emb_traj = StackedResidualPredictor(
+                base_source=emb_source,
+                residual_source=traj_source,
+            )
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(stacked_emb_traj),
+                    name="stacked_emb_traj",
+                    display_name="Stacked (Emb → Traj)",
+                )
+            )
+
+            stacked_traj_emb = StackedResidualPredictor(
+                base_source=traj_source,
+                residual_source=emb_source,
+            )
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(stacked_traj_emb),
+                    name="stacked_traj_emb",
+                    display_name="Stacked (Traj → Emb)",
+                )
+            )
+
+        # If LLM Judge exists, add LLM -> Traj and Traj -> LLM
+        if "LLM Judge" in source_by_name:
+            llm_source = source_by_name["LLM Judge"]
+
+            stacked_llm_traj = StackedResidualPredictor(
+                base_source=llm_source,
+                residual_source=traj_source,
+            )
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(stacked_llm_traj),
+                    name="stacked_llm_traj",
+                    display_name="Stacked (LLM → Traj)",
+                )
+            )
+
+            stacked_traj_llm = StackedResidualPredictor(
+                base_source=traj_source,
+                residual_source=llm_source,
+            )
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(stacked_traj_llm),
+                    name="stacked_traj_llm",
+                    display_name="Stacked (Traj → LLM)",
+                )
+            )
 
     # Constant baseline (mean difficulty)
     configs.append(
@@ -342,6 +467,8 @@ def run_cross_validation(
     k: int = 5,
     metadata_loader: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
     include_feature_irt: bool = False,
+    full_firt_l2_weight: float = 0.01,
+    full_firt_l2_residual: float = 10.0,
     expansion_mode: Optional[str] = None,
     binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
     diagnostics_extractors: Optional[Dict[str, Callable]] = None,
@@ -420,6 +547,8 @@ def run_cross_validation(
     predictor_configs = build_cv_predictors(
         config, root, llm_judge_features=None,  # Auto-detect from CSV
         include_feature_irt=include_feature_irt,
+        full_firt_l2_weight=full_firt_l2_weight,
+        full_firt_l2_residual=full_firt_l2_residual,
     )
 
     # Determine if we should compute binomial metrics
@@ -620,7 +749,19 @@ def create_main_parser(experiment_name: str, default_output_dir: str) -> argpars
     parser.add_argument(
         "--include_feature_irt",
         action="store_true",
-        help="Include Feature-IRT joint learning methods (slower, minimal improvement over Ridge)",
+        help="Include Full Feature-IRT predictors (trains on ALL tasks like Oracle)",
+    )
+    parser.add_argument(
+        "--full_firt_l2_weight",
+        type=float,
+        default=0.01,
+        help="L2 regularization on feature weights for Full Feature-IRT (default: 0.01)",
+    )
+    parser.add_argument(
+        "--full_firt_l2_residual",
+        type=float,
+        default=10.0,
+        help="L2 regularization on residuals for Full Feature-IRT (default: 10.0)",
     )
     parser.add_argument(
         "--expand_grouped_ridge",
@@ -704,6 +845,8 @@ def run_experiment_main(
     results = run_cross_validation(
         config, spec, root, args.k_folds, metadata_loader,
         include_feature_irt=args.include_feature_irt,
+        full_firt_l2_weight=args.full_firt_l2_weight,
+        full_firt_l2_residual=args.full_firt_l2_residual,
     )
     output_filename = f"experiment_a_cv{args.k_folds}_results.json"
 

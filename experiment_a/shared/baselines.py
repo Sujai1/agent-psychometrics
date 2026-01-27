@@ -700,3 +700,168 @@ class FeatureIRTCVPredictor:
 
         theta = self._learned_abilities[agent_id]
         return compute_irt_probability(theta, beta)
+
+
+class FullFeatureIRTAdapter:
+    """Adapter for FeatureIRTPredictor that trains on ALL tasks like Oracle.
+
+    This predictor tests whether task features add information beyond the IRT
+    response matrix itself. Unlike FeatureIRTCVPredictor which trains only on
+    train tasks, this trains on ALL tasks with per-task residuals.
+
+    The model learns: b_i = w^T f_i + bias + r_i
+    where r_i is a per-task residual that can capture task-specific difficulty
+    not explained by features.
+
+    Comparison:
+    - Oracle: Uses pre-computed full IRT difficulties
+    - FullFeatureIRT: Learns difficulties jointly with feature weights + residuals
+
+    If FullFeatureIRT beats Oracle, features provide regularization benefit even
+    with full response data.
+
+    Wraps experiment_b's FeatureIRTPredictor to conform to CVPredictor protocol.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        l2_weight: float = 0.01,
+        l2_residual: float = 10.0,
+        l2_ability: float = 0.01,
+        use_residuals: bool = True,
+        verbose: bool = False,
+    ):
+        """Initialize Full Feature-IRT adapter.
+
+        Args:
+            source: TaskFeatureSource providing features for tasks.
+            l2_weight: L2 regularization on feature weights.
+            l2_residual: L2 regularization on per-task residuals.
+            l2_ability: L2 regularization on mean(abilities)^2.
+            use_residuals: Include per-task residuals (default True for full training).
+            verbose: Print training progress.
+        """
+        self.source = source
+        self.l2_weight = l2_weight
+        self.l2_residual = l2_residual
+        self.l2_ability = l2_ability
+        self.use_residuals = use_residuals
+        self.verbose = verbose
+
+        # Model state (set after fit())
+        self._predictor = None
+        self._difficulties: Dict[str, float] = {}
+        self._is_fitted: bool = False
+
+    @property
+    def name(self) -> str:
+        """Human-readable predictor name."""
+        return f"Full Feature-IRT ({self.source.name})"
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Train on ALL tasks (ignores train_task_ids).
+
+        Unlike other predictors, this uses ALL tasks in data.full_items,
+        similar to how OraclePredictor uses the full IRT model.
+
+        Training happens only once - subsequent calls are no-ops for speed.
+        WARNING: If you change hyperparameters (l2_weight, l2_residual, etc.),
+        you must create a new FullFeatureIRTAdapter instance. Reusing an already-fitted
+        instance with different hyperparameters will NOT retrain the model.
+
+        Args:
+            data: ExperimentData containing responses and IRT parameters
+            train_task_ids: Ignored - we train on all tasks
+        """
+        # Skip if already fitted (trains once, reused across folds for speed)
+        # Note: This means changing hyperparameters requires a new instance
+        if self._is_fitted:
+            if self.verbose:
+                print(f"  Full Feature-IRT ({self.source.name}) already fitted, skipping training")
+            return
+
+        # Import here to avoid circular imports
+        from experiment_b.shared.prediction_methods import FeatureIRTPredictor
+
+        # Get ALL task IDs (like Oracle)
+        all_task_ids = list(data.full_items.index)
+
+        # Get ground truth difficulties from full IRT (for initialization)
+        ground_truth_b = data.full_items.loc[all_task_ids, "b"].values
+
+        # Build responses dict for Feature-IRT
+        # Use ALL agents (not just train_abilities)
+        responses: Dict[str, Dict[str, any]] = {}
+        for agent_id in data.responses:
+            agent_resp = {}
+            for task_id in all_task_ids:
+                if task_id in data.responses[agent_id]:
+                    agent_resp[task_id] = data.responses[agent_id][task_id]
+            if agent_resp:
+                responses[agent_id] = agent_resp
+
+        if self.verbose:
+            print(f"  Training Full Feature-IRT ({self.source.name}) on {len(all_task_ids)} tasks, {len(responses)} agents")
+
+        # Create and fit the predictor
+        self._predictor = FeatureIRTPredictor(
+            source=self.source,
+            use_residuals=self.use_residuals,
+            init_from_baseline=False,
+            l2_weight=self.l2_weight,
+            l2_residual=self.l2_residual,
+            l2_ability=self.l2_ability,
+            verbose=self.verbose,
+        )
+
+        self._predictor.fit(
+            task_ids=all_task_ids,
+            ground_truth_b=ground_truth_b,
+            responses=responses,
+        )
+
+        # Cache predictions for all tasks
+        # NOTE: predict() returns w^T f_i + bias + r_i (includes residuals when use_residuals=True)
+        # This is the full learned difficulty, not just the feature-based part
+        self._difficulties = self._predictor.predict(all_task_ids)
+        self._is_fitted = True
+
+    def predict_probability(
+        self, data: ExperimentData, agent_id: str, task_id: str
+    ) -> float:
+        """Predict success probability using IRT formula.
+
+        Uses the full learned difficulty (w^T f_i + bias + r_i) and jointly-learned
+        agent abilities.
+
+        Args:
+            data: ExperimentData (unused - we use learned abilities)
+            agent_id: Agent identifier
+            task_id: Task identifier
+
+        Returns:
+            Predicted probability of success
+        """
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit before calling predict_probability()")
+
+        if task_id not in self._difficulties:
+            raise ValueError(f"No predicted difficulty for task {task_id}")
+
+        # beta = w^T f_i + bias + r_i (full learned difficulty including residual)
+        beta = self._difficulties[task_id]
+
+        # Use jointly-learned abilities
+        learned_abilities = self._predictor.learned_abilities
+        if learned_abilities is None:
+            raise RuntimeError("Predictor has no learned abilities")
+
+        if agent_id not in learned_abilities:
+            raise ValueError(
+                f"Agent {agent_id} not found in learned abilities. "
+                f"This agent may not have responses in training data."
+            )
+
+        theta = learned_abilities[agent_id]
+        return compute_irt_probability(theta, beta)
