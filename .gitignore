@@ -24,6 +24,7 @@ IssueSolvingEmpirical/
 reeval/
 terminal_bench/
 gso-experiments/
+stochastic-agent-evals/
 
 # Embeddings from cluster (large files, don't sync back)
 out/
@@ -212,3 +213,9 @@ chris_output/threshold_sweep/
 
 # LLM standalone coefficient analysis (regenerable)
 chris_output/llm_standalone_coefficient_analysis.json
+
+# Grouped ridge coefficient analysis (regenerable)
+chris_output/grouped_ridge_coefficient_analysis.json
+
+# GSO LLM judge features (regenerable via LLM API)
+chris_output/gso_llm_judge_features_v1/
