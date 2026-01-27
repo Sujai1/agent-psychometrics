@@ -193,6 +193,47 @@ Initialization:
 - Ability drift: Mean |θ_final - θ_baseline|
 - Feature contribution: |w^T f| / (|w^T f| + |r|)
 
+### Hyperparameter Selection via Held-Out Response AUC
+
+Feature-IRT hyperparameters (`l2_weight`, `l2_residual`, `l2_ability`) can be selected automatically using cross-validation on held-out response pairs. This avoids manual tuning and adapts to each dataset.
+
+**How it works:**
+1. Randomly hold out 20% of (agent, task) response pairs for validation
+2. Ensure all agents and tasks appear in training set (stratified split)
+3. Grid search: For each hyperparam combination, train on 80%, compute AUC on 20%
+4. Select hyperparams that maximize validation AUC
+5. Final model trained on full dataset with best hyperparams
+
+**Usage:**
+```bash
+# Enable CV-based hyperparameter selection
+python -m experiment_b.threshold_sweep --datasets swebench --use_cv_hyperparams
+```
+
+**Grid** (same for all L2 parameters): `[0.001, 0.01, 0.1, 1.0, 10.0, 100.0]`
+
+### Grouped Feature Support
+
+Feature-IRT supports combining multiple feature sources (e.g., Embedding + Trajectory) with per-source regularization. This is important because:
+- Embeddings are 5120-dim and need stronger regularization
+- Trajectory features are 20-dim and need weaker regularization
+
+**How it works:**
+1. Per-source StandardScaler (fit separately per source to prevent high-dim features from dominating)
+2. Group scaling: Features scaled by `1/sqrt(alpha)` per source
+3. This is mathematically equivalent to different L2 penalties per source with `l2_weight=1.0`
+
+**Usage:**
+```bash
+# Test all feature configurations (Embedding, Trajectory, Embedding+Trajectory)
+python -m experiment_b.threshold_sweep --datasets swebench --test_all_feature_configs
+```
+
+For grouped sources, the hyperparameter grid includes per-source alphas instead of a single `l2_weight`:
+- `alpha_Embedding`: Regularization for embedding features
+- `alpha_Trajectory`: Regularization for trajectory features
+- `l2_residual`, `l2_ability`: Same as single-source
+
 ## Evaluation Methodology
 
 ### Mean Per-Agent AUC (Primary, Scale-Free)
@@ -509,6 +550,15 @@ python -m experiment_b.threshold_sweep --thresholds 0.0 0.1 0.2 0.3
 
 # Enable date forecasting for all datasets (by default, only swebench)
 python -m experiment_b.threshold_sweep --date_forecast_all
+
+# Test all feature configurations (Embedding, Trajectory, combined)
+python -m experiment_b.threshold_sweep --datasets swebench --test_all_feature_configs
+
+# Use CV-based hyperparameter selection (slower but may find better params)
+python -m experiment_b.threshold_sweep --datasets swebench --use_cv_hyperparams
+
+# Combine both flags for comprehensive analysis
+python -m experiment_b.threshold_sweep --datasets swebench --test_all_feature_configs --use_cv_hyperparams
 ```
 
 ### Output Files

@@ -461,3 +461,103 @@ def plot_predicted_vs_oracle_scatter(
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved scatter plot to {output_path}")
+
+
+def plot_predicted_vs_actual_dates(
+    predicted_dates: Dict[str, Tuple[float, datetime]],
+    ground_truth_days: Dict[str, float],
+    frontier_task_ids: List[str],
+    dataset_name: str,
+    method_name: str,
+    output_path: Path,
+) -> None:
+    """Generate scatter plot of predicted vs actual solvability dates for frontier tasks.
+
+    Args:
+        predicted_dates: Dict from DateForecastModel.predict() (task_id -> (days, date))
+        ground_truth_days: Dict from compute_ground_truth_days() (task_id -> days)
+        frontier_task_ids: List of frontier task IDs to plot
+        dataset_name: Name of the dataset (for title)
+        method_name: Name of the prediction method (for subtitle)
+        output_path: Path to save the plot
+    """
+    from scipy.stats import pearsonr
+
+    # Collect matched pairs for frontier tasks
+    predicted_vals = []
+    actual_vals = []
+
+    for task_id in frontier_task_ids:
+        if task_id in predicted_dates and task_id in ground_truth_days:
+            predicted_vals.append(predicted_dates[task_id][0])  # Extract days from tuple
+            actual_vals.append(ground_truth_days[task_id])
+
+    if len(predicted_vals) < 2:
+        print(f"Warning: Only {len(predicted_vals)} frontier tasks with both predictions "
+              f"and ground truth - skipping date scatter plot for {dataset_name}")
+        return
+
+    predicted_arr = np.array(predicted_vals)
+    actual_arr = np.array(actual_vals)
+
+    # Compute statistics
+    pearson_r, pearson_p = pearsonr(predicted_arr, actual_arr)
+    mae = np.mean(np.abs(predicted_arr - actual_arr))
+    rmse = np.sqrt(np.mean((predicted_arr - actual_arr) ** 2))
+
+    # Create plot
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    ax.scatter(
+        actual_arr,
+        predicted_arr,
+        alpha=0.6,
+        s=50,
+        c="steelblue",
+        edgecolors="white",
+        linewidth=0.5,
+    )
+
+    # Add diagonal reference line (y = x)
+    min_val = min(actual_arr.min(), predicted_arr.min())
+    max_val = max(actual_arr.max(), predicted_arr.max())
+    margin = (max_val - min_val) * 0.1
+    ax.plot(
+        [min_val - margin, max_val + margin],
+        [min_val - margin, max_val + margin],
+        "k--",
+        alpha=0.5,
+        label="y = x (perfect)",
+    )
+
+    # Add linear regression fit line
+    slope, intercept = np.polyfit(actual_arr, predicted_arr, 1)
+    x_line = np.array([min_val - margin, max_val + margin])
+    ax.plot(
+        x_line,
+        slope * x_line + intercept,
+        "r-",
+        alpha=0.7,
+        label=f"Fit: y = {slope:.2f}x + {intercept:.1f}",
+    )
+
+    ax.set_xlabel("Actual Days (Ground Truth)", fontsize=12)
+    ax.set_ylabel("Predicted Days", fontsize=12)
+    ax.set_title(
+        f"{dataset_name}: Predicted vs Actual Solvability Dates\n"
+        f"{method_name}\n"
+        f"N={len(predicted_vals)} frontier tasks, Pearson r={pearson_r:.3f}, MAE={mae:.1f} days",
+        fontsize=11,
+    )
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.set_xlim(min_val - margin, max_val + margin)
+    ax.set_ylim(min_val - margin, max_val + margin)
+    ax.legend(loc="upper left", fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved predicted vs actual dates plot to {output_path}")

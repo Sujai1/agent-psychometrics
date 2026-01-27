@@ -11,7 +11,7 @@ require changes to this file.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -67,16 +67,23 @@ class FeatureIRTPredictor:
 
     Note: This predictor is designed for Experiment B where agents are
     held out (not tasks). All tasks should be seen during training.
+
+    For GroupedFeatureSource, per-source regularization is achieved via group
+    scaling: features from each source are scaled by 1/sqrt(alpha) before
+    optimization. This is mathematically equivalent to having different L2
+    penalties per source with a uniform l2_weight=1.0. StandardScaler is
+    applied per-source BEFORE group scaling.
     """
 
     def __init__(
         self,
-        source: TaskFeatureSource,
+        source: Union[TaskFeatureSource, GroupedFeatureSource],
         use_residuals: bool = False,
         init_from_baseline: bool = False,
         l2_weight: float = 0.01,
         l2_residual: float = 10.0,
         l2_ability: float = 0.01,
+        per_source_alphas: Optional[Dict[str, float]] = None,
         lr: float = 0.1,
         max_iter: int = 500,
         tol: float = 1e-5,
@@ -86,7 +93,9 @@ class FeatureIRTPredictor:
         """Initialize Feature-IRT predictor.
 
         Args:
-            source: TaskFeatureSource providing features for tasks.
+            source: TaskFeatureSource or GroupedFeatureSource providing features.
+                For GroupedFeatureSource, use per_source_alphas for differential
+                regularization across sources.
             use_residuals: Include per-task residuals. Default False because
                 residuals tend to overfit; the main benefit comes from joint
                 ability learning, not residuals.
@@ -95,9 +104,15 @@ class FeatureIRTPredictor:
                 feature weights starting at zero. Requires passing baseline_abilities
                 and baseline_agent_ids to fit(). This allows the model to start
                 from the Baseline IRT solution and learn feature-based corrections.
-            l2_weight: L2 regularization on feature weights.
+            l2_weight: L2 regularization on feature weights. For single sources,
+                this is the main regularization. For grouped sources with
+                per_source_alphas, set this to 1.0 (group scaling handles per-source).
             l2_residual: L2 regularization on residuals (high = encourage feature usage).
             l2_ability: L2 regularization on mean(abilities)² for identifiability.
+            per_source_alphas: For GroupedFeatureSource only. Dict mapping source
+                name to alpha value. Features are scaled by 1/sqrt(alpha), achieving
+                differential regularization. Higher alpha = more regularization.
+                If None and source is GroupedFeatureSource, uses source.group_alphas.
             lr: Learning rate for L-BFGS optimizer.
             max_iter: Maximum optimization iterations.
             tol: Convergence tolerance.
@@ -112,6 +127,7 @@ class FeatureIRTPredictor:
         self.l2_weight = l2_weight
         self.l2_residual = l2_residual
         self.l2_ability = l2_ability
+        self.per_source_alphas = per_source_alphas
         self.lr = lr
         self.max_iter = max_iter
         self.tol = tol
@@ -125,7 +141,8 @@ class FeatureIRTPredictor:
         self._abilities: Optional[np.ndarray] = None  # (n_agents,)
         self._agent_ids: Optional[List[str]] = None
         self._train_task_ids: Optional[List[str]] = None
-        self._scaler: Optional[StandardScaler] = None
+        self._scaler: Optional[StandardScaler] = None  # For single sources
+        self._per_source_scalers: Dict[str, StandardScaler] = {}  # For grouped sources
         self._is_fitted: bool = False
         self._training_loss_history: List[float] = []
         self._loss_components: List[Dict[str, float]] = []
@@ -141,6 +158,76 @@ class FeatureIRTPredictor:
             return f"Baseline-Init Feature-IRT ({self.source.name})"
         suffix = "w/ residuals" if self.use_residuals else "no residuals"
         return f"Feature-IRT ({self.source.name}, {suffix})"
+
+    def _is_grouped_source(self) -> bool:
+        """Check if source is a GroupedFeatureSource."""
+        return isinstance(self.source, GroupedFeatureSource)
+
+    def _get_per_source_alphas(self) -> Optional[Dict[str, float]]:
+        """Get per-source alphas, using source defaults if not provided."""
+        if not self._is_grouped_source():
+            return None
+
+        if self.per_source_alphas is not None:
+            return self.per_source_alphas
+
+        # Fall back to source's group_alphas
+        return {
+            src.name: alpha
+            for src, alpha in zip(self.source.sources, self.source.group_alphas)
+        }
+
+    def _preprocess_features(
+        self, X: np.ndarray, task_ids: List[str], fit_scaler: bool = True
+    ) -> np.ndarray:
+        """Apply per-source StandardScaler and group scaling.
+
+        For single sources: StandardScaler on all features.
+        For grouped sources: Per-source StandardScaler, then group scaling (1/sqrt(alpha)).
+
+        Args:
+            X: Raw features from source.get_features(task_ids)
+            task_ids: Task IDs (for error messages)
+            fit_scaler: If True, fit new scalers. If False, use existing scalers.
+
+        Returns:
+            X_scaled: Preprocessed features ready for optimization
+        """
+        if self._is_grouped_source():
+            X_std = np.empty_like(X, dtype=np.float32)
+            alphas = self._get_per_source_alphas()
+
+            for src, slice_obj in zip(self.source.sources, self.source.group_slices):
+                src_name = src.name
+
+                if fit_scaler:
+                    scaler = StandardScaler()
+                    X_std[:, slice_obj] = scaler.fit_transform(X[:, slice_obj])
+                    self._per_source_scalers[src_name] = scaler
+                else:
+                    if src_name not in self._per_source_scalers:
+                        raise RuntimeError(
+                            f"Scaler for source '{src_name}' not found. Call fit() first."
+                        )
+                    scaler = self._per_source_scalers[src_name]
+                    X_std[:, slice_obj] = scaler.transform(X[:, slice_obj])
+
+                # Group scaling: divide by sqrt(alpha) for per-source regularization
+                # Higher alpha = smaller features = more regularization
+                if alphas is not None:
+                    alpha = alphas[src_name]
+                    X_std[:, slice_obj] /= np.sqrt(alpha)
+
+            return X_std
+        else:
+            # Single source: standard preprocessing
+            if fit_scaler:
+                self._scaler = StandardScaler()
+                return self._scaler.fit_transform(X)
+            else:
+                if self._scaler is None:
+                    raise RuntimeError("Scaler not found. Call fit() first.")
+                return self._scaler.transform(X)
 
     def fit(
         self,
@@ -200,9 +287,8 @@ class FeatureIRTPredictor:
         features = self.source.get_features(task_ids)  # (n_tasks, feature_dim)
         feature_dim = features.shape[1]
 
-        # Standardize features
-        self._scaler = StandardScaler()
-        features_scaled = self._scaler.fit_transform(features)
+        # Preprocess features (per-source StandardScaler + group scaling for grouped sources)
+        features_scaled = self._preprocess_features(features, task_ids, fit_scaler=True)
 
         # Build response matrix: (n_agents, n_tasks)
         # Also build trials matrix for binomial likelihood if count data is present
@@ -414,6 +500,10 @@ class FeatureIRTPredictor:
                 max_trials = int(trials_tensor[mask].max().item())
                 print(f"   Max trials: {max_trials}")
             print(f"   Hyperparams: l2_weight={l2_w}, l2_residual={l2_r}")
+            if self._is_grouped_source():
+                alphas = self._get_per_source_alphas()
+                print(f"   Grouped source: {[s.name for s in self.source.sources]}")
+                print(f"   Per-source alphas: {alphas}")
 
         for iteration in range(self.max_iter):
             if iteration > 0:
@@ -486,8 +576,8 @@ class FeatureIRTPredictor:
         # Get features from source
         features = self.source.get_features(task_ids)
 
-        # Scale features using fitted scaler
-        features_scaled = self._scaler.transform(features)
+        # Preprocess features using fitted scalers (same transform as training)
+        features_scaled = self._preprocess_features(features, task_ids, fit_scaler=False)
 
         # Predict: diff = features @ w + bias + residual
         preds = features_scaled @ self._weights + self._bias
@@ -549,6 +639,15 @@ class FeatureIRTPredictor:
         if feature_weights is not None:
             info["feature_weights"] = feature_weights
 
+        # Add grouped source info if applicable
+        if self._is_grouped_source():
+            info["is_grouped_source"] = True
+            info["source_names"] = [s.name for s in self.source.sources]
+            info["per_source_alphas"] = self._get_per_source_alphas()
+            info["source_dims"] = {
+                s.name: s.feature_dim for s in self.source.sources
+            }
+
         return info
 
     def print_model_summary(self) -> None:
@@ -566,6 +665,11 @@ class FeatureIRTPredictor:
         print(f"  Use residuals: {info['use_residuals']}")
         print(f"  Final loss: {info['final_loss']:.6f}")
         print(f"  Bias: {info['bias']:.4f}")
+
+        if info.get("is_grouped_source"):
+            print(f"  Grouped source: {info['source_names']}")
+            print(f"  Per-source alphas: {info['per_source_alphas']}")
+            print(f"  Source dimensions: {info['source_dims']}")
 
         if "feature_weights" in info:
             print("  Feature weights (sorted by |weight|):")
@@ -612,7 +716,7 @@ class FeatureIRTPredictor:
 
         # Get scaled features for training tasks
         features = self.source.get_features(self._train_task_ids)
-        features_scaled = self._scaler.transform(features)
+        features_scaled = self._preprocess_features(features, self._train_task_ids, fit_scaler=False)
 
         # Compute feature-based difficulty component
         feature_component = features_scaled @ self._weights
@@ -676,7 +780,7 @@ class FeatureIRTPredictor:
 
         # Feature component
         features = self.source.get_features(self._train_task_ids)
-        features_scaled = self._scaler.transform(features)
+        features_scaled = self._preprocess_features(features, self._train_task_ids, fit_scaler=False)
         feature_component = features_scaled @ self._weights + self._bias
 
         # Variance contributions

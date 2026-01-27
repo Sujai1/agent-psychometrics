@@ -86,6 +86,16 @@ from experiment_b.shared.plotting import (
     plot_combined_threshold_sweep,
     plot_ability_vs_date,
     plot_predicted_vs_oracle_scatter,
+    plot_predicted_vs_actual_dates,
+)
+
+# Hyperparameter selection
+from experiment_b.shared.hyperparameter_selection import (
+    stratified_pair_split,
+    fit_with_cv_hyperparams,
+    L2_GRID,
+    SINGLE_SOURCE_GRID,
+    make_grouped_source_grid,
 )
 
 __all__ = [
@@ -152,4 +162,11 @@ __all__ = [
     "plot_combined_threshold_sweep",
     "plot_ability_vs_date",
     "plot_predicted_vs_oracle_scatter",
+    "plot_predicted_vs_actual_dates",
+    # hyperparameter_selection
+    "stratified_pair_split",
+    "fit_with_cv_hyperparams",
+    "L2_GRID",
+    "SINGLE_SOURCE_GRID",
+    "make_grouped_source_grid",
 ]

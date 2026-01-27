@@ -16,7 +16,7 @@ Usage:
 import argparse
 from multiprocessing import Process
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,9 +36,19 @@ from experiment_b.shared import (
     plot_threshold_sweep_mae,
     plot_ability_vs_date,
     plot_predicted_vs_oracle_scatter,
+    plot_predicted_vs_actual_dates,
+    fit_with_cv_hyperparams,
+    L2_GRID,
+    SINGLE_SOURCE_GRID,
+    make_grouped_source_grid,
 )
 from experiment_b.shared.data_preparation import (
     _train_baseline_irt_on_agents,
+)
+from experiment_ab_shared.feature_source import (
+    TaskFeatureSource,
+    GroupedFeatureSource,
+    RegularizedFeatureSource,
 )
 
 
@@ -53,6 +63,74 @@ DEFAULT_L2_RESIDUAL = 10.0
 # Datasets with sufficient agent date diversity for meaningful date forecasting
 # Other datasets have too few frontier points for reliable ability-over-time regression
 DATE_FORECAST_DATASETS = ["swebench"]
+
+
+def make_feature_irt_train_fn(
+    source: TaskFeatureSource,
+    task_ids: List[str],
+    ground_truth_b: np.ndarray,
+    baseline_abilities: np.ndarray,
+    baseline_agent_ids: List[str],
+    use_baseline_init: bool = True,
+) -> Callable[[Dict[str, Any], Dict[str, Dict[str, int]]], Tuple[Dict[str, float], Dict[str, float]]]:
+    """Create a training function for use with fit_with_cv_hyperparams.
+
+    Args:
+        source: Feature source (TaskFeatureSource or GroupedFeatureSource)
+        task_ids: Task IDs for training
+        ground_truth_b: Baseline IRT difficulties
+        baseline_abilities: Baseline IRT abilities
+        baseline_agent_ids: Agent IDs corresponding to baseline_abilities
+        use_baseline_init: If True, use baseline-init mode
+
+    Returns:
+        Train function compatible with fit_with_cv_hyperparams
+    """
+    def train_fn(
+        hyperparams: Dict[str, Any],
+        responses: Dict[str, Dict[str, int]],
+    ) -> Tuple[Dict[str, float], Dict[str, float]]:
+        # Extract hyperparams
+        l2_weight = hyperparams.get("l2_weight", 1.0)
+        l2_residual = hyperparams.get("l2_residual", 10.0)
+        l2_ability = hyperparams.get("l2_ability", 0.01)
+
+        # For grouped sources, extract per_source_alphas from alpha_{source_name} params
+        per_source_alphas = None
+        if isinstance(source, GroupedFeatureSource):
+            per_source_alphas = {}
+            for src in source.sources:
+                alpha_key = f"alpha_{src.name}"
+                if alpha_key in hyperparams:
+                    per_source_alphas[src.name] = hyperparams[alpha_key]
+            # With per_source_alphas, set l2_weight to 1.0 (group scaling handles reg)
+            l2_weight = 1.0
+
+        predictor = FeatureIRTPredictor(
+            source=source,
+            use_residuals=use_baseline_init,
+            init_from_baseline=use_baseline_init,
+            l2_weight=l2_weight,
+            l2_residual=l2_residual,
+            l2_ability=l2_ability,
+            per_source_alphas=per_source_alphas,
+            verbose=False,
+        )
+
+        predictor.fit(
+            task_ids=task_ids,
+            ground_truth_b=ground_truth_b,
+            responses=responses,
+            baseline_abilities=baseline_abilities,
+            baseline_agent_ids=baseline_agent_ids,
+        )
+
+        return predictor.learned_abilities, {
+            task_id: predictor.predict([task_id])[task_id]
+            for task_id in task_ids
+        }
+
+    return train_fn
 
 
 def parse_args() -> argparse.Namespace:
@@ -102,6 +180,16 @@ def parse_args() -> argparse.Namespace:
         "--date_forecast_all",
         action="store_true",
         help="Enable date forecasting for all datasets (default: only swebench)",
+    )
+    parser.add_argument(
+        "--use_cv_hyperparams",
+        action="store_true",
+        help="Use CV-based hyperparameter selection (grid search over L2 params)",
+    )
+    parser.add_argument(
+        "--test_all_feature_configs",
+        action="store_true",
+        help="Test all feature configurations (Embedding, Trajectory, Embedding+Trajectory)",
     )
     return parser.parse_args()
 
@@ -183,6 +271,8 @@ def run_single_dataset(
     l2_weight: float,
     l2_residual: float,
     enable_date_forecast: bool,
+    use_cv_hyperparams: bool = False,
+    test_all_feature_configs: bool = False,
 ) -> None:
     """Run full threshold sweep for one dataset.
 
@@ -197,6 +287,8 @@ def run_single_dataset(
         l2_weight: L2 regularization for Feature-IRT weights
         l2_residual: L2 regularization for Feature-IRT residuals
         enable_date_forecast: If True, compute date forecasting metrics and plots
+        use_cv_hyperparams: If True, use CV-based hyperparameter selection
+        test_all_feature_configs: If True, test Embedding, Trajectory, and combined
     """
     print(f"\n{'='*60}")
     print(f"Dataset: {dataset_name}")
@@ -253,44 +345,121 @@ def run_single_dataset(
     baseline_abilities = data.baseline_abilities
     print(f"  Baseline IRT: {len(baseline_items)} tasks, {len(baseline_abilities)} agents")
 
-    # Train Feature-IRT with FIXED hyperparameters
-    print(f"\nTraining Feature-IRT (l2_weight={l2_weight}, l2_residual={l2_residual})...")
+    # Build feature sources
+    print(f"\nBuilding feature sources...")
     feature_sources = build_feature_sources(config)
+    source_dict = {name: source for name, source in feature_sources}
 
-    # Find embedding source
-    embedding_source = None
-    for name, source in feature_sources:
-        if name == "Embedding":
-            embedding_source = source
-            break
+    # Build feature configurations to test
+    feature_configs: List[Tuple[str, TaskFeatureSource]] = []
 
-    feature_irt_preds: Optional[Dict[str, float]] = None
-    feature_irt_abilities: Optional[Dict[str, float]] = None
+    # Always test Embedding if available
+    if "Embedding" in source_dict:
+        feature_configs.append(("Embedding", source_dict["Embedding"]))
 
-    if embedding_source is not None and baseline_abilities is not None:
-        try:
-            feature_irt_predictor = FeatureIRTPredictor(
-                source=embedding_source,
-                use_residuals=True,
-                init_from_baseline=True,
-                l2_weight=l2_weight,
-                l2_residual=l2_residual,
-                verbose=True,
-            )
-            feature_irt_predictor.fit(
-                task_ids=data.train_task_ids,
-                ground_truth_b=data.baseline_ground_truth_b,
-                responses=data.train_responses,
-                baseline_abilities=baseline_abilities["theta"].values,
-                baseline_agent_ids=list(baseline_abilities.index),
-            )
-            feature_irt_preds = feature_irt_predictor.predict(config.all_task_ids)
-            feature_irt_abilities = feature_irt_predictor.learned_abilities
-            print(f"  Feature-IRT: {len(feature_irt_preds)} task predictions")
-        except Exception as e:
-            print(f"  Feature-IRT training failed: {e}")
+    # Test Trajectory and combined if enabled
+    if test_all_feature_configs:
+        if "Trajectory" in source_dict:
+            feature_configs.append(("Trajectory", source_dict["Trajectory"]))
+
+        # Combined Embedding + Trajectory
+        if "Embedding" in source_dict and "Trajectory" in source_dict:
+            combined_source = GroupedFeatureSource([
+                RegularizedFeatureSource(source_dict["Embedding"]),
+                RegularizedFeatureSource(source_dict["Trajectory"]),
+            ])
+            feature_configs.append(("Embedding + Trajectory", combined_source))
+
+    print(f"  Feature configs to test: {[name for name, _ in feature_configs]}")
+
+    # Train Feature-IRT for each configuration
+    feature_irt_results: Dict[str, Tuple[Dict[str, float], Dict[str, float]]] = {}
+
+    if baseline_abilities is None:
+        print("  Skipping Feature-IRT (no baseline abilities)")
     else:
-        print("  Skipping Feature-IRT (no embeddings or baseline abilities)")
+        baseline_theta = baseline_abilities["theta"].values
+        baseline_agent_ids = list(baseline_abilities.index)
+
+        for config_name, source in feature_configs:
+            method_name = f"Baseline-Init Feature-IRT ({config_name})"
+            print(f"\nTraining {method_name}...")
+
+            if use_cv_hyperparams:
+                # CV-based hyperparameter selection
+                print(f"  Using CV-based hyperparameter selection...")
+
+                # Choose hyperparam grid based on source type
+                if isinstance(source, GroupedFeatureSource):
+                    source_names = [s.name for s in source.sources]
+                    hyperparam_grid = make_grouped_source_grid(source_names)
+                    print(f"  Grid for grouped sources: {source_names}")
+                else:
+                    hyperparam_grid = SINGLE_SOURCE_GRID
+                    print(f"  Grid for single source")
+
+                try:
+                    train_fn = make_feature_irt_train_fn(
+                        source=source,
+                        task_ids=data.train_task_ids,
+                        ground_truth_b=data.baseline_ground_truth_b,
+                        baseline_abilities=baseline_theta,
+                        baseline_agent_ids=baseline_agent_ids,
+                        use_baseline_init=True,
+                    )
+
+                    best_params, (abilities, difficulties) = fit_with_cv_hyperparams(
+                        train_fn=train_fn,
+                        hyperparam_grid=hyperparam_grid,
+                        responses=data.train_responses,
+                        agent_ids=list(data.train_responses.keys()),
+                        task_ids=data.train_task_ids,
+                        val_frac=0.2,
+                        n_jobs=-1,
+                        verbose=True,
+                    )
+                    feature_irt_results[config_name] = (abilities, difficulties)
+                    print(f"  Best params: {best_params}")
+                except Exception as e:
+                    print(f"  CV hyperparameter selection failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                # Fixed hyperparameters
+                print(f"  Using fixed hyperparameters (l2_weight={l2_weight}, l2_residual={l2_residual})...")
+
+                try:
+                    # For grouped sources, use default alphas from source
+                    per_source_alphas = None
+                    if isinstance(source, GroupedFeatureSource):
+                        per_source_alphas = {
+                            s.name: s.alpha for s in source.sources
+                        }
+
+                    predictor = FeatureIRTPredictor(
+                        source=source,
+                        use_residuals=True,
+                        init_from_baseline=True,
+                        l2_weight=l2_weight,
+                        l2_residual=l2_residual,
+                        per_source_alphas=per_source_alphas,
+                        verbose=True,
+                    )
+                    predictor.fit(
+                        task_ids=data.train_task_ids,
+                        ground_truth_b=data.baseline_ground_truth_b,
+                        responses=data.train_responses,
+                        baseline_abilities=baseline_theta,
+                        baseline_agent_ids=baseline_agent_ids,
+                    )
+                    preds = predictor.predict(config.all_task_ids)
+                    abilities = predictor.learned_abilities
+                    feature_irt_results[config_name] = (abilities, preds)
+                    print(f"  {method_name}: {len(preds)} task predictions")
+                except Exception as e:
+                    print(f"  Feature-IRT training failed: {e}")
+                    import traceback
+                    traceback.print_exc()
 
     # Collect all predictions and abilities
     all_predictions: Dict[str, Dict[str, float]] = {}
@@ -310,14 +479,22 @@ def run_single_dataset(
     if baseline_abilities is not None:
         all_abilities["Baseline IRT (pre-frontier only)"] = baseline_abilities["theta"].to_dict()
 
-    # Feature-IRT
-    if feature_irt_preds is not None:
-        all_predictions["Baseline-Init Feature-IRT (Embedding)"] = feature_irt_preds
-        if feature_irt_abilities is not None:
-            all_abilities["Baseline-Init Feature-IRT (Embedding)"] = feature_irt_abilities
+    # Feature-IRT (all configurations)
+    for config_name, (abilities, preds) in feature_irt_results.items():
+        method_name = f"Baseline-Init Feature-IRT ({config_name})"
+        all_predictions[method_name] = preds
+        if abilities is not None:
+            all_abilities[method_name] = abilities
 
     # Generate scatter plot of predicted vs oracle for zero_pre frontier tasks
-    if feature_irt_preds is not None:
+    # Default to Embedding if available, otherwise use first available config
+    scatter_config_name = "Embedding" if "Embedding" in feature_irt_results else (
+        list(feature_irt_results.keys())[0] if feature_irt_results else None
+    )
+
+    if scatter_config_name is not None:
+        _, scatter_preds = feature_irt_results[scatter_config_name]
+
         zero_pre_frontier = identify_frontier_tasks_for_threshold(
             responses=config.responses,
             pre_frontier_agents=data.pre_frontier_agents,
@@ -328,11 +505,11 @@ def run_single_dataset(
         if zero_pre_frontier:
             scatter_path = output_dir / f"predicted_vs_oracle_{dataset_name}.png"
             plot_predicted_vs_oracle_scatter(
-                predicted_beta=feature_irt_preds,
+                predicted_beta=scatter_preds,
                 oracle_beta=oracle_items["b"].to_dict(),
                 frontier_task_ids=zero_pre_frontier,
                 dataset_name=config.name,
-                method_name="Baseline-Init Feature-IRT (Embedding)",
+                method_name=f"Baseline-Init Feature-IRT ({scatter_config_name})",
                 output_path=scatter_path,
             )
         else:
@@ -468,6 +645,22 @@ def run_single_dataset(
                     mae_days = date_metrics["mae_days"]
                     r_squared_fit = date_model.r_squared
                     n_date_tasks = date_metrics["n_tasks"]
+
+                    # Generate predicted vs actual dates scatter plot at threshold=0
+                    if (
+                        threshold == 0.0
+                        and dataset_name == "swebench"
+                        and "Feature-IRT" in method_name
+                    ):
+                        scatter_path = output_dir / f"predicted_vs_actual_dates_{dataset_name}.png"
+                        plot_predicted_vs_actual_dates(
+                            predicted_dates=date_predictions,
+                            ground_truth_days=ground_truth_days,
+                            frontier_task_ids=frontier_tasks,
+                            dataset_name=config.name,
+                            method_name=method_name,
+                            output_path=scatter_path,
+                        )
                 except Exception as e:
                     print(f"    Date forecast failed for {method_name}: {e}")
 
@@ -519,7 +712,12 @@ def main():
     print(f"Datasets: {', '.join(args.datasets)}")
     print(f"Thresholds: {[f'{t*100:.0f}%' for t in args.thresholds]}")
     print(f"Output directory: {args.output_dir}")
-    print(f"Feature-IRT hyperparameters: l2_weight={args.l2_weight}, l2_residual={args.l2_residual}")
+    if args.use_cv_hyperparams:
+        print("Using CV-based hyperparameter selection")
+    else:
+        print(f"Feature-IRT hyperparameters: l2_weight={args.l2_weight}, l2_residual={args.l2_residual}")
+    if args.test_all_feature_configs:
+        print("Testing all feature configurations (Embedding, Trajectory, Embedding+Trajectory)")
     if args.post_frontier_oracle:
         print("Using POST-FRONTIER Oracle mode")
     if args.date_forecast_all:
@@ -543,6 +741,8 @@ def main():
                 args.l2_weight,
                 args.l2_residual,
                 enable_date_forecast,
+                args.use_cv_hyperparams,
+                args.test_all_feature_configs,
             ),
         )
         processes.append(p)
