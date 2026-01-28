@@ -344,8 +344,10 @@ class TerminalBenchConfig(DatasetConfig):
 
     embeddings_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/experiment_a_terminalbench/embeddings/"
-            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__maxlen8192.npz"
+            "embeddings/"
+            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
+            "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v2__"
+            "json_terminal_bench_tasks.jsonl__test__maxlen8192.npz"
         )
     )
     llm_judge_path: Optional[Path] = field(

@@ -28,6 +28,7 @@ stochastic-agent-evals/
 
 # Embeddings from cluster (large files, don't sync back)
 out/
+embeddings/
 
 
 # Output files

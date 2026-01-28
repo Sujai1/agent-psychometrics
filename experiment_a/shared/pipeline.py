@@ -28,6 +28,7 @@ from experiment_ab_shared.feature_source import (
 from experiment_ab_shared.feature_predictor import (
     FeatureBasedPredictor,
     GroupedRidgePredictor,
+    StackedResidualPredictor,
 )
 from experiment_ab_shared import (
     load_dataset,
@@ -294,6 +295,20 @@ def build_cv_predictors(
                     display_name=f"Full Feature-IRT ({grouped_source.name})",
                 )
             )
+
+    # Stacked Residual predictor (Embedding as base, LLM Judge predicts residuals)
+    if "Embedding" in source_by_name and "LLM Judge" in source_by_name:
+        stacked_predictor = StackedResidualPredictor(
+            base_source=source_by_name["Embedding"],
+            residual_source=source_by_name["LLM Judge"],
+        )
+        configs.append(
+            CVPredictorConfig(
+                predictor=DifficultyPredictorAdapter(stacked_predictor),
+                name="stacked_residual",
+                display_name="Stacked (Emb → LLM)",
+            )
+        )
 
     # Constant baseline (mean difficulty)
     configs.append(

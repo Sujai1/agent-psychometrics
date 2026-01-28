@@ -35,8 +35,10 @@ class ExperimentAConfig:
 
     # Embedding predictor config
     embeddings_path: Optional[Path] = Path(
-        "chris_output/experiment_a/embeddings/"
-        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__merged.npz"
+        "embeddings/"
+        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
+        "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v1__"
+        "princeton-nlp_SWE-bench_Verified__test__maxlen8192.npz"
     )
 
     # Ridge alphas for ALL feature-based predictors (unified, no special casing)

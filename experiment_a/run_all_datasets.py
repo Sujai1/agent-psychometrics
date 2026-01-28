@@ -170,6 +170,7 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
         "embedding_predictor": "Embedding",
         "llm_judge_predictor": "LLM Judge",
         "grouped_ridge": "Grouped Ridge",
+        "stacked_residual": "Stacked (Emb → LLM)",
         "constant_baseline": "Baseline",
     }
 
@@ -188,27 +189,23 @@ def format_results_table(
     all_results: Dict[str, Dict[str, Optional[float]]],
     methods: Optional[List[str]] = None,
 ) -> str:
-    """Format results as a markdown table.
+    """Format results as a markdown table with aligned columns.
 
     Args:
         all_results: Dict mapping dataset name -> {method: auc}.
         methods: List of methods to include (in order).
 
     Returns:
-        Formatted markdown table string.
+        Formatted markdown table string with proper column alignment.
     """
     if methods is None:
-        methods = ["Oracle", "Grouped Ridge", "Embedding", "LLM Judge", "Baseline"]
+        methods = ["Oracle", "Stacked (Emb → LLM)", "Grouped Ridge", "Embedding", "LLM Judge", "Baseline"]
 
-    # Build header
-    header = "| Dataset | " + " | ".join(methods) + " |"
-    separator = "|" + "|".join(["---"] * (len(methods) + 1)) + "|"
-
-    rows = [header, separator]
-
+    # Build data rows first to calculate column widths
+    data_rows = []
     for dataset_name, metrics in all_results.items():
         if "error" in metrics:
-            row = f"| {dataset_name} | " + " | ".join(["ERROR"] * len(methods)) + " |"
+            values = ["ERROR"] * len(methods)
         else:
             values = []
             for method in methods:
@@ -216,7 +213,27 @@ def format_results_table(
                     values.append(f"{metrics[method]:.4f}")
                 else:
                     values.append("-")
-            row = f"| {dataset_name} | " + " | ".join(values) + " |"
+        data_rows.append((dataset_name, values))
+
+    # Calculate column widths
+    col_widths = [max(len("Dataset"), max(len(row[0]) for row in data_rows))]
+    for i, method in enumerate(methods):
+        method_width = len(method)
+        value_width = max(len(row[1][i]) for row in data_rows)
+        col_widths.append(max(method_width, value_width))
+
+    # Build formatted table
+    def pad(text: str, width: int) -> str:
+        return text.ljust(width)
+
+    header = "| " + " | ".join(pad(col, col_widths[i]) for i, col in enumerate(["Dataset"] + methods)) + " |"
+    separator = "|" + "|".join("-" * (w + 2) for w in col_widths) + "|"
+
+    rows = [header, separator]
+    for dataset_name, values in data_rows:
+        row = "| " + pad(dataset_name, col_widths[0]) + " | " + " | ".join(
+            pad(v, col_widths[i + 1]) for i, v in enumerate(values)
+        ) + " |"
         rows.append(row)
 
     return "\n".join(rows)
@@ -237,7 +254,7 @@ def save_results_csv(
     import csv
 
     if methods is None:
-        methods = ["Oracle", "Grouped Ridge", "Embedding", "LLM Judge", "Baseline"]
+        methods = ["Oracle", "Stacked (Emb → LLM)", "Grouped Ridge", "Embedding", "LLM Judge", "Baseline"]
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)

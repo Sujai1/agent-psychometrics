@@ -37,10 +37,10 @@ class GSOConfig:
 
     # Embedding predictor config
     embeddings_path: Optional[Path] = Path(
-        "out/gso/"
-        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__"
-        "pool-lasttoken__qs-sol-instr__qs_sol_instr_b7008f2d__"
-        "idnorm_instance-v1__gso-bench_gso__test__maxlen8192.npz"
+        "embeddings/"
+        "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
+        "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v1__"
+        "gso-bench_gso__test__maxlen8192.npz"
     )
 
     # Ridge alphas for ALL feature-based predictors (unified, no special casing)
