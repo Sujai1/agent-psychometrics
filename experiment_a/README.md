@@ -334,16 +334,25 @@ A standardized 9-feature set is available for fair cross-dataset comparison. All
 - Code datasets (SWE-bench, SWE-bench Pro, GSO): `integration_complexity` (1-5)
 - TerminalBench: `tooling_complexity` (1-5)
 
-**Unified feature paths**:
+**Unified feature paths** (9 features: 8 core + 1 dataset-specific):
 - `chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv`
 - `chris_output/llm_judge_features/swebench_pro_unified/llm_judge_features.csv`
 - `chris_output/llm_judge_features/terminalbench_unified/llm_judge_features.csv`
 - `chris_output/llm_judge_features/gso_unified/llm_judge_features.csv`
 
+**Core-only feature paths** (8 features: exactly the same across all datasets):
+- `chris_output/llm_judge_features/swebench_unified_core/llm_judge_features.csv`
+- `chris_output/llm_judge_features/swebench_pro_unified_core/llm_judge_features.csv`
+- `chris_output/llm_judge_features/terminalbench_unified_core/llm_judge_features.csv`
+- `chris_output/llm_judge_features/gso_unified_core/llm_judge_features.csv`
+
 Usage:
 ```bash
-# run_all_datasets uses unified features by default
+# run_all_datasets uses unified features (9 features) by default
 python -m experiment_a.run_all_datasets
+
+# Use core-only features (8 features, identical across datasets)
+python -m experiment_a.run_all_datasets --unified_judge_suffix _core
 
 # For individual dataset scripts, specify the path explicitly
 python -m experiment_a.swebench.train_evaluate --llm_judge_features_path chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv
@@ -418,6 +427,7 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 --split_seed          Random seed for train/test split (default: 0)
 --embeddings_path     Override default embeddings path
 --llm_judge_features_path  Override default LLM features path
+--unified_judge_suffix    Suffix to append to unified judge paths (e.g., '_core')
 --output_dir          Output directory
 --dry_run             Show configuration without running
 --exclude_unsolved    Exclude tasks no agent solved

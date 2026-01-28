@@ -82,6 +82,7 @@ DATASETS = [
 def run_single_dataset(
     dataset_config: ExperimentADatasetSpec,
     use_unified_judge: bool = False,
+    unified_judge_suffix: str = "",
     output_base: Optional[Path] = None,
     k_folds: int = 5,
 ) -> Tuple[str, Dict[str, Any]]:
@@ -90,6 +91,7 @@ def run_single_dataset(
     Args:
         dataset_config: Dataset configuration.
         use_unified_judge: Whether to use unified judge features.
+        unified_judge_suffix: Suffix to append to unified judge directory (e.g., '_core').
         output_base: Base directory for outputs.
         k_folds: Number of CV folds.
 
@@ -121,11 +123,18 @@ def run_single_dataset(
         config_kwargs = dict(dataset_config.extra_kwargs)
 
         if use_unified_judge and dataset_config.unified_judge_path:
-            if dataset_config.unified_judge_path.exists():
-                config_kwargs["llm_judge_features_path"] = dataset_config.unified_judge_path
+            # Apply suffix to the directory name if provided
+            judge_path = dataset_config.unified_judge_path
+            if unified_judge_suffix:
+                # Insert suffix before the filename (e.g., swebench_unified -> swebench_unified_core)
+                parent_with_suffix = judge_path.parent.parent / (judge_path.parent.name + unified_judge_suffix)
+                judge_path = parent_with_suffix / judge_path.name
+
+            if judge_path.exists():
+                config_kwargs["llm_judge_features_path"] = judge_path
             else:
                 return dataset_config.name, {
-                    "error": f"Unified judge features not found: {dataset_config.unified_judge_path}"
+                    "error": f"Unified judge features not found: {judge_path}"
                 }
 
         if output_base:
@@ -283,6 +292,12 @@ def main():
         help="Use unified LLM judge features (default: True). Use --no-unified_judge for dataset-specific features.",
     )
     parser.add_argument(
+        "--unified_judge_suffix",
+        type=str,
+        default="",
+        help="Suffix to append to unified judge directory names (e.g., '_core' for filtered features).",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="Output CSV file path (optional)",
@@ -341,6 +356,7 @@ def main():
             name, results = run_single_dataset(
                 config,
                 use_unified_judge=args.unified_judge,
+                unified_judge_suffix=args.unified_judge_suffix,
                 output_base=args.output_dir,
                 k_folds=args.k_folds,
             )
@@ -363,6 +379,7 @@ def main():
                     run_single_dataset,
                     config,
                     args.unified_judge,
+                    args.unified_judge_suffix,
                     args.output_dir,
                     args.k_folds,
                 ): config.name
