@@ -1,20 +1,13 @@
 """MLP predictor that directly predicts P(success) from (agent, task) pairs.
 
-Unlike difficulty-based predictors that predict task difficulty (beta) and then
-use the IRT formula P = sigmoid(theta - beta), this predictor directly learns
-to map (agent_one_hot, task_features) -> P(success).
+Architecture (IRTStyleMLP):
+    Mirrors the IRT formula: P = sigmoid(θ_agent - β_task)
+    - Agent pathway: agent_index → Embedding → θ (scalar ability per agent)
+    - Feature pathway: task_features → Linear → β (scalar difficulty)
+    - Output: sigmoid(θ - β)
 
-Architecture (GatedMLP with SwiGLU):
-    Input: [agent_one_hot (n_agents) | task_features (feature_dim)]
-    -> SwiGLU: Swish(xW_gate) * (xW_value)  [hidden_size units]
-    -> Dropout(p)  [optional]
-    -> Linear(hidden_size, 1)
-    -> Sigmoid
-    Output: P(success) in [0, 1]
-
-The SwiGLU gating allows the model to learn both:
-- Linear components (IRT-like: θ_agent - β_task) through the value path
-- Nonlinear components through the gated path
+    This is structurally identical to IRT, just learned end-to-end with BCE loss
+    instead of maximum likelihood on the response matrix.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -49,70 +42,82 @@ def build_input_vector(
     return np.concatenate([agent_one_hot, task_features])
 
 
-class GatedMLP(nn.Module):
-    """SwiGLU-style gated MLP with sigmoid output.
+class IRTStyleMLP(nn.Module):
+    """IRT-style architecture that explicitly learns θ_agent - β_task.
 
-    Uses SwiGLU gating: output = Swish(xW_gate) * (xW_value)
-    This allows learning both linear (IRT-like) and nonlinear components.
+    Mirrors the IRT formula: P = sigmoid(θ_agent - β_task)
+    - Agent pathway: agent_one_hot → θ (learned ability per agent)
+    - Feature pathway: task_features → β (learned difficulty from features)
+    - Output: sigmoid(θ - β)
+
+    This is structurally identical to IRT, just learned end-to-end with BCE loss.
     """
 
-    def __init__(self, input_dim: int, hidden_size: int, dropout: float = 0.0):
+    def __init__(self, n_agents: int, feature_dim: int, dropout: float = 0.0):
         super().__init__()
-        # SwiGLU: gate and value projections
-        self.W_gate = nn.Linear(input_dim, hidden_size)
-        self.W_value = nn.Linear(input_dim, hidden_size)
-        self.silu = nn.SiLU()  # Swish activation
+        # Agent abilities: one θ per agent (like IRT)
+        self.agent_abilities = nn.Embedding(n_agents, 1)
+
+        # Difficulty from features: features → scalar β
+        self.difficulty_layer = nn.Linear(feature_dim, 1)
+
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
-        self.fc_out = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # SwiGLU: Swish(xW_gate) * (xW_value)
-        gate = self.silu(self.W_gate(x))
-        value = self.W_value(x)
-        h = gate * value
-        h = self.dropout(h)
-        out = self.fc_out(h)
-        out = self.sigmoid(out)
-        return out.squeeze(-1)
+    def forward(
+        self, agent_indices: torch.Tensor, task_features: torch.Tensor
+    ) -> torch.Tensor:
+        # Get agent abilities: (batch,) → (batch, 1)
+        theta = self.agent_abilities(agent_indices)  # (batch, 1)
+
+        # Get task difficulties: (batch, feature_dim) → (batch, 1)
+        beta = self.difficulty_layer(task_features)  # (batch, 1)
+        beta = self.dropout(beta)
+
+        # IRT formula: P = sigmoid(θ - β)
+        logit = theta - beta  # (batch, 1)
+        prob = self.sigmoid(logit)
+
+        return prob.squeeze(-1)  # (batch,)
 
 
 class MLPPredictor:
-    """MLP that directly predicts P(success) from (agent, task) pairs.
+    """IRT-style predictor that learns P = sigmoid(θ_agent - β_task) end-to-end.
 
-    This predictor learns to predict success probability directly without
-    going through IRT difficulty. It implements the CVPredictor protocol.
+    This predictor mirrors the IRT formula exactly:
+    - θ: learned ability per agent (via embedding)
+    - β: learned difficulty from task features (via linear layer)
+    - P = sigmoid(θ - β)
 
-    Input: [agent_one_hot | task_features]
-    Output: sigmoid(MLP(...)) = P(success)
+    The key difference from standard IRT is that β is predicted from features
+    rather than learned as free parameters per task.
 
-    Training uses binary cross-entropy loss with Adam optimizer and
-    weight decay (L2 regularization).
+    Training uses binary cross-entropy loss with Adam optimizer.
     """
 
     def __init__(
         self,
         source: TaskFeatureSource,
-        hidden_size: int = 64,
+        hidden_size: int = 64,  # Unused, kept for API compatibility
         dropout: float = 0.0,
         learning_rate: float = 0.001,
         weight_decay: float = 0.01,
         n_epochs: int = 200,
         verbose: bool = False,
     ):
-        """Initialize MLP predictor.
+        """Initialize IRT-style predictor.
 
         Args:
             source: TaskFeatureSource providing features for tasks.
-            hidden_size: Number of hidden units in the GatedMLP.
-            dropout: Dropout probability (0.0 = no dropout).
+            hidden_size: Unused (kept for API compatibility).
+            dropout: Dropout probability on difficulty prediction (0.0 = no dropout).
             learning_rate: Learning rate for Adam optimizer.
             weight_decay: L2 regularization strength (Adam weight_decay).
             n_epochs: Number of training epochs.
             verbose: Print training progress.
         """
         self.source = source
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size  # Unused but kept for compatibility
         self.dropout = dropout
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
@@ -120,25 +125,22 @@ class MLPPredictor:
         self.verbose = verbose
 
         # Model state (set after fit())
-        self._model: Optional[GatedMLP] = None
+        self._model: Optional[IRTStyleMLP] = None
         self._scaler: Optional[StandardScaler] = None
         self._agent_to_idx: Optional[Dict[str, int]] = None
         self._n_agents: int = 0
+        self._feature_dim: int = 0
         self._is_fitted: bool = False
 
         # Training diagnostics
         self._training_losses: List[float] = []
         self._train_auc: Optional[float] = None  # AUC on training data
 
-        # Training data (stored for diagnostics)
-        self._train_X: Optional[np.ndarray] = None
-        self._train_y: Optional[np.ndarray] = None
-
         # Prediction cache
         self._task_feature_cache: Dict[str, np.ndarray] = {}
 
     def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
-        """Fit the MLP on training data.
+        """Fit the IRT-style model on training data.
 
         Args:
             data: ExperimentData containing responses and agent information.
@@ -157,6 +159,7 @@ class MLPPredictor:
         task_features = self.source.get_features(train_task_ids)
         self._scaler = StandardScaler()
         task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
 
         # Build task_id -> scaled features mapping for train tasks
         task_to_features = {
@@ -164,8 +167,9 @@ class MLPPredictor:
             for i, task_id in enumerate(train_task_ids)
         }
 
-        # Build training data: (agent_one_hot + task_features, response)
-        X_list: List[np.ndarray] = []
+        # Build training data: (agent_idx, task_features, response)
+        agent_indices_list: List[int] = []
+        features_list: List[np.ndarray] = []
         y_list: List[float] = []
 
         is_binomial = isinstance(data, BinomialExperimentData)
@@ -179,11 +183,7 @@ class MLPPredictor:
                 if task_id not in data.responses[agent_id]:
                     continue
 
-                # Build input vector using helper
                 agent_idx = self._agent_to_idx[agent_id]
-                x = build_input_vector(agent_idx, self._n_agents, task_feat)
-
-                # Get response
                 response = data.responses[agent_id][task_id]
 
                 if is_binomial:
@@ -192,34 +192,33 @@ class MLPPredictor:
                     n = response["trials"]
                     # Add k success observations
                     for _ in range(k):
-                        X_list.append(x)
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
                         y_list.append(1.0)
                     # Add (n-k) failure observations
                     for _ in range(n - k):
-                        X_list.append(x)
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
                         y_list.append(0.0)
                 else:
                     # Binary response
-                    X_list.append(x)
+                    agent_indices_list.append(agent_idx)
+                    features_list.append(task_feat)
                     y_list.append(float(response))
 
-        if len(X_list) == 0:
+        if len(y_list) == 0:
             raise ValueError("No training examples found")
 
-        X = np.array(X_list, dtype=np.float32)
+        agent_indices = np.array(agent_indices_list, dtype=np.int64)
+        features = np.array(features_list, dtype=np.float32)
         y = np.array(y_list, dtype=np.float32)
 
-        # Store for diagnostics
-        self._train_X = X
-        self._train_y = y
-
         if self.verbose:
-            print(f"   Training MLP: {len(X)} samples, {X.shape[1]} features")
-            print(f"   Agent one-hot dim: {self._n_agents}, task feature dim: {task_features_scaled.shape[1]}")
+            print(f"   Training IRT-style MLP: {len(y)} samples")
+            print(f"   Agents: {self._n_agents}, Feature dim: {self._feature_dim}")
 
         # Create model
-        input_dim = X.shape[1]
-        self._model = GatedMLP(input_dim, self.hidden_size, dropout=self.dropout)
+        self._model = IRTStyleMLP(self._n_agents, self._feature_dim, dropout=self.dropout)
 
         # Check for GPU
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -229,7 +228,8 @@ class MLPPredictor:
             print(f"   Using GPU: {torch.cuda.get_device_name(0)}")
 
         # Convert to tensors
-        X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+        agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
+        features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
         y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
 
         # Optimizer and loss
@@ -246,7 +246,7 @@ class MLPPredictor:
             optimizer.zero_grad()
 
             # Forward pass
-            y_pred = self._model(X_tensor)
+            y_pred = self._model(agent_tensor, features_tensor)
             loss = criterion(y_pred, y_tensor)
 
             # Backward pass
@@ -265,7 +265,7 @@ class MLPPredictor:
         # Compute train AUC for diagnostics
         self._model.eval()
         with torch.no_grad():
-            y_pred_train = self._model(X_tensor).cpu().numpy()
+            y_pred_train = self._model(agent_tensor, features_tensor).cpu().numpy()
         if len(np.unique(y)) > 1:  # Need both classes for AUC
             self._train_auc = roc_auc_score(y, y_pred_train)
         else:
@@ -279,6 +279,8 @@ class MLPPredictor:
         self, data: ExperimentData, agent_id: str, task_id: str
     ) -> float:
         """Predict success probability for a specific (agent, task) pair.
+
+        Uses IRT formula: P = sigmoid(θ_agent - β_task)
 
         Args:
             data: ExperimentData (used for test_tasks list).
@@ -301,10 +303,8 @@ class MLPPredictor:
         if agent_id not in self._agent_to_idx:
             raise ValueError(f"Unknown agent {agent_id}")
 
-        # Build input using helper
         agent_idx = self._agent_to_idx[agent_id]
         task_feat = self._task_feature_cache[task_id]
-        x = build_input_vector(agent_idx, self._n_agents, task_feat)
 
         # Get device
         device = next(self._model.parameters()).device
@@ -312,8 +312,9 @@ class MLPPredictor:
         # Forward pass
         self._model.eval()
         with torch.no_grad():
-            x_tensor = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
-            prob = self._model(x_tensor).item()
+            agent_tensor = torch.tensor([agent_idx], dtype=torch.long, device=device)
+            feat_tensor = torch.tensor(task_feat, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(agent_tensor, feat_tensor).item()
 
         return prob
 
