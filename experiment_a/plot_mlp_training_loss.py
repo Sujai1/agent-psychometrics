@@ -54,8 +54,8 @@ def plot_training_losses(
     print(f"Saved training loss plot to: {output_path}")
 
 
-def mlp_diagnostics_extractor(predictor: Any, fold_idx: int) -> Optional[List[float]]:
-    """Extract training losses from an MLP predictor.
+def mlp_diagnostics_extractor(predictor: Any, fold_idx: int) -> Optional[Dict[str, Any]]:
+    """Extract training diagnostics from an MLP predictor.
 
     This function can be passed to run_cv() as diagnostics_extractor.
 
@@ -64,10 +64,13 @@ def mlp_diagnostics_extractor(predictor: Any, fold_idx: int) -> Optional[List[fl
         fold_idx: Current fold index.
 
     Returns:
-        List of training losses per iteration, or None if not an MLP.
+        Dict with 'losses' (list) and 'train_auc' (float), or None if not an MLP.
     """
     if hasattr(predictor, "get_training_losses"):
-        return predictor.get_training_losses()
+        return {
+            "losses": predictor.get_training_losses(),
+            "train_auc": predictor.get_train_auc() if hasattr(predictor, "get_train_auc") else None,
+        }
     return None
 
 
@@ -118,31 +121,68 @@ def run_cv_with_mlp_diagnostics(
         },
     )
 
-    # Extract MLP losses from results
-    mlp_losses: Dict[str, List[List[float]]] = {}
+    # Extract MLP diagnostics from results
+    mlp_diagnostics: Dict[str, Dict[str, Any]] = {}
     cv_results = results.get("cv_results", {})
 
     for name in ["mlp_embedding", "mlp_llm_judge", "mlp_grouped"]:
         if name in cv_results:
             fold_diagnostics = cv_results[name].get("fold_diagnostics", [])
+            test_auc = cv_results[name].get("mean_auc")
+            fold_aucs = cv_results[name].get("fold_aucs", [])
+
             if fold_diagnostics and fold_diagnostics[0] is not None:
-                mlp_losses[name] = fold_diagnostics
+                fold_losses = [d["losses"] for d in fold_diagnostics]
+                train_aucs = [d.get("train_auc") for d in fold_diagnostics]
+
+                mlp_diagnostics[name] = {
+                    "fold_losses": fold_losses,
+                    "train_aucs": train_aucs,
+                    "test_auc": test_auc,
+                    "fold_test_aucs": fold_aucs,
+                }
 
     # Save and plot
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for name, fold_losses in mlp_losses.items():
-        # Save JSON
-        json_path = output_dir / f"{name}_losses.json"
-        with open(json_path, "w") as f:
-            json.dump(fold_losses, f)
-        print(f"Saved {name} losses to: {json_path}")
+    # Print train vs test AUC comparison
+    print("\n" + "=" * 70)
+    print("MLP TRAIN vs TEST AUC COMPARISON (Overfitting Diagnostic)")
+    print("=" * 70)
+    print(f"{'Method':<30} {'Train AUC':>12} {'Test AUC':>12} {'Gap':>10}")
+    print("-" * 70)
 
-        # Plot
+    for name, diag in mlp_diagnostics.items():
+        train_aucs = [a for a in diag["train_aucs"] if a is not None]
+        mean_train_auc = np.mean(train_aucs) if train_aucs else None
+        test_auc = diag["test_auc"]
+
+        if mean_train_auc is not None and test_auc is not None:
+            gap = mean_train_auc - test_auc
+            print(f"{name:<30} {mean_train_auc:>12.4f} {test_auc:>12.4f} {gap:>+10.4f}")
+        else:
+            train_str = f"{mean_train_auc:.4f}" if mean_train_auc else "N/A"
+            test_str = f"{test_auc:.4f}" if test_auc else "N/A"
+            print(f"{name:<30} {train_str:>12} {test_str:>12} {'N/A':>10}")
+
+    print("=" * 70)
+    print("(Large positive gap = overfitting)")
+    print()
+
+    for name, diag in mlp_diagnostics.items():
+        fold_losses = diag["fold_losses"]
+
+        # Save JSON with all diagnostics
+        json_path = output_dir / f"{name}_diagnostics.json"
+        with open(json_path, "w") as f:
+            json.dump(diag, f, indent=2)
+        print(f"Saved {name} diagnostics to: {json_path}")
+
+        # Plot losses
         plot_path = output_dir / f"{name}_training_loss.png"
         plot_training_losses(fold_losses, plot_path, title=f"{name} Training Loss")
 
-    return mlp_losses
+    return mlp_diagnostics
 
 
 def main():

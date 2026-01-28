@@ -13,11 +13,12 @@ Architecture:
     Output: P(success) in [0, 1]
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
+from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 from experiment_ab_shared.dataset import BinomialExperimentData, ExperimentData
@@ -110,6 +111,11 @@ class MLPPredictor:
 
         # Training diagnostics
         self._training_losses: List[float] = []
+        self._train_auc: Optional[float] = None  # AUC on training data
+
+        # Training data (stored for diagnostics)
+        self._train_X: Optional[np.ndarray] = None
+        self._train_y: Optional[np.ndarray] = None
 
         # Prediction cache
         self._task_feature_cache: Dict[str, np.ndarray] = {}
@@ -186,6 +192,10 @@ class MLPPredictor:
         X = np.array(X_list, dtype=np.float32)
         y = np.array(y_list, dtype=np.float32)
 
+        # Store for diagnostics
+        self._train_X = X
+        self._train_y = y
+
         if self.verbose:
             print(f"   Training MLP: {len(X)} samples, {X.shape[1]} features")
             print(f"   Agent one-hot dim: {self._n_agents}, task feature dim: {task_features_scaled.shape[1]}")
@@ -235,8 +245,18 @@ class MLPPredictor:
 
         self._is_fitted = True
 
+        # Compute train AUC for diagnostics
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(X_tensor).cpu().numpy()
+        if len(np.unique(y)) > 1:  # Need both classes for AUC
+            self._train_auc = roc_auc_score(y, y_pred_train)
+        else:
+            self._train_auc = None
+
         if self.verbose:
-            print(f"   Final loss: {self._training_losses[-1]:.6f}")
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final loss: {self._training_losses[-1]:.6f}, Train AUC: {train_auc_str}")
 
     def predict_probability(
         self, data: ExperimentData, agent_id: str, task_id: str
@@ -291,6 +311,14 @@ class MLPPredictor:
     def get_training_losses(self) -> List[float]:
         """Return list of loss values per iteration for convergence plots."""
         return self._training_losses.copy()
+
+    def get_train_auc(self) -> Optional[float]:
+        """Return AUC computed on training data after fit().
+
+        This is useful for diagnosing overfitting: if train AUC >> test AUC,
+        the model is overfitting to the training data.
+        """
+        return self._train_auc
 
     @property
     def name(self) -> str:
