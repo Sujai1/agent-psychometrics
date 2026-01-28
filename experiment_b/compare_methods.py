@@ -42,6 +42,7 @@ from experiment_b.shared import (
     collect_grouped_ridge_predictions,
     collect_feature_irt_predictions,
     collect_sad_irt_predictions,
+    collect_ordered_logit_irt_predictions,
     # Frontier evaluation
     setup_date_forecasting,
     evaluate_all_frontier_definitions,
@@ -182,6 +183,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Show all individual SAD-IRT runs instead of compressing to 'SAD-IRT (best)'",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="PyTorch device for Ordered Logit IRT (default: cpu, use 'cuda' for GPU)",
+    )
     return parser.parse_args()
 
 
@@ -309,6 +316,22 @@ def main():
             print(f"  Difficulty drift (mean): {diag['difficulty_drift_mean']:.4f}")
             print(f"  Ability drift (mean): {diag['ability_drift_mean']:.4f}")
             print(f"  Feature contribution: {diag['feature_contribution_ratio']:.2%}")
+
+    # Run Ordered Logit IRT (if rubric data available)
+    rubric_path = Path("chris_output/trajectory_features/raw_features_500tasks_6agents.csv")
+    if rubric_path.exists() and data.baseline_abilities is not None:
+        ordered_logit_preds = collect_ordered_logit_irt_predictions(
+            rubric_path=rubric_path,
+            train_task_ids=data.train_task_ids,
+            ground_truth_b=data.baseline_ground_truth_b,
+            train_responses=data.train_responses,
+            baseline_abilities_df=data.baseline_abilities,
+            all_task_ids=data.config.all_task_ids,
+            frontier_task_ids=primary_frontier_tasks,
+            verbose=args.verbose,
+            device=args.device,
+        )
+        raw_predictions.update(ordered_logit_preds)
 
     # =========================================================================
     # 3. Setup date forecasting (optional)

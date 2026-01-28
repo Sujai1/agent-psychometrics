@@ -43,6 +43,12 @@ from experiment_b.shared.prediction_methods import (
     collect_sad_irt_predictions,
 )
 
+# Ordered Logit IRT
+from experiment_b.shared.ordered_logit_predictor import (
+    OrderedLogitIRTPredictor,
+    collect_ordered_logit_irt_predictions,
+)
+
 # Frontier evaluation
 from experiment_b.shared.frontier_evaluation import (
     DateForecastingData,
@@ -134,6 +140,9 @@ __all__ = [
     "collect_grouped_ridge_predictions",
     "collect_feature_irt_predictions",
     "collect_sad_irt_predictions",
+    # ordered_logit_predictor
+    "OrderedLogitIRTPredictor",
+    "collect_ordered_logit_irt_predictions",
     # frontier_evaluation
     "DateForecastingData",
     "setup_date_forecasting",
