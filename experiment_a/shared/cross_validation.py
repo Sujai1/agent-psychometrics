@@ -10,8 +10,11 @@ Key concepts:
 Design principle: A single unified CV function handles ALL predictor types.
 Each predictor implements a protocol that provides predicted probabilities
 for (agent, task) pairs, allowing flexibility in how predictions are made.
+
+Parallelization: Use n_jobs parameter to parallelize across folds.
 """
 
+import copy
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
 
@@ -178,6 +181,79 @@ def k_fold_split_tasks(
     return result
 
 
+def _run_single_fold(
+    predictor: CVPredictor,
+    fold_idx: int,
+    train_tasks: List[str],
+    test_tasks: List[str],
+    load_fold_data: Callable[[List[str], List[str], int], ExperimentData],
+    compute_pass_rate_mse: bool,
+    expansion_mode: Optional[str],
+    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]],
+    diagnostics_extractor: Optional[Callable[[CVPredictor, int], Any]],
+) -> Dict[str, Any]:
+    """Run a single fold of cross-validation.
+
+    This is a helper function that can be called in parallel.
+    It creates a fresh copy of the predictor to avoid state conflicts.
+
+    Returns:
+        Dict with 'auc', 'mse' (optional), and 'diagnostics' (optional)
+    """
+    # Deep copy predictor to avoid state conflicts in parallel execution
+    predictor_copy = copy.deepcopy(predictor)
+
+    # Load fold-specific data
+    data = load_fold_data(train_tasks, test_tasks, fold_idx)
+
+    # Train predictor
+    predictor_copy.fit(data, train_tasks)
+
+    # Extract diagnostics if callback provided
+    diagnostics = None
+    if diagnostics_extractor is not None:
+        diagnostics = diagnostics_extractor(predictor_copy, fold_idx)
+
+    # Evaluate on test tasks
+    y_true: List[int] = []
+    y_scores: List[float] = []
+
+    for task_id in test_tasks:
+        for agent_id in data.train_abilities.index:
+            if agent_id not in data.responses:
+                continue
+            if task_id not in data.responses[agent_id]:
+                continue
+
+            # Get predicted probability
+            prob = predictor_copy.predict_probability(data, agent_id, task_id)
+
+            # Expand outcomes (with optional mode override)
+            outcomes, _ = expand_with_mode(
+                data, agent_id, task_id, prob, expansion_mode, binomial_responses
+            )
+            y_true.extend(outcomes)
+            y_scores.extend([prob] * len(outcomes))
+
+    # Compute AUC
+    if len(y_true) >= 2 and len(set(y_true)) >= 2:
+        auc = float(roc_auc_score(y_true, y_scores))
+    else:
+        auc = None
+
+    # Optionally compute pass rate MSE
+    mse = None
+    if compute_pass_rate_mse:
+        mse = _compute_pass_rate_mse_for_fold(predictor_copy, data, test_tasks)
+
+    return {
+        "fold_idx": fold_idx,
+        "auc": auc,
+        "mse": mse,
+        "diagnostics": diagnostics,
+    }
+
+
 def run_cv(
     predictor: CVPredictor,
     folds: List[Tuple[List[str], List[str]]],
@@ -187,11 +263,12 @@ def run_cv(
     expansion_mode: Optional[str] = None,
     binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
     diagnostics_extractor: Optional[Callable[[CVPredictor, int], Any]] = None,
+    n_jobs: int = 1,
 ) -> CrossValidationResult:
     """Run cross-validation for any predictor.
 
     This is a unified CV function that works with any predictor implementing
-    the CVPredictor protocol.
+    the CVPredictor protocol. Supports parallel execution across folds.
 
     Args:
         predictor: Any predictor implementing CVPredictor protocol
@@ -205,63 +282,65 @@ def run_cv(
         diagnostics_extractor: Optional callback to extract diagnostics from predictor after
             each fold. Called as diagnostics_extractor(predictor, fold_idx) after fitting.
             Results are collected in CrossValidationResult.fold_diagnostics.
+        n_jobs: Number of parallel jobs for fold execution. 1 = sequential, -1 = all cores.
 
     Returns:
         CrossValidationResult with mean/std AUC across folds
     """
-    fold_aucs: List[Optional[float]] = []
-    fold_mses: List[Optional[float]] = []
-    fold_diagnostics: List[Any] = []
+    if n_jobs == 1:
+        # Sequential execution (original behavior)
+        fold_aucs: List[Optional[float]] = []
+        fold_mses: List[Optional[float]] = []
+        fold_diagnostics: List[Any] = []
 
-    for fold_idx, (train_tasks, test_tasks) in enumerate(folds):
-        # Load fold-specific data
-        data = load_fold_data(train_tasks, test_tasks, fold_idx)
+        for fold_idx, (train_tasks, test_tasks) in enumerate(folds):
+            result = _run_single_fold(
+                predictor, fold_idx, train_tasks, test_tasks,
+                load_fold_data, compute_pass_rate_mse, expansion_mode,
+                binomial_responses, diagnostics_extractor
+            )
+            fold_aucs.append(result["auc"])
+            if compute_pass_rate_mse:
+                fold_mses.append(result["mse"])
+            if diagnostics_extractor is not None:
+                fold_diagnostics.append(result["diagnostics"])
 
-        # Train predictor
-        predictor.fit(data, train_tasks)
+            if verbose:
+                auc = result["auc"]
+                if auc is not None:
+                    print(f"      Fold {fold_idx + 1}: AUC = {auc:.4f}")
+                else:
+                    print(f"      Fold {fold_idx + 1}: AUC = N/A")
+    else:
+        # Parallel execution using joblib
+        from joblib import Parallel, delayed
 
-        # Extract diagnostics if callback provided
-        if diagnostics_extractor is not None:
-            fold_diagnostics.append(diagnostics_extractor(predictor, fold_idx))
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(_run_single_fold)(
+                predictor, fold_idx, train_tasks, test_tasks,
+                load_fold_data, compute_pass_rate_mse, expansion_mode,
+                binomial_responses, diagnostics_extractor
+            )
+            for fold_idx, (train_tasks, test_tasks) in enumerate(folds)
+        )
 
-        # Evaluate on test tasks
-        y_true: List[int] = []
-        y_scores: List[float] = []
+        # Sort by fold_idx to ensure consistent ordering
+        results = sorted(results, key=lambda x: x["fold_idx"])
 
-        for task_id in test_tasks:
-            for agent_id in data.train_abilities.index:
-                if agent_id not in data.responses:
-                    continue
-                if task_id not in data.responses[agent_id]:
-                    continue
-
-                # Get predicted probability
-                prob = predictor.predict_probability(data, agent_id, task_id)
-
-                # Expand outcomes (with optional mode override)
-                outcomes, _ = expand_with_mode(
-                    data, agent_id, task_id, prob, expansion_mode, binomial_responses
-                )
-                y_true.extend(outcomes)
-                y_scores.extend([prob] * len(outcomes))
-
-        # Compute AUC
-        if len(y_true) >= 2 and len(set(y_true)) >= 2:
-            auc = float(roc_auc_score(y_true, y_scores))
-        else:
-            auc = None
-        fold_aucs.append(auc)
-
-        # Optionally compute pass rate MSE
-        if compute_pass_rate_mse:
-            mse = _compute_pass_rate_mse_for_fold(predictor, data, test_tasks)
-            fold_mses.append(mse)
+        fold_aucs = [r["auc"] for r in results]
+        fold_mses = [r["mse"] for r in results] if compute_pass_rate_mse else []
+        fold_diagnostics = (
+            [r["diagnostics"] for r in results]
+            if diagnostics_extractor is not None else []
+        )
 
         if verbose:
-            if auc is not None:
-                print(f"      Fold {fold_idx + 1}: AUC = {auc:.4f}")
-            else:
-                print(f"      Fold {fold_idx + 1}: AUC = N/A")
+            for r in results:
+                auc = r["auc"]
+                if auc is not None:
+                    print(f"      Fold {r['fold_idx'] + 1}: AUC = {auc:.4f}")
+                else:
+                    print(f"      Fold {r['fold_idx'] + 1}: AUC = N/A")
 
     # Aggregate results
     valid_aucs = [a for a in fold_aucs if a is not None]

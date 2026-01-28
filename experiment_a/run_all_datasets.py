@@ -85,6 +85,8 @@ def run_single_dataset(
     unified_judge_suffix: str = "",
     output_base: Optional[Path] = None,
     k_folds: int = 5,
+    n_jobs_methods: int = 1,
+    n_jobs_folds: int = 1,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_a on a single dataset and return results.
 
@@ -94,6 +96,8 @@ def run_single_dataset(
         unified_judge_suffix: Suffix to append to unified judge directory (e.g., '_core').
         output_base: Base directory for outputs.
         k_folds: Number of CV folds.
+        n_jobs_methods: Number of parallel jobs for method execution.
+        n_jobs_folds: Number of parallel jobs for fold execution.
 
     Returns:
         Tuple of (dataset_name, results_dict).
@@ -151,6 +155,8 @@ def run_single_dataset(
             config, spec, root, k_folds,
             metadata_loader=None,
             include_feature_irt=False,
+            n_jobs_methods=n_jobs_methods,
+            n_jobs_folds=n_jobs_folds,
         )
         return dataset_config.name, results
 
@@ -335,7 +341,19 @@ def main():
         "--max_workers",
         type=int,
         default=4,
-        help="Maximum parallel workers (default: 4)",
+        help="Maximum parallel workers for datasets (default: 4)",
+    )
+    parser.add_argument(
+        "--n_jobs_methods",
+        type=int,
+        default=1,
+        help="Parallel jobs for methods within each dataset (default: 1 = sequential)",
+    )
+    parser.add_argument(
+        "--n_jobs_folds",
+        type=int,
+        default=1,
+        help="Parallel jobs for folds within each method (default: 1 = sequential)",
     )
 
     args = parser.parse_args()
@@ -351,6 +369,7 @@ def main():
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
     print(f"Unified judge features: {args.unified_judge}")
     print(f"K-folds: {args.k_folds}")
+    print(f"Parallelization: datasets={args.max_workers}, methods={args.n_jobs_methods}, folds={args.n_jobs_folds}")
     print()
 
     all_results: Dict[str, Dict[str, Optional[float]]] = {}
@@ -365,6 +384,8 @@ def main():
                 unified_judge_suffix=args.unified_judge_suffix,
                 output_base=args.output_dir,
                 k_folds=args.k_folds,
+                n_jobs_methods=args.n_jobs_methods,
+                n_jobs_folds=args.n_jobs_folds,
             )
             metrics = extract_metrics(results)
             all_results[name] = metrics
@@ -388,6 +409,8 @@ def main():
                     args.unified_judge_suffix,
                     args.output_dir,
                     args.k_folds,
+                    args.n_jobs_methods,
+                    args.n_jobs_folds,
                 ): config.name
                 for config in datasets_to_run
             }
