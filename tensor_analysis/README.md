@@ -49,6 +49,22 @@ Trajectory data is only available for SWE-bench datasets:
 
 GSO has notably higher PC2 variance, suggesting meaningful structure beyond overall ability.
 
+### PC1/PC2 Structure: The Guttman Effect
+
+The PC1-PC2 scatter plot for SWE-bench Verified shows a striking inverted parabola pattern. This is the **Guttman effect** (also called horseshoe/arch effect), a well-known artifact in PCA when data is truly unidimensional.
+
+**Mathematical basis:** When data lies along a single latent factor, the kth principal component becomes an orthogonal polynomial of degree k in the first factor ([Guttman 1953](https://www.researchgate.net/publication/228760485_The_Guttman_effect_Its_interpretation_and_a_new_redressing_method), [Benzécri 1973](https://pmc.ncbi.nlm.nih.gov/articles/PMC9196093/)):
+- PC1 ≈ linear function of latent factor
+- PC2 ≈ quadratic polynomial (degree 2)
+- PC3 ≈ cubic polynomial (degree 3)
+
+**Our findings:**
+- PC1 vs IRT ability: tanh fit R²=0.998 (much better than linear R²=0.948)
+- PC2 vs IRT ability: inverted Gaussian R²=0.923 (captures quadratic structure)
+- PC1 ≈ Score (r=0.9946), and Score ≈ TCC(θ) ≈ tanh(θ) by IRT theory
+
+**Interpretation:** The parabolic PC2 is NOT a meaningful second dimension — it's a mathematical consequence of applying PCA to unidimensional data. This provides independent validation that SWE-bench Verified is truly unidimensional, consistent with 1D IRT being best by AIC/BIC.
+
 ### Trajectory EDA
 
 **Failures have ~55% longer trajectories than successes:**
