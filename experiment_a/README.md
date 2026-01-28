@@ -213,6 +213,7 @@ class CVPredictor(Protocol):
 | `pipeline.py` | `ExperimentSpec`, `CVPredictorConfig`, `run_experiment_main()` |
 | `cross_validation.py` | `CVPredictor` protocol, `run_cv()`, `k_fold_split_tasks()` |
 | `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `AgentOnlyPredictor`, `DifficultyPredictorAdapter`, `FeatureIRTCVPredictor` |
+| `mlp_predictor.py` | `MLPPredictor` - direct success prediction via neural network |
 
 ### SWE-bench Verified (`experiment_a/swebench/`)
 
@@ -287,6 +288,37 @@ Key differences from Grouped Ridge:
 - **Works best when sources are complementary**: Shows improvement on GSO (+0.4% over Embedding alone) but not on SWE-bench
 
 **When to use**: Stacked (Emb → LLM) is recommended for smaller datasets (like GSO) where it outperforms Grouped Ridge. For larger datasets (like SWE-bench), Grouped Ridge performs slightly better.
+
+### MLP Predictor (Direct Success Prediction)
+
+Unlike the difficulty-based predictors above, the MLP directly predicts P(success) for (agent, task) pairs without going through IRT difficulty:
+
+```
+Input: [agent_one_hot | task_features]
+  → Linear(hidden_size) → ReLU → Linear(1) → Sigmoid
+Output: P(success) ∈ [0, 1]
+```
+
+**Key differences from difficulty-based methods:**
+- **No IRT formula**: Directly learns P(success), not task difficulty β
+- **Agent-aware**: Uses one-hot agent encoding, so the model sees which agent is being evaluated
+- **End-to-end**: Trained with binary cross-entropy on actual success/failure labels
+
+**Architecture:**
+- Input: `[agent_one_hot (n_agents) | scaled_task_features (feature_dim)]`
+- Hidden layer: 64 units (32 for low-dim features like LLM Judge)
+- Training: Adam with weight_decay=0.01 (L2 regularization), 200 epochs
+
+**Three variants:**
+- `MLP (Embedding)`: Uses task embeddings only
+- `MLP (LLM Judge)`: Uses LLM judge features only
+- `MLP (Grouped)`: Uses combined embedding + LLM judge features
+
+**Training loss tracking:** The MLP predictor tracks loss per iteration for convergence verification. Use `plot_mlp_training_loss.py` to visualize:
+
+```bash
+python -m experiment_a.plot_mlp_training_loss --losses_json path/to/losses.json
+```
 
 ## Feature Sources
 

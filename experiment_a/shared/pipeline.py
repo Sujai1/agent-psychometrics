@@ -54,6 +54,7 @@ from experiment_a.shared.baselines import (
     FeatureIRTCVPredictor,
     FullFeatureIRTAdapter,
 )
+from experiment_a.shared.mlp_predictor import MLPPredictor
 
 # Default SWE-bench LLM Judge features (all 9 semantic features)
 SWEBENCH_LLM_JUDGE_FEATURES = [
@@ -307,6 +308,42 @@ def build_cv_predictors(
                 predictor=DifficultyPredictorAdapter(stacked_predictor),
                 name="stacked_residual",
                 display_name="Stacked (Emb → LLM)",
+            )
+        )
+
+    # MLP predictors (directly predict P(success) without IRT)
+    # MLP with Embedding features
+    if "Embedding" in source_by_name:
+        configs.append(
+            CVPredictorConfig(
+                predictor=MLPPredictor(source_by_name["Embedding"]),
+                name="mlp_embedding",
+                display_name="MLP (Embedding)",
+            )
+        )
+
+    # MLP with LLM Judge features
+    if "LLM Judge" in source_by_name:
+        configs.append(
+            CVPredictorConfig(
+                predictor=MLPPredictor(source_by_name["LLM Judge"], hidden_size=32),
+                name="mlp_llm_judge",
+                display_name="MLP (LLM Judge)",
+            )
+        )
+
+    # MLP with combined features
+    if len(feature_source_list) >= 2:
+        # Reuse the grouped source if available, otherwise create one
+        feature_sources = [source for _, source in feature_source_list]
+        mlp_grouped_source = GroupedFeatureSource([
+            RegularizedFeatureSource(src) for src in feature_sources
+        ])
+        configs.append(
+            CVPredictorConfig(
+                predictor=MLPPredictor(mlp_grouped_source),
+                name="mlp_grouped",
+                display_name=f"MLP ({mlp_grouped_source.name})",
             )
         )
 
