@@ -97,7 +97,7 @@ def main():
         display_name="Ridge (Embedding)",
     ))
 
-    # Daria-style: mini-batch, 10 epochs, no early stopping, random init
+    # Daria-style: mini-batch, 10 epochs, no early stopping, random init (scaled features)
     configs.append(CVPredictorConfig(
         predictor=AgentEmbeddingPredictor(
             embedding_source,
@@ -111,9 +111,30 @@ def main():
             init_from_irt=False,  # Random init
             early_stopping=False,  # No early stopping
             verbose=True,
+            scale_features=True,  # Our default: StandardScaler
         ),
-        name="daria_style_random",
-        display_name="Daria-style (mini-batch, random)",
+        name="daria_style_scaled_random",
+        display_name="Daria-style (scaled, random)",
+    ))
+
+    # Daria-style: raw features (matches Daria's code exactly)
+    configs.append(CVPredictorConfig(
+        predictor=AgentEmbeddingPredictor(
+            embedding_source,
+            agent_emb_dim=64,
+            hidden_sizes=[256, 128],
+            dropout=0.1,
+            learning_rate=0.001,
+            weight_decay=0.01,
+            n_epochs=10,
+            batch_size=256,
+            init_from_irt=False,
+            early_stopping=False,
+            verbose=True,
+            scale_features=False,  # Match Daria: no scaling
+        ),
+        name="daria_style_raw_random",
+        display_name="Daria-style (raw, random)",
     ))
 
     # Daria-style with IRT init for comparison
@@ -130,9 +151,10 @@ def main():
             init_from_irt=True,
             early_stopping=False,
             verbose=True,
+            scale_features=True,
         ),
         name="daria_style_irt",
-        display_name="Daria-style (mini-batch, IRT)",
+        display_name="Daria-style (scaled, IRT)",
     ))
 
     # Full-batch baseline (our previous best random: high LR)

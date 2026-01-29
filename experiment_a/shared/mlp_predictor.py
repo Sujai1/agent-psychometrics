@@ -2004,6 +2004,7 @@ class AgentEmbeddingPredictor:
         early_stopping: bool = True,
         val_fraction: float = 0.1,
         patience: int = 30,
+        scale_features: bool = True,  # Set to False to match Daria's raw embeddings
     ):
         if hidden_sizes is None:
             hidden_sizes = [64, 32]
@@ -2022,6 +2023,7 @@ class AgentEmbeddingPredictor:
         self.early_stopping = early_stopping
         self.val_fraction = val_fraction
         self.patience = patience
+        self.scale_features = scale_features
 
         self._model: Optional[AgentEmbeddingModel] = None
         self._scaler: Optional[StandardScaler] = None
@@ -2041,12 +2043,16 @@ class AgentEmbeddingPredictor:
         self._n_agents = len(all_agents)
 
         task_features = self.source.get_features(train_task_ids)
-        self._scaler = StandardScaler()
-        task_features_scaled = self._scaler.fit_transform(task_features)
-        self._feature_dim = task_features_scaled.shape[1]
+        if self.scale_features:
+            self._scaler = StandardScaler()
+            task_features_processed = self._scaler.fit_transform(task_features)
+        else:
+            self._scaler = None
+            task_features_processed = task_features
+        self._feature_dim = task_features_processed.shape[1]
 
         task_to_features = {
-            task_id: task_features_scaled[i]
+            task_id: task_features_processed[i]
             for i, task_id in enumerate(train_task_ids)
         }
 
@@ -2261,9 +2267,12 @@ class AgentEmbeddingPredictor:
     def _cache_test_task_features(self, test_tasks: List[str]) -> None:
         """Cache scaled features for test tasks."""
         features = self.source.get_features(test_tasks)
-        features_scaled = self._scaler.transform(features)
+        if self.scale_features and self._scaler is not None:
+            features_processed = self._scaler.transform(features)
+        else:
+            features_processed = features
         for i, task_id in enumerate(test_tasks):
-            self._task_feature_cache[task_id] = features_scaled[i]
+            self._task_feature_cache[task_id] = features_processed[i]
 
     def get_train_auc(self) -> Optional[float]:
         return self._train_auc
