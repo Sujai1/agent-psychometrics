@@ -14,6 +14,9 @@ that help beat Ridge regression.
 Usage:
     python -m experiment_a.mlp_ablation.interaction_sweep
     python -m experiment_a.mlp_ablation.interaction_sweep --quick
+    python -m experiment_a.mlp_ablation.interaction_sweep --part 1  # Two-Tower, Bilinear
+    python -m experiment_a.mlp_ablation.interaction_sweep --part 2  # NCF, Multiplicative
+    python -m experiment_a.mlp_ablation.interaction_sweep --part 3  # Agent Embedding
     sbatch experiment_a/mlp_ablation/slurm_interaction_sweep.sh
 """
 
@@ -60,6 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description="Interaction architecture sweep")
     parser.add_argument("--quick", action="store_true", help="Quick test with fewer configs")
     parser.add_argument("--k_folds", type=int, default=5, help="Number of CV folds")
+    parser.add_argument("--part", type=int, choices=[1, 2, 3], help="Run specific part (1=Two-Tower/Bilinear, 2=NCF/Multiplicative, 3=AgentEmb)")
     args = parser.parse_args()
 
     config = ExperimentAConfig()
@@ -251,6 +255,25 @@ def main():
                 display_name=f"AgentEmb (d={agent_emb_dim}, h={h_str})",
             ))
 
+    # Filter by part if specified (for parallel SLURM execution)
+    if args.part is not None:
+        baseline_names = ["oracle", "ridge", "fullmlp_64"]
+        if args.part == 1:
+            # Part 1: Baselines + Two-Tower + Bilinear
+            part_prefixes = ["two_tower", "bilinear"]
+            configs = [c for c in configs if c.name in baseline_names or any(c.name.startswith(p) for p in part_prefixes)]
+            print(f"Running Part 1: Baselines, Two-Tower, Bilinear")
+        elif args.part == 2:
+            # Part 2: NCF + Multiplicative
+            part_prefixes = ["ncf", "multiplicative"]
+            configs = [c for c in configs if any(c.name.startswith(p) for p in part_prefixes)]
+            print(f"Running Part 2: NCF, Multiplicative")
+        elif args.part == 3:
+            # Part 3: Agent Embedding
+            part_prefixes = ["agent_emb"]
+            configs = [c for c in configs if any(c.name.startswith(p) for p in part_prefixes)]
+            print(f"Running Part 3: Agent Embedding")
+
     if args.quick:
         # Filter to just a few representative configs
         quick_names = ["oracle", "ridge", "fullmlp_64",
@@ -372,7 +395,12 @@ def main():
 
     output_dir = ROOT / "chris_output/experiment_a/mlp_embedding"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "interaction_sweep.json"
+
+    # Use part-specific filename if running a specific part
+    if args.part is not None:
+        output_path = output_dir / f"interaction_sweep_part{args.part}.json"
+    else:
+        output_path = output_dir / "interaction_sweep.json"
 
     with open(output_path, "w") as f:
         json.dump(convert_numpy(results), f, indent=2)
