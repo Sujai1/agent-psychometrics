@@ -162,6 +162,11 @@ def build_cv_predictors(
         if getattr(config, "trajectory_features_path", None) is not None
         else None
     )
+    env_features_path = (
+        root / config.env_features_path
+        if getattr(config, "env_features_path", None) is not None
+        else None
+    )
 
     # Build feature sources once using shared utility (verbose=False to avoid extra output)
     feature_source_list = build_feature_sources(
@@ -169,6 +174,7 @@ def build_cv_predictors(
         llm_judge_path=llm_judge_path,
         llm_judge_feature_cols=llm_judge_features,
         trajectory_features_path=trajectory_path,
+        env_features_path=env_features_path,
         verbose=False,
     )
 
@@ -788,6 +794,12 @@ def create_main_parser(experiment_name: str, default_output_dir: str) -> argpars
         help="Max features to select for LLM Judge (default: None = all)",
     )
     parser.add_argument(
+        "--env_features_path",
+        type=str,
+        default=None,
+        help="Path to environment features CSV file",
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         default=default_output_dir,
@@ -892,6 +904,8 @@ def run_experiment_main(
         config_kwargs["llm_judge_features_path"] = Path(args.llm_judge_features_path)
     if args.llm_judge_max_features is not None:
         config_kwargs["llm_judge_max_features"] = args.llm_judge_max_features
+    if args.env_features_path is not None:
+        config_kwargs["env_features_path"] = Path(args.env_features_path)
     if args.items_path:
         config_kwargs["items_path"] = Path(args.items_path)
     if args.abilities_path:

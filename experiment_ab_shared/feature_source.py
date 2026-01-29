@@ -571,6 +571,7 @@ def build_feature_sources(
     llm_judge_feature_cols: Optional[List[str]] = None,
     trajectory_features_path: Optional[Path] = None,
     trajectory_feature_cols: Optional[List[str]] = None,
+    env_features_path: Optional[Path] = None,
     verbose: bool = True,
 ) -> List[Tuple[str, TaskFeatureSource]]:
     """Build list of available feature sources from paths.
@@ -585,6 +586,7 @@ def build_feature_sources(
         trajectory_features_path: Path to trajectory features CSV (None to skip)
         trajectory_feature_cols: Optional list of feature columns for trajectory.
             If None, auto-detects numeric columns from CSV.
+        env_features_path: Path to environment features CSV (None to skip)
         verbose: Print messages about missing paths (default True)
 
     Returns:
@@ -614,5 +616,13 @@ def build_feature_sources(
         ))
     elif verbose and trajectory_features_path:
         print(f"\nTrajectory features not found: {trajectory_features_path}")
+
+    if env_features_path and env_features_path.exists():
+        sources.append((
+            "Environment",
+            CSVFeatureSource(env_features_path, name="Environment"),
+        ))
+    elif verbose and env_features_path:
+        print(f"\nEnvironment features not found: {env_features_path}")
 
     return sources
