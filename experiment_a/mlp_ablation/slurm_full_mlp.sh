@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=full_mlp
-#SBATCH --output=full_mlp_%j_%a.out
-#SBATCH --error=full_mlp_%j_%a.err
+#SBATCH --output=%x_%j_%a.out
+#SBATCH --error=%x_%j_%a.err
 #SBATCH --time=6:00:00
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
