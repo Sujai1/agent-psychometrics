@@ -85,11 +85,15 @@ def main():
 
     def load_fold_data(train_tasks, test_tasks, fold_idx):
         return load_dataset_for_fold(
-            train_tasks=train_tasks,
-            test_tasks=test_tasks,
             abilities_path=ROOT / config.abilities_path,
             items_path=ROOT / config.items_path,
             responses_path=ROOT / config.responses_path,
+            train_tasks=train_tasks,
+            test_tasks=test_tasks,
+            fold_idx=fold_idx,
+            k_folds=args.k_folds,
+            split_seed=config.split_seed,
+            is_binomial=False,
         )
 
     # Training parameters (use best from previous sweeps)
