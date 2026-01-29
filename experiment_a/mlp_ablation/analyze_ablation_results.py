@@ -159,7 +159,7 @@ def main():
         print(f"Best IRT init:    {best_irt[1]['mean_auc']:.4f} ({best_irt[1]['display_name']})")
 
     if random_only and irt_only:
-        gap = best_irt[1]['mean_auc'] - best_random[0][1]['mean_auc']
+        gap = best_irt[1]['mean_auc'] - best_random[1]['mean_auc']
         print(f"Gap (IRT - random): {gap:+.4f}")
 
     if "ridge" in all_results and random_only:
