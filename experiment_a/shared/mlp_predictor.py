@@ -743,8 +743,332 @@ class MLPPredictor:
         return f"MLP ({self.source.name})"
 
 
+# ============================================================================
+# NEW INTERACTION ARCHITECTURES (Part 5 experiments)
+# ============================================================================
+
+
+class TwoTowerModel(nn.Module):
+    """Two-tower architecture with dot product scoring.
+
+    Architecture:
+        Agent tower: agent_one_hot → Linear → ReLU → agent_repr (emb_dim)
+        Task tower: task_features → Linear → ReLU → task_repr (emb_dim)
+        Score: dot(agent_repr, task_repr) + agent_bias + task_bias
+        Output: sigmoid(score)
+
+    This is similar to recommendation systems - agents and tasks are embedded
+    into the same space, and compatibility is measured by dot product.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        emb_dim: int = 32,
+        agent_hidden: int = 64,
+        task_hidden: int = 64,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+        self.emb_dim = emb_dim
+
+        # Agent tower: one_hot → hidden → embedding
+        self.agent_tower = nn.Sequential(
+            nn.Linear(n_agents, agent_hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(agent_hidden, emb_dim),
+        )
+
+        # Task tower: features → hidden → embedding
+        self.task_tower = nn.Sequential(
+            nn.Linear(feature_dim, task_hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(task_hidden, emb_dim),
+        )
+
+        # Bias terms (optional, can help calibration)
+        self.agent_bias = nn.Linear(n_agents, 1, bias=False)
+        self.task_bias = nn.Linear(feature_dim, 1, bias=False)
+        self.global_bias = nn.Parameter(torch.zeros(1))
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            x: Input tensor of shape (batch, n_agents + feature_dim)
+               Layout: [agent_one_hot | task_features]
+        """
+        agent_one_hot = x[:, :self.n_agents]
+        task_features = x[:, self.n_agents:]
+
+        # Get embeddings
+        agent_emb = self.agent_tower(agent_one_hot)  # (batch, emb_dim)
+        task_emb = self.task_tower(task_features)    # (batch, emb_dim)
+
+        # Dot product score
+        dot_score = (agent_emb * task_emb).sum(dim=1)  # (batch,)
+
+        # Add biases
+        agent_b = self.agent_bias(agent_one_hot).squeeze(-1)
+        task_b = self.task_bias(task_features).squeeze(-1)
+        score = dot_score + agent_b + task_b + self.global_bias
+
+        return self.sigmoid(score)
+
+
+class BilinearModel(nn.Module):
+    """Bilinear interaction model.
+
+    Architecture:
+        Agent embedding: agent_one_hot → Linear → agent_emb (agent_dim)
+        Task embedding: task_features → Linear → task_emb (task_dim)
+        Score: agent_emb^T @ W @ task_emb + biases
+        Output: sigmoid(score)
+
+    The bilinear form W allows rich agent-task interactions.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        agent_dim: int = 32,
+        task_dim: int = 32,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+
+        # Agent encoder
+        self.agent_encoder = nn.Sequential(
+            nn.Linear(n_agents, agent_dim),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # Task encoder
+        self.task_encoder = nn.Sequential(
+            nn.Linear(feature_dim, task_dim),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # Bilinear interaction matrix
+        self.bilinear = nn.Bilinear(agent_dim, task_dim, 1, bias=True)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        agent_one_hot = x[:, :self.n_agents]
+        task_features = x[:, self.n_agents:]
+
+        agent_emb = self.agent_encoder(agent_one_hot)  # (batch, agent_dim)
+        task_emb = self.task_encoder(task_features)    # (batch, task_dim)
+
+        # Bilinear: agent_emb^T @ W @ task_emb + bias
+        score = self.bilinear(agent_emb, task_emb).squeeze(-1)
+
+        return self.sigmoid(score)
+
+
+class NCFModel(nn.Module):
+    """Neural Collaborative Filtering model.
+
+    Combines two pathways:
+    1. GMF (Generalized Matrix Factorization): agent_emb ⊙ task_emb → score
+    2. MLP: concat(agent_emb, task_emb) → hidden → score
+
+    Final: weighted combination of both scores.
+
+    Reference: He et al., "Neural Collaborative Filtering" (WWW 2017)
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        gmf_dim: int = 32,
+        mlp_agent_dim: int = 32,
+        mlp_task_dim: int = 32,
+        mlp_hidden: int = 32,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+
+        # GMF pathway embeddings
+        self.gmf_agent = nn.Linear(n_agents, gmf_dim)
+        self.gmf_task = nn.Linear(feature_dim, gmf_dim)
+
+        # MLP pathway embeddings
+        self.mlp_agent = nn.Linear(n_agents, mlp_agent_dim)
+        self.mlp_task = nn.Linear(feature_dim, mlp_task_dim)
+
+        # MLP layers
+        self.mlp = nn.Sequential(
+            nn.Linear(mlp_agent_dim + mlp_task_dim, mlp_hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+            nn.Linear(mlp_hidden, mlp_hidden // 2),
+            nn.ReLU(),
+        )
+
+        # Final prediction layer (combines GMF and MLP)
+        # GMF produces gmf_dim features (element-wise product)
+        # MLP produces mlp_hidden // 2 features
+        self.output = nn.Linear(gmf_dim + mlp_hidden // 2, 1)
+
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        agent_one_hot = x[:, :self.n_agents]
+        task_features = x[:, self.n_agents:]
+
+        # GMF pathway: element-wise product
+        gmf_agent_emb = self.gmf_agent(agent_one_hot)
+        gmf_task_emb = self.gmf_task(task_features)
+        gmf_out = gmf_agent_emb * gmf_task_emb  # (batch, gmf_dim)
+
+        # MLP pathway: concatenate then process
+        mlp_agent_emb = self.mlp_agent(agent_one_hot)
+        mlp_task_emb = self.mlp_task(task_features)
+        mlp_input = torch.cat([mlp_agent_emb, mlp_task_emb], dim=1)
+        mlp_out = self.mlp(mlp_input)  # (batch, mlp_hidden // 2)
+
+        # Combine and predict
+        combined = torch.cat([gmf_out, mlp_out], dim=1)
+        score = self.output(combined).squeeze(-1)
+
+        return self.sigmoid(score)
+
+
+class MultiplicativeModel(nn.Module):
+    """Multiplicative interaction model.
+
+    Instead of concatenating agent and task representations, uses
+    element-wise multiplication to create interaction features.
+
+    Architecture:
+        agent_repr = Linear(agent_one_hot) → (hidden_dim,)
+        task_repr = Linear(task_features) → (hidden_dim,)
+        interaction = agent_repr ⊙ task_repr (element-wise product)
+        score = Linear(interaction) → sigmoid
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        hidden_dim: int = 64,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+
+        # Agent encoder
+        self.agent_encoder = nn.Sequential(
+            nn.Linear(n_agents, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # Task encoder
+        self.task_encoder = nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # Output from multiplicative interaction
+        self.output = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim // 2, 1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        agent_one_hot = x[:, :self.n_agents]
+        task_features = x[:, self.n_agents:]
+
+        agent_repr = self.agent_encoder(agent_one_hot)
+        task_repr = self.task_encoder(task_features)
+
+        # Multiplicative interaction
+        interaction = agent_repr * task_repr
+
+        return self.output(interaction).squeeze(-1)
+
+
+class AgentEmbeddingModel(nn.Module):
+    """Model using learned low-dimensional agent embeddings instead of one-hot.
+
+    Architecture:
+        agent_emb = Embedding(agent_idx) → (emb_dim,)
+        combined = concat(agent_emb, task_features)
+        score = MLP(combined) → sigmoid
+
+    This reduces parameters from O(n_agents * hidden) to O(n_agents * emb_dim + emb_dim * hidden),
+    which can help with generalization when n_agents is large.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        agent_emb_dim: int = 32,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+        self.agent_emb_dim = agent_emb_dim
+
+        # Learned agent embeddings
+        self.agent_embedding = nn.Embedding(n_agents, agent_emb_dim)
+
+        # MLP on concatenated [agent_emb | task_features]
+        input_dim = agent_emb_dim + feature_dim
+        layers = []
+        prev_dim = input_dim
+
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_dim, hidden_size))
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            prev_dim = hidden_size
+
+        layers.append(nn.Linear(prev_dim, 1))
+        layers.append(nn.Sigmoid())
+
+        self.mlp = nn.Sequential(*layers)
+
+    def forward(self, agent_indices: torch.Tensor, task_features: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            agent_indices: Long tensor of shape (batch,) with agent indices
+            task_features: Float tensor of shape (batch, feature_dim)
+        """
+        agent_emb = self.agent_embedding(agent_indices)  # (batch, agent_emb_dim)
+        combined = torch.cat([agent_emb, task_features], dim=1)
+        return self.mlp(combined).squeeze(-1)
+
+
 class FullMLPPredictor:
-    """Full MLP that takes [agent_one_hot | task_features] as concatenated input.
 
     Unlike MLPPredictor (IRTStyleMLP) which separates agent and task processing
     with the IRT formula (θ - β), this predictor concatenates agent one-hot
@@ -1069,3 +1393,601 @@ class FullMLPPredictor:
     def name(self) -> str:
         """Human-readable predictor name."""
         return f"FullMLP ({self.source.name})"
+
+
+# ============================================================================
+# NEW INTERACTION PREDICTORS (Part 5 experiments)
+# ============================================================================
+
+
+class InteractionPredictor:
+    """Generic predictor for interaction-based models (TwoTower, Bilinear, NCF, Multiplicative).
+
+    This is a unified predictor class that can use any of the new interaction architectures.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        model_type: str = "two_tower",  # "two_tower", "bilinear", "ncf", "multiplicative"
+        emb_dim: int = 32,
+        hidden_dim: int = 64,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 500,
+        verbose: bool = False,
+        init_from_irt: bool = False,
+        early_stopping: bool = True,
+        val_fraction: float = 0.1,
+        patience: int = 30,
+    ):
+        """Initialize interaction predictor.
+
+        Args:
+            source: TaskFeatureSource providing features for tasks.
+            model_type: Type of interaction model to use.
+            emb_dim: Embedding dimension for agent/task representations.
+            hidden_dim: Hidden layer size for towers/encoders.
+            dropout: Dropout probability.
+            learning_rate: Learning rate for Adam optimizer.
+            weight_decay: L2 regularization.
+            n_epochs: Number of training epochs.
+            verbose: Print training progress.
+            init_from_irt: Initialize agent embeddings from IRT abilities.
+            early_stopping: Use validation-based early stopping.
+            val_fraction: Fraction for validation.
+            patience: Early stopping patience.
+        """
+        self.source = source
+        self.model_type = model_type
+        self.emb_dim = emb_dim
+        self.hidden_dim = hidden_dim
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        self._model: Optional[nn.Module] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+        self._train_auc: Optional[float] = None
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def _create_model(self) -> nn.Module:
+        """Create the appropriate model based on model_type."""
+        if self.model_type == "two_tower":
+            return TwoTowerModel(
+                n_agents=self._n_agents,
+                feature_dim=self._feature_dim,
+                emb_dim=self.emb_dim,
+                agent_hidden=self.hidden_dim,
+                task_hidden=self.hidden_dim,
+                dropout=self.dropout,
+            )
+        elif self.model_type == "bilinear":
+            return BilinearModel(
+                n_agents=self._n_agents,
+                feature_dim=self._feature_dim,
+                agent_dim=self.emb_dim,
+                task_dim=self.emb_dim,
+                dropout=self.dropout,
+            )
+        elif self.model_type == "ncf":
+            return NCFModel(
+                n_agents=self._n_agents,
+                feature_dim=self._feature_dim,
+                gmf_dim=self.emb_dim,
+                mlp_agent_dim=self.emb_dim,
+                mlp_task_dim=self.emb_dim,
+                mlp_hidden=self.hidden_dim,
+                dropout=self.dropout,
+            )
+        elif self.model_type == "multiplicative":
+            return MultiplicativeModel(
+                n_agents=self._n_agents,
+                feature_dim=self._feature_dim,
+                hidden_dim=self.hidden_dim,
+                dropout=self.dropout,
+            )
+        else:
+            raise ValueError(f"Unknown model_type: {self.model_type}")
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the interaction model on training data."""
+        self._task_feature_cache = {}
+
+        # Build agent mapping
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        # Get task features
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        # Build task -> features mapping
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data
+        X_list: List[np.ndarray] = []
+        y_list: List[float] = []
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                x = build_input_vector(agent_idx, self._n_agents, task_feat)
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        X_list.append(x)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        X_list.append(x)
+                        y_list.append(0.0)
+                else:
+                    X_list.append(x)
+                    y_list.append(float(response))
+
+        if len(X_list) == 0:
+            raise ValueError("No training examples found")
+
+        X = np.array(X_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training {self.model_type}: {len(X)} samples")
+            print(f"   Agents: {self._n_agents}, Features: {self._feature_dim}")
+            print(f"   emb_dim={self.emb_dim}, hidden_dim={self.hidden_dim}")
+
+        # Create model
+        self._model = self._create_model()
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        if self.verbose and device.type == "cuda":
+            print(f"   Using GPU: {torch.cuda.get_device_name(0)}")
+
+        # Initialize agent embeddings from IRT if requested
+        if self.init_from_irt:
+            self._init_agent_weights_from_irt(data)
+
+        # Convert to tensors
+        X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        # Early stopping split
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_X = X_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_X = X_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val")
+        else:
+            train_X = X_tensor
+            train_y = y_tensor
+
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_X)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_X)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1}")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: train_loss={loss_val:.4f}, val_loss={val_loss:.4f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: loss={loss_val:.4f}")
+
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(X_tensor).cpu().numpy()
+        self._train_auc = roc_auc_score(y, y_pred_train) if len(np.unique(y)) > 1 else None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final: train_auc={train_auc_str}")
+
+    def _init_agent_weights_from_irt(self, data: ExperimentData) -> None:
+        """Initialize agent-related weights from IRT abilities."""
+        with torch.no_grad():
+            if self.model_type == "two_tower":
+                # Initialize agent tower's first layer
+                layer = self._model.agent_tower[0]
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        layer.weight.data[:, idx] = ability
+            elif self.model_type == "bilinear":
+                layer = self._model.agent_encoder[0]
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        layer.weight.data[:, idx] = ability
+            elif self.model_type == "ncf":
+                # Initialize both GMF and MLP agent layers
+                for layer in [self._model.gmf_agent, self._model.mlp_agent]:
+                    for agent_id, idx in self._agent_to_idx.items():
+                        if agent_id in data.train_abilities.index:
+                            ability = float(data.train_abilities.loc[agent_id, "ability"])
+                            layer.weight.data[:, idx] = ability
+            elif self.model_type == "multiplicative":
+                layer = self._model.agent_encoder[0]
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        layer.weight.data[:, idx] = ability
+
+        if self.verbose:
+            print(f"   Initialized agent weights from IRT abilities")
+
+    def predict_probability(self, data: ExperimentData, agent_id: str, task_id: str) -> float:
+        """Predict success probability."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit first")
+
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+        x = build_input_vector(agent_idx, self._n_agents, task_feat)
+
+        device = next(self._model.parameters()).device
+        self._model.eval()
+        with torch.no_grad():
+            x_tensor = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(x_tensor).item()
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_train_auc(self) -> Optional[float]:
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        return f"{self.model_type.replace('_', ' ').title()}"
+
+
+class AgentEmbeddingPredictor:
+    """Predictor using learned low-dimensional agent embeddings.
+
+    Instead of one-hot encoding (131 dims), learns a dense agent embedding (e.g., 32 dims).
+    This reduces parameters and may help generalization.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        agent_emb_dim: int = 32,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 500,
+        verbose: bool = False,
+        init_from_irt: bool = True,
+        early_stopping: bool = True,
+        val_fraction: float = 0.1,
+        patience: int = 30,
+    ):
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.source = source
+        self.agent_emb_dim = agent_emb_dim
+        self.hidden_sizes = hidden_sizes
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        self._model: Optional[AgentEmbeddingModel] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+        self._train_auc: Optional[float] = None
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the agent embedding model."""
+        self._task_feature_cache = {}
+
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data with agent indices (not one-hot)
+        agent_indices_list: List[int] = []
+        features_list: List[np.ndarray] = []
+        y_list: List[float] = []
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(0.0)
+                else:
+                    agent_indices_list.append(agent_idx)
+                    features_list.append(task_feat)
+                    y_list.append(float(response))
+
+        if len(y_list) == 0:
+            raise ValueError("No training examples found")
+
+        agent_indices = np.array(agent_indices_list, dtype=np.int64)
+        features = np.array(features_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training AgentEmbedding: {len(y)} samples")
+            print(f"   Agents: {self._n_agents}, Features: {self._feature_dim}")
+            print(f"   agent_emb_dim={self.agent_emb_dim}, hidden_sizes={self.hidden_sizes}")
+
+        self._model = AgentEmbeddingModel(
+            n_agents=self._n_agents,
+            feature_dim=self._feature_dim,
+            agent_emb_dim=self.agent_emb_dim,
+            hidden_sizes=self.hidden_sizes,
+            dropout=self.dropout,
+        )
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        # Initialize agent embeddings from IRT
+        if self.init_from_irt:
+            with torch.no_grad():
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        # Initialize embedding to ability value (broadcast)
+                        self._model.agent_embedding.weight.data[idx, :] = ability
+            if self.verbose:
+                print(f"   Initialized agent embeddings from IRT abilities")
+
+        agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
+        features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_agent = agent_tensor[train_idx]
+            train_feat = features_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_agent = agent_tensor[val_idx]
+            val_feat = features_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val")
+        else:
+            train_agent = agent_tensor
+            train_feat = features_tensor
+            train_y = y_tensor
+
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_agent, train_feat)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_agent, val_feat)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1}")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: train_loss={loss_val:.4f}, val_loss={val_loss:.4f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: loss={loss_val:.4f}")
+
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(agent_tensor, features_tensor).cpu().numpy()
+        self._train_auc = roc_auc_score(y, y_pred_train) if len(np.unique(y)) > 1 else None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final: train_auc={train_auc_str}")
+
+    def predict_probability(self, data: ExperimentData, agent_id: str, task_id: str) -> float:
+        """Predict success probability."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit first")
+
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+
+        device = next(self._model.parameters()).device
+        self._model.eval()
+        with torch.no_grad():
+            agent_tensor = torch.tensor([agent_idx], dtype=torch.long, device=device)
+            feat_tensor = torch.tensor(task_feat, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(agent_tensor, feat_tensor).item()
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_train_auc(self) -> Optional[float]:
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        return f"AgentEmb-{self.agent_emb_dim}"
