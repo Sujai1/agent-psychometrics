@@ -663,6 +663,7 @@ class GroupedRidgePredictor:
         "Embedding": [100.0, 1000.0, 10000.0],  # High-dim: strong regularization
         "LLM Judge": [0.01, 0.1, 1.0, 10.0],    # Low-dim: weak regularization
         "Trajectory": [0.01, 0.1, 1.0, 10.0],   # Low-dim: weak regularization
+        "Environment": [0.01, 0.1, 1.0, 10.0],  # Low-dim (34 features): weak regularization
     }
 
     def __init__(
