@@ -177,7 +177,10 @@ def main():
 
     # 2. Hidden size ablation with moderate regularization
     # Using wd=1.0 since results showed underfitting, not overfitting
+    # Skip h=128 since it's already covered by weight decay sweep above
     for hidden_size in hidden_sizes:
+        if hidden_size == 128:
+            continue  # Already covered by wd sweep
         configs.append(
             CVPredictorConfig(
                 predictor=FullMLPPredictor(
@@ -278,11 +281,11 @@ def main():
 
     # Filter configs by part if specified (for parallel execution)
     if args.part is not None:
-        # Split configs roughly in half
-        # Part 1: Baselines + weight decay sweep + small hidden sizes
-        # Part 2: Large hidden sizes + early stopping + best configs
-        part1_keywords = ["oracle", "constant", "ridge", "full_mlp_wd0.01", "full_mlp_wd0.1", "full_mlp_wd1.0", "full_mlp_wd10.0", "full_mlp_h128", "full_mlp_h256"]
-        part2_keywords = ["full_mlp_h512", "full_mlp_h1024", "full_mlp_h2048", "earlystop", "full_mlp_best", "full_mlp_dropout"]
+        # Split to balance compute time:
+        # Part 1: Baselines + weight decay sweep + medium hidden (faster configs)
+        # Part 2: Large hidden (1024, 2048) + early stopping + best configs (slower)
+        part1_keywords = ["oracle", "constant", "ridge", "full_mlp_wd0.01", "full_mlp_wd0.1", "full_mlp_wd1.0", "full_mlp_wd10.0", "full_mlp_h256_wd1", "full_mlp_h512_wd1"]
+        part2_keywords = ["full_mlp_h1024", "full_mlp_h2048", "earlystop", "full_mlp_best", "full_mlp_dropout"]
 
         if args.part == 1:
             configs = [c for c in configs if any(kw in c.name for kw in part1_keywords)]
