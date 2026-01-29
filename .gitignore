@@ -235,3 +235,10 @@ chris_output/llm_judge_features/*_unified_core/
 # Tensor analysis outputs (regenerable)
 chris_output/tensor_analysis/
 
+# MLP diagnostics outputs (regenerable)
+chris_output/experiment_a/mlp_diagnostics/
+chris_output/experiment_a/mlp_gated_diagnostics/
+
+# Experiment B timestamped result CSVs (regenerable)
+chris_output/experiment_b/results_*.csv
+
