@@ -197,16 +197,46 @@ def fit_logistic_for_task(
     x0_init = float(np.median(days_arr))
     k_init = 0.01
 
+    # Define bounds for curve fitting
+    x0_lower_bound = days_arr.min() - 100
+    x0_upper_bound = days_arr.max() + 500
+
     try:
         popt, pcov = curve_fit(
             logistic_function,
             days_arr,
             solves_arr,
             p0=[k_init, x0_init],
-            bounds=([0, days_arr.min() - 100], [1.0, days_arr.max() + 500]),
+            bounds=([0, x0_lower_bound], [1.0, x0_upper_bound]),
             maxfev=5000,
         )
         k, x0 = popt
+
+        # Check if x0 hit the bounds (extrapolation, not interpolation)
+        bound_tolerance = 1.0  # within 1 day of bound
+        if x0 <= x0_lower_bound + bound_tolerance:
+            return LogisticFitResult(
+                task_id=task_id,
+                x0=x0,
+                k=k,
+                solve_date=None,
+                n_pareto_agents=n_points,
+                n_solves=n_solves,
+                converged=False,
+                error_msg="x0 hit lower bound (task solved too early to estimate)",
+            )
+        if x0 >= x0_upper_bound - bound_tolerance:
+            return LogisticFitResult(
+                task_id=task_id,
+                x0=x0,
+                k=k,
+                solve_date=None,
+                n_pareto_agents=n_points,
+                n_solves=n_solves,
+                converged=False,
+                error_msg="x0 hit upper bound (task solved too late to estimate)",
+            )
+
         solve_date = pareto_info.reference_date + timedelta(days=int(round(x0)))
 
         return LogisticFitResult(
@@ -442,12 +472,16 @@ def main():
     valid_x0 = [r for r in converged if np.isfinite(r.x0)]
     never_solved = [r for r in results if r.error_msg == "Never solved by any Pareto agent"]
     always_solved = [r for r in results if r.error_msg == "Solved by all Pareto agents"]
+    hit_lower_bound = [r for r in results if r.error_msg and "lower bound" in r.error_msg]
+    hit_upper_bound = [r for r in results if r.error_msg and "upper bound" in r.error_msg]
 
     print(f"  Total tasks: {len(results)}")
-    print(f"  Converged: {len(converged)}")
+    print(f"  Converged (interpolated): {len(converged)}")
     print(f"  Valid x0: {len(valid_x0)}")
-    print(f"  Never solved by Pareto agents: {len(never_solved)}")
-    print(f"  Always solved by Pareto agents: {len(always_solved)}")
+    print(f"  Excluded - never solved: {len(never_solved)}")
+    print(f"  Excluded - always solved: {len(always_solved)}")
+    print(f"  Excluded - hit lower bound (too easy): {len(hit_lower_bound)}")
+    print(f"  Excluded - hit upper bound (too hard): {len(hit_upper_bound)}")
 
     # === Save results ===
     print("\nSaving results...")
@@ -510,9 +544,12 @@ def main():
     print("SUMMARY")
     print("=" * 60)
     print(f"Tasks analyzed: {len(results)}")
-    print(f"Tasks with valid logistic fits: {len(valid_x0)}")
-    print(f"Tasks excluded (never solved): {len(never_solved)}")
-    print(f"Tasks excluded (always solved): {len(always_solved)}")
+    print(f"Tasks with valid logistic fits (interpolated): {len(valid_x0)}")
+    print(f"Tasks excluded:")
+    print(f"  - Never solved by Pareto agents: {len(never_solved)}")
+    print(f"  - Always solved by Pareto agents: {len(always_solved)}")
+    print(f"  - Hit lower bound (too easy): {len(hit_lower_bound)}")
+    print(f"  - Hit upper bound (too hard): {len(hit_upper_bound)}")
     print(f"\nCorrelation (Oracle beta vs logistic solve date x0):")
     print(f"  Pearson r = {corr_stats['pearson_r']:.4f}")
     print(f"  Spearman rho = {corr_stats['spearman_r']:.4f}")
