@@ -42,6 +42,40 @@ def build_input_vector(
     return np.concatenate([agent_one_hot, task_features])
 
 
+class SimpleMLP(nn.Module):
+    """Simple 2-layer MLP that takes concatenated [agent_one_hot | task_features].
+
+    Architecture:
+        Input: [agent_one_hot (n_agents) | task_features (feature_dim)]
+        → Linear(input_dim, hidden_size)
+        → ReLU
+        → Dropout (if dropout > 0)
+        → Linear(hidden_size, 1)
+        → Sigmoid
+        Output: P(success) in [0, 1]
+
+    This is a standard MLP that can learn arbitrary interactions between
+    agent identity and task features. Unlike IRTStyleMLP, it doesn't impose
+    the IRT structure (θ - β).
+    """
+
+    def __init__(self, input_dim: int, hidden_size: int, dropout: float = 0.0):
+        super().__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_size)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+        self.fc2 = nn.Linear(hidden_size, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        x = self.sigmoid(x)
+        return x.squeeze(-1)
+
+
 class IRTStyleMLP(nn.Module):
     """IRT-style architecture that explicitly learns θ_agent - β_task.
 
@@ -115,7 +149,7 @@ class MLPPredictor:
         val_fraction: float = 0.1,
         patience: int = 20,
     ):
-        """Initialize IRT-style predictor.
+        """Initialize IRT-style MLP predictor.
 
         Args:
             source: TaskFeatureSource providing features for tasks.
@@ -139,14 +173,10 @@ class MLPPredictor:
             stage1_epochs: Epochs for stage 1. If None, uses n_epochs // 2.
             stage2_agent_lr_scale: Learning rate scale for agents in stage 2 (default 0.1).
             pca_dim: If set, apply PCA dimensionality reduction to features before training.
-                PCA is fit on training tasks only to avoid data leakage. Useful for reducing
-                high-dimensional embeddings (e.g., 5120 -> 256) to balance with agent params.
-            early_stopping: If True, use validation-based early stopping. Holds out a fraction
-                of training data for validation and stops when validation loss stops improving.
+                PCA is fit on training tasks only to avoid data leakage.
+            early_stopping: If True, use validation-based early stopping.
             val_fraction: Fraction of training data to hold out for validation (default: 0.1).
-                Only used if early_stopping=True.
             patience: Number of epochs without improvement before stopping (default: 20).
-                Only used if early_stopping=True.
         """
         self.source = source
         self.hidden_size = hidden_size  # Unused but kept for compatibility
@@ -557,3 +587,331 @@ class MLPPredictor:
         if self.pca_dim is not None:
             return f"MLP (PCA-{self.pca_dim} {self.source.name})"
         return f"MLP ({self.source.name})"
+
+
+class FullMLPPredictor:
+    """Full MLP that takes [agent_one_hot | task_features] as concatenated input.
+
+    Unlike MLPPredictor (IRTStyleMLP) which separates agent and task processing
+    with the IRT formula (θ - β), this predictor concatenates agent one-hot
+    encoding with task features and passes through a hidden layer.
+
+    Architecture:
+        Input: [agent_one_hot (n_agents) | task_features (feature_dim)]
+        → Linear(input_dim, hidden_size)
+        → ReLU
+        → Dropout (optional)
+        → Linear(hidden_size, 1)
+        → Sigmoid
+        Output: P(success)
+
+    This allows learning arbitrary interactions between agent identity and
+    task features, but has more parameters than IRTStyleMLP.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        hidden_size: int = 64,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 200,
+        verbose: bool = False,
+        init_from_irt: bool = False,
+        early_stopping: bool = False,
+        val_fraction: float = 0.1,
+        patience: int = 20,
+    ):
+        """Initialize full MLP predictor.
+
+        Args:
+            source: TaskFeatureSource providing features for tasks.
+            hidden_size: Number of hidden units in the MLP.
+            dropout: Dropout probability after hidden layer (0.0 = no dropout).
+            learning_rate: Learning rate for Adam optimizer.
+            weight_decay: L2 regularization (Adam weight_decay).
+            n_epochs: Number of training epochs.
+            verbose: Print training progress.
+            init_from_irt: If True, initialize the agent-portion of fc1 weights
+                using pre-trained IRT abilities. This provides a good starting point
+                for agent representations.
+            early_stopping: If True, use validation-based early stopping.
+            val_fraction: Fraction of training data for validation (default: 0.1).
+            patience: Epochs without improvement before stopping (default: 20).
+        """
+        self.source = source
+        self.hidden_size = hidden_size
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        # Model state (set after fit())
+        self._model: Optional[SimpleMLP] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+
+        # Training diagnostics
+        self._training_losses: List[float] = []
+        self._train_auc: Optional[float] = None
+
+        # Prediction cache
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the full MLP on training data.
+
+        Args:
+            data: ExperimentData containing responses and agent information.
+            train_task_ids: List of task IDs to train on.
+        """
+        # Clear caches
+        self._task_feature_cache = {}
+        self._training_losses = []
+
+        # Build agent-to-index mapping
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        # Get task features and fit scaler
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        # Build task_id -> scaled features mapping
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data: concatenated [agent_one_hot | task_features]
+        X_list: List[np.ndarray] = []
+        y_list: List[float] = []
+
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                x = build_input_vector(agent_idx, self._n_agents, task_feat)
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        X_list.append(x)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        X_list.append(x)
+                        y_list.append(0.0)
+                else:
+                    X_list.append(x)
+                    y_list.append(float(response))
+
+        if len(X_list) == 0:
+            raise ValueError("No training examples found")
+
+        X = np.array(X_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training Full MLP: {len(X)} samples")
+            print(f"   Input dim: {X.shape[1]} (agents={self._n_agents}, features={self._feature_dim})")
+            print(f"   hidden_size={self.hidden_size}, weight_decay={self.weight_decay}")
+
+        # Create model
+        input_dim = self._n_agents + self._feature_dim
+        self._model = SimpleMLP(input_dim, self.hidden_size, dropout=self.dropout)
+
+        # Check for GPU
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        if self.verbose and device.type == "cuda":
+            print(f"   Using GPU: {torch.cuda.get_device_name(0)}")
+
+        # Initialize agent weights from IRT if requested
+        if self.init_from_irt:
+            with torch.no_grad():
+                # fc1.weight shape: (hidden_size, input_dim)
+                # First n_agents columns correspond to agent one-hot inputs
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        # Initialize all hidden units to respond to this agent's ability
+                        self._model.fc1.weight.data[:, idx] = ability
+                    else:
+                        self._model.fc1.weight.data[:, idx] = 0.0
+            if self.verbose:
+                print(f"   Initialized agent weights from IRT abilities")
+
+        # Convert to tensors
+        X_tensor = torch.tensor(X, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        # Split for early stopping if enabled
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_X = X_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_X = X_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val samples, patience={self.patience}")
+        else:
+            train_X = X_tensor
+            train_y = y_tensor
+
+        # Optimizer and loss
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        # Early stopping state
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+        stopped_early = False
+
+        # Training loop
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_X)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+            self._training_losses.append(loss_val)
+
+            # Early stopping check
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_X)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    stopped_early = True
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1} (val_loss={val_loss:.6f})")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}/{self.n_epochs}: train_loss={loss_val:.6f}, val_loss={val_loss:.6f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}/{self.n_epochs}: Loss = {loss_val:.6f}")
+
+        # Restore best model if early stopping was used
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC for diagnostics
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(X_tensor).cpu().numpy()
+        if len(np.unique(y)) > 1:
+            self._train_auc = roc_auc_score(y, y_pred_train)
+        else:
+            self._train_auc = None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final loss: {self._training_losses[-1]:.6f}, Train AUC: {train_auc_str}")
+
+    def predict_probability(
+        self, data: ExperimentData, agent_id: str, task_id: str
+    ) -> float:
+        """Predict success probability for a specific (agent, task) pair."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit before calling predict_probability()")
+
+        # Lazily cache test task features
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+
+        # Build input vector
+        x = build_input_vector(agent_idx, self._n_agents, task_feat)
+
+        # Get device
+        device = next(self._model.parameters()).device
+
+        # Forward pass
+        self._model.eval()
+        with torch.no_grad():
+            x_tensor = torch.tensor(x, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(x_tensor).item()
+
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_training_losses(self) -> List[float]:
+        """Return list of loss values per iteration."""
+        return self._training_losses.copy()
+
+    def get_train_auc(self) -> Optional[float]:
+        """Return AUC computed on training data after fit()."""
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        """Human-readable predictor name."""
+        return f"FullMLP ({self.source.name})"
