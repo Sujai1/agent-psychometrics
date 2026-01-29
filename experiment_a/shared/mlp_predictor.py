@@ -1735,6 +1735,252 @@ class InteractionPredictor:
         return f"{self.model_type.replace('_', ' ').title()}"
 
 
+class TaskBottleneckModel(nn.Module):
+    """Model that compresses task features through a bottleneck before combining with agent.
+
+    Architecture:
+        task_bottleneck = Linear(task_features) → ReLU → (bottleneck_dim,)
+        agent_emb = Embedding(agent_idx) → (agent_emb_dim,)
+        combined = concat(agent_emb, task_bottleneck)
+        score = MLP(combined) → sigmoid
+
+    This creates balanced representations: both agent and task are low-dimensional
+    before being combined, similar to how AgentEmb helped with agents.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        agent_emb_dim: int = 32,
+        task_bottleneck_dim: int = 64,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+        self.agent_emb_dim = agent_emb_dim
+        self.task_bottleneck_dim = task_bottleneck_dim
+
+        # Learned agent embeddings
+        self.agent_embedding = nn.Embedding(n_agents, agent_emb_dim)
+
+        # Task bottleneck: compress high-dim features to low-dim
+        self.task_bottleneck = nn.Sequential(
+            nn.Linear(feature_dim, task_bottleneck_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # MLP on concatenated [agent_emb | task_bottleneck]
+        input_dim = agent_emb_dim + task_bottleneck_dim
+        layers = []
+        prev_dim = input_dim
+
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_dim, hidden_size))
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            prev_dim = hidden_size
+
+        layers.append(nn.Linear(prev_dim, 1))
+        layers.append(nn.Sigmoid())
+
+        self.mlp = nn.Sequential(*layers)
+
+    def forward(self, agent_indices: torch.Tensor, task_features: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        agent_emb = self.agent_embedding(agent_indices)  # (batch, agent_emb_dim)
+        task_emb = self.task_bottleneck(task_features)   # (batch, task_bottleneck_dim)
+        combined = torch.cat([agent_emb, task_emb], dim=1)
+        return self.mlp(combined).squeeze(-1)
+
+
+class CrossAttentionModel(nn.Module):
+    """Model where agent embedding attends to task feature groups.
+
+    Architecture:
+        agent_emb = Embedding(agent_idx) → (agent_emb_dim,)
+        task_chunks = reshape(task_features) → (n_chunks, chunk_dim)
+        attention_weights = softmax(agent_emb @ task_chunks.T)
+        attended_task = attention_weights @ task_chunks
+        combined = concat(agent_emb, attended_task)
+        score = MLP(combined) → sigmoid
+
+    This allows different agents to "focus" on different aspects of the task.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        agent_emb_dim: int = 32,
+        n_chunks: int = 64,  # Split features into this many chunks
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+        self.agent_emb_dim = agent_emb_dim
+        self.n_chunks = n_chunks
+        self.chunk_dim = feature_dim // n_chunks
+
+        # Pad if needed
+        if feature_dim % n_chunks != 0:
+            self.padded_dim = (n_chunks - (feature_dim % n_chunks)) + feature_dim
+            self.chunk_dim = self.padded_dim // n_chunks
+        else:
+            self.padded_dim = feature_dim
+
+        # Agent embedding
+        self.agent_embedding = nn.Embedding(n_agents, agent_emb_dim)
+
+        # Project agent embedding to attention query space
+        self.query_proj = nn.Linear(agent_emb_dim, self.chunk_dim)
+
+        # MLP on concatenated [agent_emb | attended_task]
+        input_dim = agent_emb_dim + self.chunk_dim
+        layers = []
+        prev_dim = input_dim
+
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_dim, hidden_size))
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            prev_dim = hidden_size
+
+        layers.append(nn.Linear(prev_dim, 1))
+        layers.append(nn.Sigmoid())
+
+        self.mlp = nn.Sequential(*layers)
+        self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+
+    def forward(self, agent_indices: torch.Tensor, task_features: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        batch_size = agent_indices.shape[0]
+
+        # Agent embedding and query
+        agent_emb = self.agent_embedding(agent_indices)  # (batch, agent_emb_dim)
+        query = self.query_proj(agent_emb)  # (batch, chunk_dim)
+
+        # Pad task features if needed
+        if self.padded_dim != self.feature_dim:
+            padding = torch.zeros(batch_size, self.padded_dim - self.feature_dim,
+                                  device=task_features.device)
+            task_features = torch.cat([task_features, padding], dim=1)
+
+        # Reshape to chunks: (batch, n_chunks, chunk_dim)
+        task_chunks = task_features.view(batch_size, self.n_chunks, self.chunk_dim)
+
+        # Attention: query @ keys.T → (batch, n_chunks)
+        attention_scores = torch.bmm(
+            query.unsqueeze(1),  # (batch, 1, chunk_dim)
+            task_chunks.transpose(1, 2)  # (batch, chunk_dim, n_chunks)
+        ).squeeze(1)  # (batch, n_chunks)
+
+        attention_weights = torch.softmax(attention_scores / (self.chunk_dim ** 0.5), dim=-1)
+        attention_weights = self.dropout(attention_weights)
+
+        # Attended task representation: (batch, chunk_dim)
+        attended_task = torch.bmm(
+            attention_weights.unsqueeze(1),  # (batch, 1, n_chunks)
+            task_chunks  # (batch, n_chunks, chunk_dim)
+        ).squeeze(1)
+
+        # Combine and predict
+        combined = torch.cat([agent_emb, attended_task], dim=1)
+        return self.mlp(combined).squeeze(-1)
+
+
+class FeatureGatedModel(nn.Module):
+    """Model where agent embedding gates task features.
+
+    Architecture:
+        agent_emb = Embedding(agent_idx) → (agent_emb_dim,)
+        gate = sigmoid(Linear(agent_emb)) → (feature_dim,)
+        gated_features = task_features * gate
+        compressed = Linear(gated_features) → (hidden_dim,)
+        combined = concat(agent_emb, compressed)
+        score = MLP(combined) → sigmoid
+
+    This allows each agent to learn which task features are important for them.
+    """
+
+    def __init__(
+        self,
+        n_agents: int,
+        feature_dim: int,
+        agent_emb_dim: int = 32,
+        compressed_dim: int = 64,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.n_agents = n_agents
+        self.feature_dim = feature_dim
+        self.agent_emb_dim = agent_emb_dim
+
+        # Agent embedding
+        self.agent_embedding = nn.Embedding(n_agents, agent_emb_dim)
+
+        # Gate: agent_emb → feature_dim gates
+        self.gate_layer = nn.Linear(agent_emb_dim, feature_dim)
+
+        # Compress gated features
+        self.compress = nn.Sequential(
+            nn.Linear(feature_dim, compressed_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+        # MLP on concatenated [agent_emb | compressed]
+        input_dim = agent_emb_dim + compressed_dim
+        layers = []
+        prev_dim = input_dim
+
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_dim, hidden_size))
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            prev_dim = hidden_size
+
+        layers.append(nn.Linear(prev_dim, 1))
+        layers.append(nn.Sigmoid())
+
+        self.mlp = nn.Sequential(*layers)
+
+    def forward(self, agent_indices: torch.Tensor, task_features: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        agent_emb = self.agent_embedding(agent_indices)  # (batch, agent_emb_dim)
+
+        # Compute agent-specific gates
+        gates = torch.sigmoid(self.gate_layer(agent_emb))  # (batch, feature_dim)
+
+        # Apply gates to task features
+        gated_features = task_features * gates  # (batch, feature_dim)
+
+        # Compress gated features
+        compressed = self.compress(gated_features)  # (batch, compressed_dim)
+
+        # Combine and predict
+        combined = torch.cat([agent_emb, compressed], dim=1)
+        return self.mlp(combined).squeeze(-1)
+
+
 class AgentEmbeddingPredictor:
     """Predictor using learned low-dimensional agent embeddings.
 
@@ -1992,3 +2238,786 @@ class AgentEmbeddingPredictor:
     @property
     def name(self) -> str:
         return f"AgentEmb-{self.agent_emb_dim}"
+
+
+class TaskBottleneckPredictor:
+    """Predictor using task bottleneck to compress high-dim features.
+
+    Compresses task features (e.g., 5120 dims) to a bottleneck (e.g., 64 dims)
+    before combining with agent embeddings. This creates balanced representations.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        agent_emb_dim: int = 32,
+        task_bottleneck_dim: int = 64,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 500,
+        verbose: bool = False,
+        init_from_irt: bool = True,
+        early_stopping: bool = True,
+        val_fraction: float = 0.1,
+        patience: int = 30,
+    ):
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.source = source
+        self.agent_emb_dim = agent_emb_dim
+        self.task_bottleneck_dim = task_bottleneck_dim
+        self.hidden_sizes = hidden_sizes
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        self._model: Optional[TaskBottleneckModel] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+        self._train_auc: Optional[float] = None
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the task bottleneck model."""
+        self._task_feature_cache = {}
+
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data with agent indices
+        agent_indices_list: List[int] = []
+        features_list: List[np.ndarray] = []
+        y_list: List[float] = []
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(0.0)
+                else:
+                    agent_indices_list.append(agent_idx)
+                    features_list.append(task_feat)
+                    y_list.append(float(response))
+
+        if len(y_list) == 0:
+            raise ValueError("No training examples found")
+
+        agent_indices = np.array(agent_indices_list, dtype=np.int64)
+        features = np.array(features_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training TaskBottleneck: {len(y)} samples")
+            print(f"   Agents: {self._n_agents}, Features: {self._feature_dim}")
+            print(f"   agent_emb={self.agent_emb_dim}, bottleneck={self.task_bottleneck_dim}")
+
+        self._model = TaskBottleneckModel(
+            n_agents=self._n_agents,
+            feature_dim=self._feature_dim,
+            agent_emb_dim=self.agent_emb_dim,
+            task_bottleneck_dim=self.task_bottleneck_dim,
+            hidden_sizes=self.hidden_sizes,
+            dropout=self.dropout,
+        )
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        # Initialize agent embeddings from IRT
+        if self.init_from_irt:
+            with torch.no_grad():
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        self._model.agent_embedding.weight.data[idx, :] = ability
+            if self.verbose:
+                print(f"   Initialized agent embeddings from IRT abilities")
+
+        agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
+        features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_agent = agent_tensor[train_idx]
+            train_feat = features_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_agent = agent_tensor[val_idx]
+            val_feat = features_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val")
+        else:
+            train_agent = agent_tensor
+            train_feat = features_tensor
+            train_y = y_tensor
+
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_agent, train_feat)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_agent, val_feat)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1}")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: train_loss={loss_val:.4f}, val_loss={val_loss:.4f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: loss={loss_val:.4f}")
+
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(agent_tensor, features_tensor).cpu().numpy()
+        self._train_auc = roc_auc_score(y, y_pred_train) if len(np.unique(y)) > 1 else None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final: train_auc={train_auc_str}")
+
+    def predict_probability(self, data: ExperimentData, agent_id: str, task_id: str) -> float:
+        """Predict success probability."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit first")
+
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+
+        device = next(self._model.parameters()).device
+        self._model.eval()
+        with torch.no_grad():
+            agent_tensor = torch.tensor([agent_idx], dtype=torch.long, device=device)
+            feat_tensor = torch.tensor(task_feat, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(agent_tensor, feat_tensor).item()
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_train_auc(self) -> Optional[float]:
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        return f"TaskBottleneck-{self.task_bottleneck_dim}"
+
+
+class CrossAttentionPredictor:
+    """Predictor using cross-attention between agent and task features.
+
+    Agent embedding attends to chunks of task features, allowing different
+    agents to focus on different aspects of tasks.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        agent_emb_dim: int = 32,
+        n_chunks: int = 64,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 500,
+        verbose: bool = False,
+        init_from_irt: bool = True,
+        early_stopping: bool = True,
+        val_fraction: float = 0.1,
+        patience: int = 30,
+    ):
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.source = source
+        self.agent_emb_dim = agent_emb_dim
+        self.n_chunks = n_chunks
+        self.hidden_sizes = hidden_sizes
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        self._model: Optional[CrossAttentionModel] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+        self._train_auc: Optional[float] = None
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the cross-attention model."""
+        self._task_feature_cache = {}
+
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data
+        agent_indices_list: List[int] = []
+        features_list: List[np.ndarray] = []
+        y_list: List[float] = []
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(0.0)
+                else:
+                    agent_indices_list.append(agent_idx)
+                    features_list.append(task_feat)
+                    y_list.append(float(response))
+
+        if len(y_list) == 0:
+            raise ValueError("No training examples found")
+
+        agent_indices = np.array(agent_indices_list, dtype=np.int64)
+        features = np.array(features_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training CrossAttention: {len(y)} samples")
+            print(f"   Agents: {self._n_agents}, Features: {self._feature_dim}")
+            print(f"   agent_emb={self.agent_emb_dim}, n_chunks={self.n_chunks}")
+
+        self._model = CrossAttentionModel(
+            n_agents=self._n_agents,
+            feature_dim=self._feature_dim,
+            agent_emb_dim=self.agent_emb_dim,
+            n_chunks=self.n_chunks,
+            hidden_sizes=self.hidden_sizes,
+            dropout=self.dropout,
+        )
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        # Initialize agent embeddings from IRT
+        if self.init_from_irt:
+            with torch.no_grad():
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        self._model.agent_embedding.weight.data[idx, :] = ability
+            if self.verbose:
+                print(f"   Initialized agent embeddings from IRT abilities")
+
+        agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
+        features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_agent = agent_tensor[train_idx]
+            train_feat = features_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_agent = agent_tensor[val_idx]
+            val_feat = features_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val")
+        else:
+            train_agent = agent_tensor
+            train_feat = features_tensor
+            train_y = y_tensor
+
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_agent, train_feat)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_agent, val_feat)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1}")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: train_loss={loss_val:.4f}, val_loss={val_loss:.4f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: loss={loss_val:.4f}")
+
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(agent_tensor, features_tensor).cpu().numpy()
+        self._train_auc = roc_auc_score(y, y_pred_train) if len(np.unique(y)) > 1 else None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final: train_auc={train_auc_str}")
+
+    def predict_probability(self, data: ExperimentData, agent_id: str, task_id: str) -> float:
+        """Predict success probability."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit first")
+
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+
+        device = next(self._model.parameters()).device
+        self._model.eval()
+        with torch.no_grad():
+            agent_tensor = torch.tensor([agent_idx], dtype=torch.long, device=device)
+            feat_tensor = torch.tensor(task_feat, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(agent_tensor, feat_tensor).item()
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_train_auc(self) -> Optional[float]:
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        return f"CrossAttn-{self.n_chunks}"
+
+
+class FeatureGatedPredictor:
+    """Predictor using agent-specific feature gating.
+
+    Agent embedding learns to gate (weight) which task features are important,
+    allowing different agents to rely on different task characteristics.
+    """
+
+    def __init__(
+        self,
+        source: TaskFeatureSource,
+        agent_emb_dim: int = 32,
+        compressed_dim: int = 64,
+        hidden_sizes: List[int] = None,
+        dropout: float = 0.0,
+        learning_rate: float = 0.001,
+        weight_decay: float = 0.01,
+        n_epochs: int = 500,
+        verbose: bool = False,
+        init_from_irt: bool = True,
+        early_stopping: bool = True,
+        val_fraction: float = 0.1,
+        patience: int = 30,
+    ):
+        if hidden_sizes is None:
+            hidden_sizes = [64, 32]
+
+        self.source = source
+        self.agent_emb_dim = agent_emb_dim
+        self.compressed_dim = compressed_dim
+        self.hidden_sizes = hidden_sizes
+        self.dropout = dropout
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.n_epochs = n_epochs
+        self.verbose = verbose
+        self.init_from_irt = init_from_irt
+        self.early_stopping = early_stopping
+        self.val_fraction = val_fraction
+        self.patience = patience
+
+        self._model: Optional[FeatureGatedModel] = None
+        self._scaler: Optional[StandardScaler] = None
+        self._agent_to_idx: Optional[Dict[str, int]] = None
+        self._n_agents: int = 0
+        self._feature_dim: int = 0
+        self._is_fitted: bool = False
+        self._train_auc: Optional[float] = None
+        self._task_feature_cache: Dict[str, np.ndarray] = {}
+
+    def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
+        """Fit the feature-gated model."""
+        self._task_feature_cache = {}
+
+        all_agents = data.get_all_agents()
+        self._agent_to_idx = {agent: i for i, agent in enumerate(all_agents)}
+        self._n_agents = len(all_agents)
+
+        task_features = self.source.get_features(train_task_ids)
+        self._scaler = StandardScaler()
+        task_features_scaled = self._scaler.fit_transform(task_features)
+        self._feature_dim = task_features_scaled.shape[1]
+
+        task_to_features = {
+            task_id: task_features_scaled[i]
+            for i, task_id in enumerate(train_task_ids)
+        }
+
+        # Build training data
+        agent_indices_list: List[int] = []
+        features_list: List[np.ndarray] = []
+        y_list: List[float] = []
+        is_binomial = isinstance(data, BinomialExperimentData)
+
+        for task_id in train_task_ids:
+            task_feat = task_to_features[task_id]
+            for agent_id in all_agents:
+                if agent_id not in data.responses:
+                    continue
+                if task_id not in data.responses[agent_id]:
+                    continue
+
+                agent_idx = self._agent_to_idx[agent_id]
+                response = data.responses[agent_id][task_id]
+
+                if is_binomial:
+                    k = response["successes"]
+                    n = response["trials"]
+                    for _ in range(k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(1.0)
+                    for _ in range(n - k):
+                        agent_indices_list.append(agent_idx)
+                        features_list.append(task_feat)
+                        y_list.append(0.0)
+                else:
+                    agent_indices_list.append(agent_idx)
+                    features_list.append(task_feat)
+                    y_list.append(float(response))
+
+        if len(y_list) == 0:
+            raise ValueError("No training examples found")
+
+        agent_indices = np.array(agent_indices_list, dtype=np.int64)
+        features = np.array(features_list, dtype=np.float32)
+        y = np.array(y_list, dtype=np.float32)
+
+        if self.verbose:
+            print(f"   Training FeatureGated: {len(y)} samples")
+            print(f"   Agents: {self._n_agents}, Features: {self._feature_dim}")
+            print(f"   agent_emb={self.agent_emb_dim}, compressed={self.compressed_dim}")
+
+        self._model = FeatureGatedModel(
+            n_agents=self._n_agents,
+            feature_dim=self._feature_dim,
+            agent_emb_dim=self.agent_emb_dim,
+            compressed_dim=self.compressed_dim,
+            hidden_sizes=self.hidden_sizes,
+            dropout=self.dropout,
+        )
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._model = self._model.to(device)
+
+        # Initialize agent embeddings from IRT
+        if self.init_from_irt:
+            with torch.no_grad():
+                for agent_id, idx in self._agent_to_idx.items():
+                    if agent_id in data.train_abilities.index:
+                        ability = float(data.train_abilities.loc[agent_id, "ability"])
+                        self._model.agent_embedding.weight.data[idx, :] = ability
+            if self.verbose:
+                print(f"   Initialized agent embeddings from IRT abilities")
+
+        agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
+        features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
+        y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
+
+        if self.early_stopping:
+            n_samples = len(y)
+            n_val = max(1, int(n_samples * self.val_fraction))
+            n_train = n_samples - n_val
+
+            perm = torch.randperm(n_samples)
+            train_idx = perm[:n_train]
+            val_idx = perm[n_train:]
+
+            train_agent = agent_tensor[train_idx]
+            train_feat = features_tensor[train_idx]
+            train_y = y_tensor[train_idx]
+            val_agent = agent_tensor[val_idx]
+            val_feat = features_tensor[val_idx]
+            val_y = y_tensor[val_idx]
+
+            if self.verbose:
+                print(f"   Early stopping: {n_train} train, {n_val} val")
+        else:
+            train_agent = agent_tensor
+            train_feat = features_tensor
+            train_y = y_tensor
+
+        optimizer = torch.optim.Adam(
+            self._model.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
+        criterion = nn.BCELoss()
+
+        best_val_loss = float('inf')
+        best_state_dict = None
+        epochs_without_improvement = 0
+
+        self._model.train()
+        for epoch in range(self.n_epochs):
+            optimizer.zero_grad()
+            y_pred = self._model(train_agent, train_feat)
+            loss = criterion(y_pred, train_y)
+            loss.backward()
+            optimizer.step()
+
+            loss_val = loss.item()
+
+            if self.early_stopping:
+                self._model.eval()
+                with torch.no_grad():
+                    val_pred = self._model(val_agent, val_feat)
+                    val_loss = criterion(val_pred, val_y).item()
+                self._model.train()
+
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    best_state_dict = {k: v.clone() for k, v in self._model.state_dict().items()}
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if epochs_without_improvement >= self.patience:
+                    if self.verbose:
+                        print(f"      Early stopping at epoch {epoch + 1}")
+                    break
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: train_loss={loss_val:.4f}, val_loss={val_loss:.4f}")
+            else:
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}: loss={loss_val:.4f}")
+
+        if self.early_stopping and best_state_dict is not None:
+            self._model.load_state_dict(best_state_dict)
+
+        self._is_fitted = True
+
+        # Compute train AUC
+        self._model.eval()
+        with torch.no_grad():
+            y_pred_train = self._model(agent_tensor, features_tensor).cpu().numpy()
+        self._train_auc = roc_auc_score(y, y_pred_train) if len(np.unique(y)) > 1 else None
+
+        if self.verbose:
+            train_auc_str = f"{self._train_auc:.4f}" if self._train_auc else "N/A"
+            print(f"   Final: train_auc={train_auc_str}")
+
+    def predict_probability(self, data: ExperimentData, agent_id: str, task_id: str) -> float:
+        """Predict success probability."""
+        if not self._is_fitted:
+            raise RuntimeError("Predictor must be fit first")
+
+        if task_id not in self._task_feature_cache:
+            self._cache_test_task_features(data.test_tasks)
+
+        if task_id not in self._task_feature_cache:
+            raise ValueError(f"No features for task {task_id}")
+        if agent_id not in self._agent_to_idx:
+            raise ValueError(f"Unknown agent {agent_id}")
+
+        agent_idx = self._agent_to_idx[agent_id]
+        task_feat = self._task_feature_cache[task_id]
+
+        device = next(self._model.parameters()).device
+        self._model.eval()
+        with torch.no_grad():
+            agent_tensor = torch.tensor([agent_idx], dtype=torch.long, device=device)
+            feat_tensor = torch.tensor(task_feat, dtype=torch.float32, device=device).unsqueeze(0)
+            prob = self._model(agent_tensor, feat_tensor).item()
+        return prob
+
+    def _cache_test_task_features(self, test_tasks: List[str]) -> None:
+        """Cache scaled features for test tasks."""
+        features = self.source.get_features(test_tasks)
+        features_scaled = self._scaler.transform(features)
+        for i, task_id in enumerate(test_tasks):
+            self._task_feature_cache[task_id] = features_scaled[i]
+
+    def get_train_auc(self) -> Optional[float]:
+        return self._train_auc
+
+    @property
+    def name(self) -> str:
+        return f"FeatureGated-{self.compressed_dim}"
