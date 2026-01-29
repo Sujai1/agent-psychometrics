@@ -822,6 +822,35 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             groups.append(f"{r.benchmark}::{r.subject_id}::{r.task_id}")
 
+    # For agent splits, cache (agent_group -> (model, scaffold)) so we can filter
+    # out test agents whose model/scaffold are never seen in the corresponding train split.
+    # This matters for downstream inference setups that cannot score unseen model/scaffold ids.
+    agent_group_to_ms: Dict[str, Tuple[str, str]] = {}
+    agent_group_inconsistent: List[str] = []
+    if str(args.split_by) == "agent":
+        tmp: Dict[str, set] = {}
+        tmp_sc: Dict[str, set] = {}
+        for r in obs:
+            g = f"{r.benchmark}::{r.subject_id}"
+            tmp.setdefault(g, set()).add(str(r.model))
+            tmp_sc.setdefault(g, set()).add(str(r.scaffold))
+        for g in sorted(set(tmp.keys()) | set(tmp_sc.keys())):
+            ms = sorted(list(tmp.get(g, set())))
+            scs = sorted(list(tmp_sc.get(g, set())))
+            if len(ms) != 1 or len(scs) != 1:
+                agent_group_inconsistent.append(str(g))
+                # Pick a deterministic representative so we can continue.
+                m = ms[0] if ms else "__MISSING__"
+                sc = scs[0] if scs else "__MISSING__"
+                agent_group_to_ms[str(g)] = (str(m), str(sc))
+            else:
+                agent_group_to_ms[str(g)] = (str(ms[0]), str(scs[0]))
+        if agent_group_inconsistent:
+            _p(
+                f"[warn] Found {len(agent_group_inconsistent)} agent groups with inconsistent model/scaffold across rows. "
+                f"Proceeding by choosing a deterministic representative for filtering."
+            )
+
     # Parse hidden dims.
     try:
         hidden_dims = tuple(int(x.strip()) for x in str(args.hidden_dims).split(",") if x.strip())
@@ -1272,10 +1301,80 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 f"Fold {fold_idx}: empty train or test set (train={len(train_idx)}, test={len(test_idx)}). "
                 f"Try adjusting --cv_folds/--test_fraction or --split_by."
             )
+
+        # If splitting by agent, remove test agents whose model and/or scaffold are not present in train.
+        # This ensures we only evaluate on agents that are "in-domain" with respect to (model, scaffold).
+        agent_filter_stats: Dict[str, Any] = {"enabled": False}
+        if str(args.split_by) == "agent":
+            train_models = set([obs[i].model for i in train_idx])
+            train_scaffolds = set([obs[i].scaffold for i in train_idx])
+
+            test_groups_all = set([str(g) for g in test_g])
+            keep_groups: set = set()
+            removed_any: set = set()
+            removed_unseen_model: set = set()
+            removed_unseen_scaffold: set = set()
+            removed_missing_meta: set = set()
+
+            for g in sorted(test_groups_all):
+                ms = agent_group_to_ms.get(str(g), None)
+                if ms is None:
+                    removed_any.add(str(g))
+                    removed_missing_meta.add(str(g))
+                    continue
+                m, sc = ms
+                unseen_m = (m not in train_models)
+                unseen_sc = (sc not in train_scaffolds)
+                if unseen_m or unseen_sc:
+                    removed_any.add(str(g))
+                    if unseen_m:
+                        removed_unseen_model.add(str(g))
+                    if unseen_sc:
+                        removed_unseen_scaffold.add(str(g))
+                else:
+                    keep_groups.add(str(g))
+
+            # Apply filter to test groups/indices.
+            test_g_effective = keep_groups
+            test_idx_effective = [i for i, g in enumerate(groups) if str(g) in test_g_effective]
+
+            agent_filter_stats = {
+                "enabled": True,
+                "n_test_agents_original": int(len(test_groups_all)),
+                "n_test_agents_removed": int(len(removed_any)),
+                "n_test_agents_remaining": int(len(test_g_effective)),
+                "n_test_agents_removed_unseen_model": int(len(removed_unseen_model)),
+                "n_test_agents_removed_unseen_scaffold": int(len(removed_unseen_scaffold)),
+                "n_test_agents_removed_missing_meta": int(len(removed_missing_meta)),
+                "n_test_obs_original": int(len(test_idx)),
+                "n_test_obs_removed": int(len(test_idx) - len(test_idx_effective)),
+                "n_test_obs_remaining": int(len(test_idx_effective)),
+            }
+
+            _p(
+                "[progress] agent-split filter: "
+                f"removed {agent_filter_stats['n_test_agents_removed']}/{agent_filter_stats['n_test_agents_original']} test agents "
+                f"(unseen_model={agent_filter_stats['n_test_agents_removed_unseen_model']}, unseen_scaffold={agent_filter_stats['n_test_agents_removed_unseen_scaffold']}); "
+                f"remaining={agent_filter_stats['n_test_agents_remaining']} agents "
+                f"({agent_filter_stats['n_test_obs_remaining']}/{agent_filter_stats['n_test_obs_original']} obs)"
+            )
+
+            if not test_idx_effective:
+                raise RuntimeError(
+                    f"Fold {fold_idx}: after filtering unseen model/scaffold test agents, test set is empty. "
+                    f"Removed {agent_filter_stats['n_test_agents_removed']}/{agent_filter_stats['n_test_agents_original']} test agents."
+                )
+            test_idx = test_idx_effective
+            test_g = test_g_effective
+
         fr = _fit_eval_fold(train_idx, test_idx, fold_seed=int(args.seed) + int(fold_idx), fold_idx=int(fold_idx))
         fr["fold_idx"] = int(fold_idx)
         fr["n_groups_train"] = int(len(train_g))
         fr["n_groups_test"] = int(len(test_g))
+        fr["agent_split_unfamiliar_filter"] = dict(agent_filter_stats)
+        if str(args.split_by) == "agent":
+            # Store effective test groups for the oracle scoring step (which previously referenced fold_splits directly).
+            fr["effective_test_groups"] = sorted([str(g) for g in set(test_g)])
         fold_results.append(fr)
 
     # -----------------------------
@@ -1389,8 +1488,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         # Evaluate per fold.
         for fr in fold_results:
             fold_idx = int(fr["fold_idx"])
-            _train_g, test_g = fold_splits[fold_idx]
-            test_idx = [i for i, g in enumerate(groups) if g in test_g]
+            # Use the effective test groups (after filtering), if present.
+            eff = fr.get("effective_test_groups", None)
+            if isinstance(eff, list) and eff:
+                test_g = set([str(x) for x in eff])
+            else:
+                _train_g, test_g = fold_splits[fold_idx]
+            test_idx = [i for i, g in enumerate(groups) if str(g) in set([str(x) for x in test_g])]
             y_test = np.array([y[i] for i in test_idx], dtype=np.int64)
             global_p = float(fr.get("global_p_train", 0.5))
             oracle_probs: List[float] = []
@@ -1472,6 +1576,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "test_fraction": float(args.test_fraction),
         "cv_folds": int(args.cv_folds),
         "cv": cv_summary,
+        "agent_split_unfamiliar_filter": (
+            {
+                "enabled": True,
+                "n_folds": int(len(fold_results)),
+                "n_test_agents_removed_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_agents_removed", 0)) for fr in fold_results],
+                "n_test_agents_remaining_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_agents_remaining", 0)) for fr in fold_results],
+                "n_test_obs_removed_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_obs_removed", 0)) for fr in fold_results],
+                "n_test_obs_remaining_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_obs_remaining", 0)) for fr in fold_results],
+            }
+            if str(args.split_by) == "agent"
+            else {"enabled": False}
+        ),
         # Backwards-compatible top-level aliases (primary model metrics).
         "roc_auc": float(cv_summary["embed_mlp"]["roc_auc"]["mean"]),
         "accuracy": float(cv_summary["embed_mlp"]["accuracy"]["mean"]),
