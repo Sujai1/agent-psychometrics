@@ -171,12 +171,13 @@ def parse_args() -> argparse.Namespace:
         type=str,
         nargs="+",
         default=["zero_pre"],
-        choices=["irt", "passrate", "zero_pre", "pre_only"],
+        choices=["irt", "passrate", "zero_pre", "pre_only", "human_hard"],
         help="Frontier definitions to evaluate (default: zero_pre). "
              "'zero_pre' = 0%% pre, >0%% post; "
              "'passrate' = <=X%% pre AND >Y%% post; "
              "'pre_only' = <=X%% pre (no post filter, uses --pre_threshold); "
-             "'irt' = IRT probability threshold",
+             "'irt' = IRT probability threshold; "
+             "'human_hard' = human-labeled difficulty >= '1-4 hours'",
     )
     parser.add_argument(
         "--show_all_sad_irt",

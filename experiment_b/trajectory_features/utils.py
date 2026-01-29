@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 
 from experiment_b.shared.data_preparation import (
+    identify_frontier_tasks_human_hard,
     identify_frontier_tasks_zero_pre,
     split_agents_by_dates,
 )
@@ -20,11 +21,15 @@ from experiment_b.trajectory_features.prompts import format_trajectory_for_promp
 
 def load_frontier_tasks_with_difficulties(
     config: SWEBenchConfig,
+    frontier_def: str = "zero_pre",
 ) -> Tuple[List[str], pd.DataFrame, List[str], List[str]]:
     """Load frontier tasks, oracle difficulties, and agent splits.
 
     Args:
         config: SWE-bench dataset configuration
+        frontier_def: Frontier definition to use. Options:
+            - 'zero_pre': Tasks with 0% pre-frontier, >0% post-frontier solve rate
+            - 'human_hard': Tasks labeled "1-4 hours" or ">4 hours" by human estimate
 
     Returns:
         Tuple of:
@@ -32,6 +37,9 @@ def load_frontier_tasks_with_difficulties(
         - oracle_items: DataFrame with oracle IRT difficulties (column 'b')
         - pre_frontier_agents: List of pre-frontier agent names
         - post_frontier_agents: List of post-frontier agent names
+
+    Raises:
+        ValueError: If frontier_def is not recognized
     """
     # Load oracle IRT difficulties
     oracle_items = pd.read_csv(config.oracle_irt_path, index_col=0)
@@ -45,12 +53,22 @@ def load_frontier_tasks_with_difficulties(
         all_agents, agent_dates, config.cutoff_date
     )
 
-    # Identify frontier tasks
-    frontier_tasks = identify_frontier_tasks_zero_pre(
-        config.responses_path,
-        pre_frontier,
-        post_frontier,
-    )
+    # Identify frontier tasks based on definition
+    if frontier_def == "zero_pre":
+        frontier_tasks = identify_frontier_tasks_zero_pre(
+            config.responses_path,
+            pre_frontier,
+            post_frontier,
+        )
+    elif frontier_def == "human_hard":
+        frontier_tasks = identify_frontier_tasks_human_hard(
+            config.all_task_ids,
+        )
+    else:
+        raise ValueError(
+            f"Unknown frontier_def: {frontier_def}. "
+            f"Must be one of: 'zero_pre', 'human_hard'"
+        )
 
     return frontier_tasks, oracle_items, pre_frontier, post_frontier
 

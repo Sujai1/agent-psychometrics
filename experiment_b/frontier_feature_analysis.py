@@ -685,20 +685,32 @@ def main():
         default=Path("chris_output/experiment_b/frontier_analysis"),
         help="Output directory for figures and summary",
     )
+    parser.add_argument(
+        "--frontier_def",
+        type=str,
+        default="zero_pre",
+        choices=["zero_pre", "human_hard"],
+        help="Frontier definition to use (default: zero_pre). "
+             "'zero_pre' = 0%% pre, >0%% post; "
+             "'human_hard' = human-labeled difficulty >= '1-4 hours'",
+    )
     args = parser.parse_args()
 
-    output_dir = args.output_dir
+    # Append frontier_def to output_dir to keep results separate
+    output_dir = args.output_dir / args.frontier_def
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
-    print("Frontier Feature Analysis")
+    print(f"Frontier Feature Analysis (frontier_def={args.frontier_def})")
     print("=" * 70)
 
     # Load configuration and frontier tasks
     config = SWEBenchConfig()
 
     print("\nLoading frontier tasks and oracle difficulties...")
-    frontier_tasks, oracle_items, pre_frontier, post_frontier = load_frontier_tasks_with_difficulties(config)
+    frontier_tasks, oracle_items, pre_frontier, post_frontier = load_frontier_tasks_with_difficulties(
+        config, frontier_def=args.frontier_def
+    )
     oracle_diff = oracle_items["b"]
 
     # Non-frontier = all tasks minus frontier

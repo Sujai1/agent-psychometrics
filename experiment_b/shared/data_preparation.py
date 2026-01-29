@@ -352,6 +352,65 @@ def identify_frontier_tasks_pre_only(
     return frontier_tasks
 
 
+def identify_frontier_tasks_human_hard(
+    all_task_ids: List[str],
+) -> List[str]:
+    """Identify frontier tasks based on human-labeled difficulty.
+
+    Uses the 'difficulty' field from the SWE-bench_Verified HuggingFace dataset.
+    Returns tasks labeled as "1-4 hours" or ">4 hours" by human time estimate.
+
+    Categories in the dataset (by estimated fix time):
+    - '<15 min fix': 194 tasks (38.8%)
+    - '15 min - 1 hour': 261 tasks (52.2%)
+    - '1-4 hours': 42 tasks (8.4%)
+    - '>4 hours': 3 tasks (0.6%)
+
+    This function returns the hardest 45 tasks (42 + 3 = 9.0% of dataset).
+
+    Args:
+        all_task_ids: List of task IDs to filter (must be SWE-bench Verified tasks)
+
+    Returns:
+        List of task_ids labeled as "1-4 hours" or ">4 hours"
+
+    Raises:
+        ValueError: If any task_id is not found in SWE-bench_Verified
+    """
+    from datasets import load_dataset
+
+    # Hard difficulty levels (estimated fix time >= 1 hour)
+    HARD_DIFFICULTY_LEVELS = {"1-4 hours", ">4 hours"}
+
+    # Load SWE-bench_Verified from HuggingFace
+    ds = load_dataset("princeton-nlp/SWE-bench_Verified", split="test")
+
+    # Build mapping of instance_id -> difficulty
+    task_difficulties = {row["instance_id"]: row["difficulty"] for row in ds}
+
+    # Filter tasks that meet the hard difficulty threshold
+    task_id_set = set(all_task_ids)
+    frontier_tasks = []
+    missing_tasks = []
+
+    for task_id in all_task_ids:
+        if task_id not in task_difficulties:
+            missing_tasks.append(task_id)
+            continue
+
+        task_difficulty = task_difficulties[task_id]
+        if task_difficulty in HARD_DIFFICULTY_LEVELS:
+            frontier_tasks.append(task_id)
+
+    if missing_tasks:
+        raise ValueError(
+            f"{len(missing_tasks)} tasks not found in SWE-bench_Verified dataset. "
+            f"First 5: {missing_tasks[:5]}"
+        )
+
+    return frontier_tasks
+
+
 def identify_nontrivial_tasks(
     responses_path: Path,
     pre_frontier_agents: List[str],
@@ -1011,6 +1070,11 @@ def load_and_prepare_data(args: argparse.Namespace, config: DatasetConfig) -> Ex
                 pre_threshold,
             )
             print(f"  Frontier tasks ({frontier_def}: <={pre_threshold*100:.0f}% pre, any post): {len(frontier_task_ids)}")
+        elif frontier_def == "human_hard":
+            frontier_task_ids = identify_frontier_tasks_human_hard(
+                config.all_task_ids,
+            )
+            print(f"  Frontier tasks ({frontier_def}: human difficulty >= '1-4 hours'): {len(frontier_task_ids)}")
         else:  # passrate
             frontier_task_ids = identify_frontier_tasks_passrate(
                 config.responses_path,
