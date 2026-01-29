@@ -231,3 +231,4 @@ chris_output/experiment_a/mlp_embedding/
 # Experiment B timestamped result CSVs (regenerable)
 chris_output/experiment_b/results_*.csv
 
+chris_output/env_features/
