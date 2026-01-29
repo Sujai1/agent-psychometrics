@@ -94,6 +94,7 @@ def main():
             k_folds=args.k_folds,
             split_seed=config.split_seed,
             is_binomial=False,
+            irt_cache_dir=Path("chris_output/experiment_a/irt_splits"),
         )
 
     # Training parameters (use best from previous sweeps)
