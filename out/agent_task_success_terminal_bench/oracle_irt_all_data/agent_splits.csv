@@ -1,0 +1,80 @@
+benchmark,agent,model,scaffold
+terminal_bench,openhands_claude-haiku-4-5-20251001_at_anthropic,Claude 4.5 Haiku,OpenHands
+terminal_bench,claude-code_claude-haiku-4-5-20251001_at_anthropic,Claude 4.5 Haiku,claude-code
+terminal_bench,goose_claude-haiku-4-5_at_anthropic,Claude 4.5 Haiku,goose
+terminal_bench,mini-swe-agent_claude-haiku-4-5-20251001_at_anthropic,Claude 4.5 Haiku,mini-swe-agent
+terminal_bench,terminus-2_claude-haiku-4-5-20251001_at_anthropic,Claude 4.5 Haiku,terminus-2
+terminal_bench,openhands_claude-opus-4-5-20251101_at_anthropic,Claude 4.5 Opus,OpenHands
+terminal_bench,claude-code_claude-opus-4-5-20251101_at_anthropic,Claude 4.5 Opus,claude-code
+terminal_bench,factory_droid_claude-opus-4-5-20251101_at_anthropic,Claude 4.5 Opus,factory_droid
+terminal_bench,goose_claude-opus-4-5_at_anthropic,Claude 4.5 Opus,goose
+terminal_bench,letta-code_claude-opus-4-5_at_anthropic,Claude 4.5 Opus,letta-code
+terminal_bench,terminus-2_claude-opus-4-5-20251101_at_anthropic,Claude 4.5 Opus,terminus-2
+terminal_bench,openhands_claude-opus-4-1-20250805_at_anthropic,Claude Opus 4.1,OpenHands
+terminal_bench,claude-code_claude-opus-4-1-20250805_at_anthropic,Claude Opus 4.1,claude-code
+terminal_bench,mini-swe-agent_claude-opus-4-1-20250805_at_anthropic,Claude Opus 4.1,mini-swe-agent
+terminal_bench,mini-swe-agent_openai/gpt-oss-120b_at_together_ai,GPT OSS 120B,mini-swe-agent
+terminal_bench,terminus-2_openai/gpt-oss-120b_at_together_ai,GPT OSS 120B,terminus-2
+terminal_bench,mini-swe-agent_openai/gpt-oss-20b_at_together_ai,GPT OSS 20B,mini-swe-agent
+terminal_bench,terminus-2_openai/gpt-oss-20b_at_together_ai,GPT OSS 20B,terminus-2
+terminal_bench,openhands_gpt-5_at_openai,GPT-5,OpenHands
+terminal_bench,mini-swe-agent_gpt-5_at_openai,GPT-5,mini-swe-agent
+terminal_bench,terminus-2_gpt-5_at_openai,GPT-5,terminus-2
+terminal_bench,codex_gpt-5-codex_at_openai,GPT-5 Codex,codex
+terminal_bench,mini-swe-agent_gpt-5-codex_at_openai,GPT-5 Codex,mini-swe-agent
+terminal_bench,terminus-2_gpt-5-codex_at_openai,GPT-5 Codex,terminus-2
+terminal_bench,openhands_gpt-5-mini_at_openai,GPT-5-mini,OpenHands
+terminal_bench,codex_gpt-5-mini_at_openai,GPT-5-mini,codex
+terminal_bench,mini-swe-agent_gpt-5-mini_at_openai,GPT-5-mini,mini-swe-agent
+terminal_bench,spoox-m_gpt-5-mini_at_openai,GPT-5-mini,spoox-m
+terminal_bench,terminus-2_gpt-5-mini_at_openai,GPT-5-mini,terminus-2
+terminal_bench,openhands_gpt-5-nano_at_openai,GPT-5-nano,OpenHands
+terminal_bench,codex_gpt-5-nano_at_openai,GPT-5-nano,codex
+terminal_bench,mini-swe-agent_gpt-5-nano_at_openai,GPT-5-nano,mini-swe-agent
+terminal_bench,terminus-2_gpt-5-nano_at_openai,GPT-5-nano,terminus-2
+terminal_bench,terminus-2_gpt-5_1_at_openai,GPT-5.1,terminus-2
+terminal_bench,codex_gpt-5_1-codex_at_openai,GPT-5.1 Codex,codex
+terminal_bench,letta-code_gpt-5_1-codex_at_openai,GPT-5.1 Codex,letta-code
+terminal_bench,terminus-2_gpt-5_1-codex_at_openai,GPT-5.1 Codex,terminus-2
+terminal_bench,codex_gpt-5_1-codex-max_at_openai,GPT-5.1 Codex Max,codex
+terminal_bench,codex_gpt-5_1-codex-mini_at_openai,GPT-5.1 Codex Mini,codex
+terminal_bench,codex_gpt-5_2_at_openai,GPT-5.2,codex
+terminal_bench,factory_droid_gpt-5_2_at_openai,GPT-5.2,factory_droid
+terminal_bench,terminus-2_gpt-5_2_at_openai,GPT-5.2,terminus-2
+terminal_bench,openhands_gemini-2_5-pro_at_gemini,Gemini 2.5 Pro Preview,OpenHands
+terminal_bench,gemini-cli_gemini-2_5-pro_at_gemini,Gemini 2.5 Pro Preview,gemini-cli
+terminal_bench,mini-swe-agent_gemini-2_5-pro_at_gemini,Gemini 2.5 Pro Preview,mini-swe-agent
+terminal_bench,terminus-2_gemini-2_5-pro_at_gemini,Gemini 2.5 Pro Preview,terminus-2
+terminal_bench,openhands_qwen/qwen3-coder-480b-a35b-instruct-fp8_at_together_ai,Qwen3-Coder-480B-A35B-Instruct-FP8,OpenHands
+terminal_bench,aone-agent_qwen/qwen3-coder-480b-a35b-instruct-fp8_at_modelscope,Qwen3-Coder-480B-A35B-Instruct-FP8,aone-agent
+terminal_bench,terminus-2_qwen/qwen3-coder-480b-a35b-instruct-fp8_at_together_ai,Qwen3-Coder-480B-A35B-Instruct-FP8,terminus-2
+terminal_bench,openhands_claude-sonnet-4-5-20250929_at_anthropic,claude-sonnet-4-5,OpenHands
+terminal_bench,claude-code_claude-sonnet-4-5-20250929_at_anthropic,claude-sonnet-4-5,claude-code
+terminal_bench,final_claude-4_5-sonnet_at_anthropic,claude-sonnet-4-5,final
+terminal_bench,goose_claude-sonnet-4-5_at_anthropic,claude-sonnet-4-5,goose
+terminal_bench,mini-swe-agent_claude-sonnet-4-5-20250929_at_anthropic,claude-sonnet-4-5,mini-swe-agent
+terminal_bench,terminalbenchagent_claude-sonnet-4-5_at_anthropic,claude-sonnet-4-5,terminalbenchagent
+terminal_bench,terminus-2_claude-sonnet-4-5-20250929_at_anthropic,claude-sonnet-4-5,terminus-2
+terminal_bench,openhands_gemini-2_5-flash_at_gemini,gemini-2_5-flash,OpenHands
+terminal_bench,gemini-cli_gemini-2_5-flash_at_gemini,gemini-2_5-flash,gemini-cli
+terminal_bench,mini-swe-agent_gemini-2_5-flash_at_gemini,gemini-2_5-flash,mini-swe-agent
+terminal_bench,terminus-2_gemini-2_5-flash_at_gemini,gemini-2_5-flash,terminus-2
+terminal_bench,gemini-cli_gemini-3-flash-preview_at_google,gemini-3-flash-preview,gemini-cli
+terminal_bench,junie_gemini-3-flash-preview_at_gemini,gemini-3-flash-preview,junie
+terminal_bench,ante_gemini-3-pro-preview_at_google,gemini-3-pro-preview,ante
+terminal_bench,factory_droid_gemini-3-pro-preview_at_google,gemini-3-pro-preview,factory_droid
+terminal_bench,ii-agent-simple_gemini-3-pro-preview_at_gemini,gemini-3-pro-preview,ii-agent-simple
+terminal_bench,letta-code_gemini-3-pro-preview_at_google,gemini-3-pro-preview,letta-code
+terminal_bench,terminus-2_gemini-3-pro-preview_at_gemini,gemini-3-pro-preview,terminus-2
+terminal_bench,terminus-2_accounts/fireworks/models/glm-4p6_at_fireworks_ai,glm4-6,terminus-2
+terminal_bench,openhands_grok-4-0709_at_xai,grok-4-0709,OpenHands
+terminal_bench,mini-swe-agent_grok-4-0709_at_xai,grok-4-0709,mini-swe-agent
+terminal_bench,terminus-2_grok-4-0709_at_xai,grok-4-0709,terminus-2
+terminal_bench,mini-swe-agent_grok-code-fast-1_at_xai,grok-code-fast-1,mini-swe-agent
+terminal_bench,terminus-2_grok-code-fast-1_at_xai,grok-code-fast-1,terminus-2
+terminal_bench,openhands_moonshotai/kimi-k2-instruct-0905_at_together_ai,kimi-k2-instruct-0905,OpenHands
+terminal_bench,terminus-2_moonshotai/kimi-k2-instruct-0905_at_together_ai,kimi-k2-instruct-0905,terminus-2
+terminal_bench,terminus-2_moonshotai/kimi-k2-thinking_at_together_ai,kimi-k2-thinking,terminus-2
+terminal_bench,terminus-2_accounts/fireworks/models/minimax-m2_at_fireworks_ai,minimax-m2,terminus-2
+terminal_bench,claude-code_minimax-m2_1_at_minimax,minimax-m2_1,claude-code
+terminal_bench,terminus-2_minimax-m2_1_at_openai,minimax-m2_1,terminus-2

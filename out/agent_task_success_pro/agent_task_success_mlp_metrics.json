@@ -1,0 +1,466 @@
+{
+  "accuracy": 0.8092954990215265,
+  "agent_features_json": "out/agent_features.template.json",
+  "balanced_accuracy": 0.739289307427878,
+  "baseline": {
+    "accuracy": {
+      "mean": 0.7416829745596869,
+      "std": 0.008033023777602274
+    },
+    "balanced_accuracy": {
+      "mean": 0.5,
+      "std": 0.0
+    },
+    "log_loss": {
+      "mean": 0.5440776883119993,
+      "std": 0.008916380778089818
+    },
+    "roc_auc": {
+      "mean": 0.6423625673011133,
+      "std": 0.007902350908646922
+    }
+  },
+  "cv": {
+    "baseline": {
+      "accuracy": {
+        "mean": 0.7416829745596869,
+        "std": 0.008033023777602274
+      },
+      "balanced_accuracy": {
+        "mean": 0.5,
+        "std": 0.0
+      },
+      "log_loss": {
+        "mean": 0.5440776883119993,
+        "std": 0.008916380778089818
+      },
+      "roc_auc": {
+        "mean": 0.6423625673011133,
+        "std": 0.007902350908646922
+      }
+    },
+    "enabled": true,
+    "folds": [
+      {
+        "baseline": {
+          "accuracy": 0.7490215264187867,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5395777064932542,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6285836697848112
+        },
+        "feature_names_train": [
+          "model__id=Claude 4 Sonnet",
+          "model__id=Claude 4.5 Haiku",
+          "model__id=Claude Opus 4.1",
+          "model__id=GLM-4.5",
+          "model__id=GPT OSS 120B",
+          "model__id=GPT-4o",
+          "model__id=GPT-5",
+          "model__id=GPT-5 Codex",
+          "model__id=GPT-5 High",
+          "model__id=Gemini 2.5 Pro Preview",
+          "model__id=claude-sonnet-4-5",
+          "model__id=kimi_k2_instruct",
+          "model__open_source",
+          "model__provider=anthropic",
+          "model__provider=google",
+          "model__provider=moonshotai",
+          "model__provider=openai",
+          "model__provider=zai",
+          "model__release_date",
+          "scaffold__id=SWE-agent 1.0",
+          "scaffold__open_source",
+          "scaffold__provider=swe-agent",
+          "scaffold__release_date"
+        ],
+        "fold_idx": 0,
+        "global_p_train": 0.26021032037172903,
+        "mlp": {
+          "accuracy": 0.8189823874755382,
+          "balanced_accuracy": 0.759270081728743,
+          "log_loss": 0.46167742593175237,
+          "roc_auc": 0.8698744466216707
+        },
+        "ms_feature_dim_train": 23,
+        "n_groups_test": 2044,
+        "n_groups_train": 8176,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 704,
+          "n_tasks_test_unseen": 0,
+          "n_tasks_train": 730
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim_train": 5143
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7382583170254403,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5488916893647271,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6471383536785518
+        },
+        "feature_names_train": [
+          "model__id=Claude 4 Sonnet",
+          "model__id=Claude 4.5 Haiku",
+          "model__id=Claude Opus 4.1",
+          "model__id=GLM-4.5",
+          "model__id=GPT OSS 120B",
+          "model__id=GPT-4o",
+          "model__id=GPT-5",
+          "model__id=GPT-5 Codex",
+          "model__id=GPT-5 High",
+          "model__id=Gemini 2.5 Pro Preview",
+          "model__id=claude-sonnet-4-5",
+          "model__id=kimi_k2_instruct",
+          "model__open_source",
+          "model__provider=anthropic",
+          "model__provider=google",
+          "model__provider=moonshotai",
+          "model__provider=openai",
+          "model__provider=zai",
+          "model__release_date",
+          "scaffold__id=SWE-agent 1.0",
+          "scaffold__open_source",
+          "scaffold__provider=swe-agent",
+          "scaffold__release_date"
+        ],
+        "fold_idx": 1,
+        "global_p_train": 0.2575201760821717,
+        "mlp": {
+          "accuracy": 0.8038160469667319,
+          "balanced_accuracy": 0.7217511132581458,
+          "log_loss": 0.4991604589428701,
+          "roc_auc": 0.8577370666963948
+        },
+        "ms_feature_dim_train": 23,
+        "n_groups_test": 2044,
+        "n_groups_train": 8176,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 709,
+          "n_tasks_test_unseen": 0,
+          "n_tasks_train": 730
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim_train": 5143
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7274951076320939,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5591632112785493,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.638494118385674
+        },
+        "feature_names_train": [
+          "model__id=Claude 4 Sonnet",
+          "model__id=Claude 4.5 Haiku",
+          "model__id=Claude Opus 4.1",
+          "model__id=GLM-4.5",
+          "model__id=GPT OSS 120B",
+          "model__id=GPT-4o",
+          "model__id=GPT-5",
+          "model__id=GPT-5 Codex",
+          "model__id=GPT-5 High",
+          "model__id=Gemini 2.5 Pro Preview",
+          "model__id=claude-sonnet-4-5",
+          "model__id=kimi_k2_instruct",
+          "model__open_source",
+          "model__provider=anthropic",
+          "model__provider=google",
+          "model__provider=moonshotai",
+          "model__provider=openai",
+          "model__provider=zai",
+          "model__release_date",
+          "scaffold__id=SWE-agent 1.0",
+          "scaffold__open_source",
+          "scaffold__provider=swe-agent",
+          "scaffold__release_date"
+        ],
+        "fold_idx": 2,
+        "global_p_train": 0.2548300317926143,
+        "mlp": {
+          "accuracy": 0.821917808219178,
+          "balanced_accuracy": 0.7366898518458598,
+          "log_loss": 0.4948441517402662,
+          "roc_auc": 0.8726992402135081
+        },
+        "ms_feature_dim_train": 23,
+        "n_groups_test": 2044,
+        "n_groups_train": 8176,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 703,
+          "n_tasks_test_unseen": 0,
+          "n_tasks_train": 730
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim_train": 5143
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7480430528375733,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5343855774782227,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6497380736187749
+        },
+        "feature_names_train": [
+          "model__id=Claude 4 Sonnet",
+          "model__id=Claude 4.5 Haiku",
+          "model__id=Claude Opus 4.1",
+          "model__id=GLM-4.5",
+          "model__id=GPT OSS 120B",
+          "model__id=GPT-4o",
+          "model__id=GPT-5",
+          "model__id=GPT-5 Codex",
+          "model__id=GPT-5 High",
+          "model__id=Gemini 2.5 Pro Preview",
+          "model__id=claude-sonnet-4-5",
+          "model__id=kimi_k2_instruct",
+          "model__open_source",
+          "model__provider=anthropic",
+          "model__provider=google",
+          "model__provider=moonshotai",
+          "model__provider=openai",
+          "model__provider=zai",
+          "model__release_date",
+          "scaffold__id=SWE-agent 1.0",
+          "scaffold__open_source",
+          "scaffold__provider=swe-agent",
+          "scaffold__release_date"
+        ],
+        "fold_idx": 3,
+        "global_p_train": 0.25996576179995107,
+        "mlp": {
+          "accuracy": 0.8047945205479452,
+          "balanced_accuracy": 0.7529834208537847,
+          "log_loss": 0.5206863767770213,
+          "roc_auc": 0.8642472077060328
+        },
+        "ms_feature_dim_train": 23,
+        "n_groups_test": 2044,
+        "n_groups_train": 8176,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 701,
+          "n_tasks_test_unseen": 0,
+          "n_tasks_train": 730
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim_train": 5143
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7455968688845401,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5383702569452433,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6478586210377548
+        },
+        "feature_names_train": [
+          "model__id=Claude 4 Sonnet",
+          "model__id=Claude 4.5 Haiku",
+          "model__id=Claude Opus 4.1",
+          "model__id=GLM-4.5",
+          "model__id=GPT OSS 120B",
+          "model__id=GPT-4o",
+          "model__id=GPT-5",
+          "model__id=GPT-5 Codex",
+          "model__id=GPT-5 High",
+          "model__id=Gemini 2.5 Pro Preview",
+          "model__id=claude-sonnet-4-5",
+          "model__id=kimi_k2_instruct",
+          "model__open_source",
+          "model__provider=anthropic",
+          "model__provider=google",
+          "model__provider=moonshotai",
+          "model__provider=openai",
+          "model__provider=zai",
+          "model__release_date",
+          "scaffold__id=SWE-agent 1.0",
+          "scaffold__open_source",
+          "scaffold__provider=swe-agent",
+          "scaffold__release_date"
+        ],
+        "fold_idx": 4,
+        "global_p_train": 0.2593543653705062,
+        "mlp": {
+          "accuracy": 0.7969667318982387,
+          "balanced_accuracy": 0.7257520694528569,
+          "log_loss": 0.5332522550293037,
+          "roc_auc": 0.839703210175651
+        },
+        "ms_feature_dim_train": 23,
+        "n_groups_test": 2044,
+        "n_groups_train": 8176,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 684,
+          "n_tasks_test_unseen": 0,
+          "n_tasks_train": 730
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim_train": 5143
+      }
+    ],
+    "mlp": {
+      "accuracy": {
+        "mean": 0.8092954990215265,
+        "std": 0.009544005429821166
+      },
+      "balanced_accuracy": {
+        "mean": 0.739289307427878,
+        "std": 0.014726590374110183
+      },
+      "log_loss": {
+        "mean": 0.5019241336842427,
+        "std": 0.024539904157110673
+      },
+      "roc_auc": {
+        "mean": 0.8608522342826515,
+        "std": 0.011749580412342564
+      }
+    },
+    "n_folds": 5,
+    "oracle_irt_all_data": {
+      "accuracy": {
+        "mean": 0.8516634050880626,
+        "std": 0.006066536203522494
+      },
+      "balanced_accuracy": {
+        "mean": 0.7892895587588185,
+        "std": 0.008895944149776788
+      },
+      "enabled": true,
+      "log_loss": {
+        "mean": 0.3149674505600275,
+        "std": 0.009194085367246693
+      },
+      "oracle_irt_device": "cuda",
+      "oracle_irt_epochs": 5000,
+      "oracle_irt_lr": 0.01,
+      "oracle_irt_model": "1d_1pl",
+      "oracle_items": 730,
+      "oracle_models": 12,
+      "oracle_out_dir": "out/agent_task_success_pro/oracle_irt_all_data",
+      "oracle_scaffolds": 1,
+      "roc_auc": {
+        "mean": 0.9151905972930565,
+        "std": 0.0060635311475839134
+      }
+    },
+    "split_by": "observation",
+    "test_fraction_ignored_when_cv": 0.2
+  },
+  "cv_folds": 5,
+  "embeddings_cache": "out/agent_task_success_pro/task_embeddings__qs_sol_instr_b7008f2d.npz",
+  "include_identity_features": true,
+  "log_loss": 0.5019241336842427,
+  "mlp": {
+    "accuracy": {
+      "mean": 0.8092954990215265,
+      "std": 0.009544005429821166
+    },
+    "balanced_accuracy": {
+      "mean": 0.739289307427878,
+      "std": 0.014726590374110183
+    },
+    "log_loss": {
+      "mean": 0.5019241336842427,
+      "std": 0.024539904157110673
+    },
+    "roc_auc": {
+      "mean": 0.8608522342826515,
+      "std": 0.011749580412342564
+    }
+  },
+  "ms_feature_dim": 23,
+  "ms_feature_mode": "all",
+  "n_dropped_missing_task_embedding": 0,
+  "n_dropped_unsplittable_subject": 0,
+  "n_obs_total": 10220,
+  "oracle_irt_all_data": {
+    "accuracy": {
+      "mean": 0.8516634050880626,
+      "std": 0.006066536203522494
+    },
+    "balanced_accuracy": {
+      "mean": 0.7892895587588185,
+      "std": 0.008895944149776788
+    },
+    "enabled": true,
+    "log_loss": {
+      "mean": 0.3149674505600275,
+      "std": 0.009194085367246693
+    },
+    "oracle_irt_device": "cuda",
+    "oracle_irt_epochs": 5000,
+    "oracle_irt_lr": 0.01,
+    "oracle_irt_model": "1d_1pl",
+    "oracle_items": 730,
+    "oracle_models": 12,
+    "oracle_out_dir": "out/agent_task_success_pro/oracle_irt_all_data",
+    "oracle_scaffolds": 1,
+    "roc_auc": {
+      "mean": 0.9151905972930565,
+      "std": 0.0060635311475839134
+    }
+  },
+  "roc_auc": 0.8608522342826515,
+  "split_by": "observation",
+  "task_embedding_dim": 5120,
+  "test_fraction": 0.2,
+  "train_benchmarks": [
+    "pro"
+  ],
+  "x_total_dim": 5143
+}
