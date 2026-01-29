@@ -520,6 +520,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # Debug / exports
     # -----------------------------
     p.add_argument("--write_rows_csv", type=str, default="", help="Optional CSV path to write expanded (agent, task, y) rows.")
+    p.add_argument(
+        "--no_pca_embed_vs_oracle_theta",
+        action="store_true",
+        help="Disable PCA diagnostics: PC2(model/scaffold learned embeddings) vs oracle IRT ability (theta).",
+    )
 
     args = p.parse_args(list(argv) if argv is not None else None)
 
@@ -575,6 +580,96 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     from sklearn.metrics import accuracy_score, balanced_accuracy_score
 
     import predict_question_difficulty as diff_base
+
+    def _pca_pc2_vs_theta(
+        *,
+        out_dir: str,
+        entity: str,
+        emb_weight: "torch.Tensor",
+        id_to_idx: Dict[str, int],
+        theta_by_id: Dict[str, float],
+        seed: int,
+    ) -> Dict[str, Any]:
+        """
+        PCA learned embedding vectors and save PC2 vs IRT theta scatter.
+        Returns a small dict with summary stats + output paths.
+        """
+        try:
+            from sklearn.decomposition import PCA  # type: ignore
+        except Exception as e:
+            return {"enabled": True, "entity": str(entity), "error": f"sklearn PCA import failed: {e}"}
+
+        ids = [i for i in sorted(id_to_idx.keys()) if i != "__UNK__" and i in theta_by_id]
+        if len(ids) < 3:
+            return {
+                "enabled": True,
+                "entity": str(entity),
+                "n": int(len(ids)),
+                "error": f"Not enough IDs with both embedding and theta (need >=3, got {len(ids)}).",
+            }
+
+        idx = np.asarray([int(id_to_idx[i]) for i in ids], dtype=np.int64)
+        X = emb_weight.detach().float().cpu().numpy()[idx]
+        theta = np.asarray([float(theta_by_id[i]) for i in ids], dtype=np.float64)
+
+        pca = PCA(n_components=2, random_state=int(seed))
+        Z = pca.fit_transform(X)
+        pc1 = np.asarray(Z[:, 0], dtype=np.float64)
+        pc2 = np.asarray(Z[:, 1], dtype=np.float64)
+
+        def _pearson(x: np.ndarray, y: np.ndarray) -> float:
+            if x.size < 2:
+                return float("nan")
+            c = np.corrcoef(x, y)
+            return float(c[0, 1])
+
+        r_pc2 = _pearson(pc2, theta)
+        r_pc1 = _pearson(pc1, theta)
+
+        csv_path = os.path.join(out_dir, f"embed_pca_vs_oracle_theta__{str(entity)}.csv")
+        import csv
+
+        with open(csv_path, "w", encoding="utf-8", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["id", "theta", "pc1", "pc2"])
+            for i, th, a, b in zip(ids, theta.tolist(), pc1.tolist(), pc2.tolist()):
+                w.writerow([str(i), float(th), float(a), float(b)])
+
+        png_path = os.path.join(out_dir, f"embed_pc2_vs_oracle_theta__{str(entity)}.png")
+        try:
+            import matplotlib
+
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt  # type: ignore
+
+            plt.figure(figsize=(7, 5))
+            plt.scatter(theta, pc2, s=12, alpha=0.8)
+            plt.xlabel("Oracle IRT ability (theta)")
+            plt.ylabel("PCA dim 2 (learned embedding)")
+            evr = getattr(pca, "explained_variance_ratio_", None)
+            evr2 = float(evr[1]) if isinstance(evr, np.ndarray) and evr.size >= 2 else float("nan")
+            plt.title(f"{str(entity)} embeddings: PC2 vs theta (r={r_pc2:.3f}, EVR2={evr2:.3f}, n={len(ids)})")
+            plt.tight_layout()
+            plt.savefig(png_path, dpi=200)
+            plt.close()
+        except Exception as e:
+            png_path = ""
+            plot_err = str(e)
+        else:
+            plot_err = ""
+
+        evr = getattr(pca, "explained_variance_ratio_", None)
+        return {
+            "enabled": True,
+            "entity": str(entity),
+            "n": int(len(ids)),
+            "pearson_r_pc2_vs_theta": float(r_pc2),
+            "pearson_r_pc1_vs_theta": float(r_pc1),
+            "explained_variance_ratio": (evr.tolist() if isinstance(evr, np.ndarray) else None),
+            "csv_path": str(csv_path),
+            "png_path": str(png_path) if png_path else "",
+            **({"plot_error": str(plot_err)} if plot_err else {}),
+        }
 
     if not str(args.instruction or "").strip():
         args.instruction = str(diff_base.DIFFICULTY_INSTRUCTION)
@@ -1146,6 +1241,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # -----------------------------
     oracle_details: Dict[str, Any] = {}
     oracle_fold_scores: List[Dict[str, float]] = []
+    oracle_theta_by_model: Dict[str, float] = {}
+    oracle_theta_by_scaffold: Dict[str, float] = {}
     try:
         _require("pandas")
         _require("pyro")
@@ -1230,6 +1327,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             lr=float(args.oracle_irt_lr),
             out_dir=str(oracle_out_dir),
         )
+        oracle_theta_by_model = {str(k): float(v) for k, v in (theta_by_model or {}).items()}
+        oracle_theta_by_scaffold = {str(k): float(v) for k, v in (theta_by_scaffold or {}).items()}
         _set_torch_determinism(deterministic=True)
         _p("[progress] Oracle IRT: training done; scoring folds")
 
@@ -1255,8 +1354,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             oracle_probs: List[float] = []
             for i in test_idx:
                 r = obs[i]
-                tm = theta_by_model.get(r.model, None)
-                ts = theta_by_scaffold.get(r.scaffold, None)
+                tm = oracle_theta_by_model.get(r.model, None)
+                ts = oracle_theta_by_scaffold.get(r.scaffold, None)
                 b = diff_by_item.get(r.task_key, None)
                 if tm is None or ts is None or b is None:
                     oracle_probs.append(float(global_p))
@@ -1379,77 +1478,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print(json.dumps(metrics, indent=2, sort_keys=True))
 
-    # -----------------------------
-    # Train final model on ALL data (and save)
-    # -----------------------------
-    device = torch.device(str(args.device))
-
-    # All-data mapping (no UNK needed, but keep UNK=0 for safety / future inference).
-    all_models = sorted(set([r.model for r in obs]))
-    all_scaffolds = sorted(set([r.scaffold for r in obs]))
-    model_to_idx_all = {"__UNK__": 0, **{m: (j + 1) for j, m in enumerate(all_models)}}
-    scaffold_to_idx_all = {"__UNK__": 0, **{s: (j + 1) for j, s in enumerate(all_scaffolds)}}
-
-    net = AgentTaskSuccessNet(
-        n_models=len(model_to_idx_all),
-        n_scaffolds=len(scaffold_to_idx_all),
-        task_dim=int(emb_dim),
-        model_emb_dim=int(args.model_emb_dim),
-        scaffold_emb_dim=int(args.scaffold_emb_dim),
-        hidden=hidden_dims,
-        dropout=float(args.dropout),
-    ).to(device)
-
-    opt = torch.optim.AdamW(net.parameters(), lr=float(args.lr), weight_decay=float(args.weight_decay))
-    loss_fn = torch.nn.BCEWithLogitsLoss()
-
-    all_idx = list(range(len(obs)))
-    train_bs = int(args.train_batch_size)
-    for _epoch in range(int(args.epochs)):
-        net.train()
-        random.shuffle(all_idx)
-        loss_sum = 0.0
-        n_seen = 0
-        for off in range(0, len(all_idx), train_bs):
-            chunk = all_idx[off : off + train_bs]
-            m_t, s_t, t_t, y_t = _tensorize(chunk, model_to_idx_all, scaffold_to_idx_all, device=device)
-            logits = net(m_t, s_t, t_t)
-            loss = loss_fn(logits, y_t)
-            opt.zero_grad(set_to_none=True)
-            loss.backward()
-            opt.step()
-            bs = int(y_t.shape[0])
-            loss_sum += float(loss.detach().item()) * float(bs)
-            n_seen += bs
-        if int(args.epochs) <= 20 or ((_epoch + 1) % 5 == 0) or (_epoch == 0) or (_epoch + 1 == int(args.epochs)):
-            avg = (loss_sum / float(max(1, n_seen))) if n_seen else float("nan")
-            _p(f"[progress] final-train epoch {_epoch + 1}/{int(args.epochs)} loss={avg:.4f}")
-
-    # Save bundle.
-    bundle = {
-        "state_dict": {k: v.detach().cpu() for k, v in net.state_dict().items()},
-        "model_to_idx": model_to_idx_all,
-        "scaffold_to_idx": scaffold_to_idx_all,
-        "task_embedding_dim": int(emb_dim),
-        "model_emb_dim": int(args.model_emb_dim),
-        "scaffold_emb_dim": int(args.scaffold_emb_dim),
-        "hidden_dims": list(hidden_dims),
-        "dropout": float(args.dropout),
-        "metrics": metrics,
-        "embeddings_cache": str(cache_path),
-        "train_benchmarks": list(train_benchmarks),
-        "split_by": str(args.split_by),
-    }
-
-    model_path = os.path.join(out_dir, "agent_task_success_embed_ms.pt")
-    torch.save(bundle, model_path)
-
+    # Write metrics file (but do not train/save a final model bundle).
     meta_path = os.path.join(out_dir, "agent_task_success_embed_ms_metrics.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, sort_keys=True)
         f.write("\n")
-
-    print(f"Wrote model bundle: {model_path}")
     print(f"Wrote metrics: {meta_path}")
     return 0
 
