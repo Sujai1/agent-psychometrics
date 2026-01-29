@@ -232,4 +232,7 @@ chris_output/experiment_a/mlp_embedding/
 chris_output/experiment_b/results_*.csv
 
 chris_output/env_features/
+chris_output/auditor_features/
+chris_output/auditor_test*/
+chris_output/auditor_verification/
 chris_output/logistic_solve_dates/
