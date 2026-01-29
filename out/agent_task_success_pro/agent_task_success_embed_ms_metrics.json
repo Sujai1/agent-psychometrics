@@ -1,0 +1,440 @@
+{
+  "accuracy": 0.7544031311154599,
+  "balanced_accuracy": 0.5959634645388444,
+  "baseline": {
+    "accuracy": {
+      "mean": 0.7416829745596869,
+      "std": 0.012966159509571388
+    },
+    "balanced_accuracy": {
+      "mean": 0.5,
+      "std": 0.0
+    },
+    "log_loss": {
+      "mean": 0.5432451202371806,
+      "std": 0.013638484369162332
+    },
+    "roc_auc": {
+      "mean": 0.6450590894659431,
+      "std": 0.0101360446049776
+    }
+  },
+  "cv": {
+    "baseline": {
+      "accuracy": {
+        "mean": 0.7416829745596869,
+        "std": 0.012966159509571388
+      },
+      "balanced_accuracy": {
+        "mean": 0.5,
+        "std": 0.0
+      },
+      "log_loss": {
+        "mean": 0.5432451202371806,
+        "std": 0.013638484369162332
+      },
+      "roc_auc": {
+        "mean": 0.6450590894659431,
+        "std": 0.0101360446049776
+      }
+    },
+    "embed_mlp": {
+      "accuracy": {
+        "mean": 0.7544031311154599,
+        "std": 0.011523577706800235
+      },
+      "balanced_accuracy": {
+        "mean": 0.5959634645388444,
+        "std": 0.029131287382814872
+      },
+      "log_loss": {
+        "mean": 0.5003182924513413,
+        "std": 0.01843903042936575
+      },
+      "roc_auc": {
+        "mean": 0.7440489306198644,
+        "std": 0.029967400471640766
+      }
+    },
+    "enabled": true,
+    "folds": [
+      {
+        "baseline": {
+          "accuracy": 0.7299412915851272,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5541406223719305,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6443010063332945
+        },
+        "embed_mlp": {
+          "accuracy": 0.7592954990215264,
+          "balanced_accuracy": 0.6331011772933909,
+          "log_loss": 0.4879058396767002,
+          "roc_auc": 0.7710749601740685
+        },
+        "fold_idx": 0,
+        "global_p_train": 0.2554414282220592,
+        "model_emb_dim": 64,
+        "n_groups_test": 146,
+        "n_groups_train": 584,
+        "n_models_train_plus_unk": 12,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "n_scaffolds_train_plus_unk": 1,
+        "ridge": {
+          "accuracy": 0.7548923679060665,
+          "alpha": 10000.0,
+          "balanced_accuracy": 0.5707347398686716,
+          "log_loss": 0.5389531468140955,
+          "name": "Ridge",
+          "roc_auc": 0.7734985138127987
+        },
+        "scaffold_emb_dim": 64,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 146,
+          "n_tasks_test_unseen": 146,
+          "n_tasks_train": 584
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim": 5248
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7299412915851272,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5515720920598438,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6544056222558963
+        },
+        "embed_mlp": {
+          "accuracy": 0.7348336594911937,
+          "balanced_accuracy": 0.5695496755643625,
+          "log_loss": 0.522205549113195,
+          "roc_auc": 0.7219032909818548
+        },
+        "fold_idx": 1,
+        "global_p_train": 0.2554414282220592,
+        "model_emb_dim": 64,
+        "n_groups_test": 146,
+        "n_groups_train": 584,
+        "n_models_train_plus_unk": 12,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "n_scaffolds_train_plus_unk": 1,
+        "ridge": {
+          "accuracy": 0.7392367906066536,
+          "alpha": 10000.0,
+          "balanced_accuracy": 0.5788432023934413,
+          "log_loss": 0.5672135909990622,
+          "name": "Ridge",
+          "roc_auc": 0.7250930081206045
+        },
+        "scaffold_emb_dim": 64,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 146,
+          "n_tasks_test_unseen": 146,
+          "n_tasks_train": 584
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim": 5248
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7367906066536204,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5509853415939949,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6364085171087644
+        },
+        "embed_mlp": {
+          "accuracy": 0.7607632093933464,
+          "balanced_accuracy": 0.5592783759633091,
+          "log_loss": 0.4843265259156747,
+          "roc_auc": 0.7796286971074808
+        },
+        "fold_idx": 2,
+        "global_p_train": 0.25715333822450476,
+        "model_emb_dim": 64,
+        "n_groups_test": 146,
+        "n_groups_train": 584,
+        "n_models_train_plus_unk": 12,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "n_scaffolds_train_plus_unk": 1,
+        "ridge": {
+          "accuracy": 0.7617416829745597,
+          "alpha": 10000.0,
+          "balanced_accuracy": 0.5671107391993365,
+          "log_loss": 0.5104056607118138,
+          "name": "Ridge",
+          "roc_auc": 0.7835090863312548
+        },
+        "scaffold_emb_dim": 64,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 146,
+          "n_tasks_test_unseen": 146,
+          "n_tasks_train": 584
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim": 5248
+      },
+      {
+        "baseline": {
+          "accuracy": 0.7475538160469667,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5423849127222898,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6318438248305532
+        },
+        "embed_mlp": {
+          "accuracy": 0.7490215264187867,
+          "balanced_accuracy": 0.5933961402654329,
+          "log_loss": 0.5234500753356877,
+          "roc_auc": 0.6994779617679289
+        },
+        "fold_idx": 3,
+        "global_p_train": 0.25984348251406214,
+        "model_emb_dim": 64,
+        "n_groups_test": 146,
+        "n_groups_train": 584,
+        "n_models_train_plus_unk": 12,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "n_scaffolds_train_plus_unk": 1,
+        "ridge": {
+          "accuracy": 0.7524461839530333,
+          "alpha": 10000.0,
+          "balanced_accuracy": 0.5680907301432688,
+          "log_loss": 0.5591824554590566,
+          "name": "Ridge",
+          "roc_auc": 0.7009606213726207
+        },
+        "scaffold_emb_dim": 64,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 146,
+          "n_tasks_test_unseen": 146,
+          "n_tasks_train": 584
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim": 5248
+      },
+      {
+        "baseline": {
+          "accuracy": 0.764187866927593,
+          "alpha": 1.0,
+          "balanced_accuracy": 0.5,
+          "beta": 1.0,
+          "log_loss": 0.5171426324378443,
+          "name": "baseline_model_empirical_rate",
+          "roc_auc": 0.6583364768012072
+        },
+        "embed_mlp": {
+          "accuracy": 0.7681017612524462,
+          "balanced_accuracy": 0.6244919536077271,
+          "log_loss": 0.4837034722154488,
+          "roc_auc": 0.7481597430679893
+        },
+        "fold_idx": 4,
+        "global_p_train": 0.2640009782342871,
+        "model_emb_dim": 64,
+        "n_groups_test": 146,
+        "n_groups_train": 584,
+        "n_models_train_plus_unk": 12,
+        "n_obs_test": 2044,
+        "n_obs_train": 8176,
+        "n_scaffolds_train_plus_unk": 1,
+        "ridge": {
+          "accuracy": 0.7847358121330724,
+          "alpha": 10000.0,
+          "balanced_accuracy": 0.568671933524952,
+          "log_loss": 0.4984741044878876,
+          "name": "Ridge",
+          "roc_auc": 0.7494999229629
+        },
+        "scaffold_emb_dim": 64,
+        "split_diagnostics": {
+          "n_models_test": 12,
+          "n_models_test_unseen": 0,
+          "n_models_train": 12,
+          "n_scaffolds_test": 1,
+          "n_scaffolds_test_unseen": 0,
+          "n_scaffolds_train": 1,
+          "n_tasks_test": 146,
+          "n_tasks_test_unseen": 146,
+          "n_tasks_train": 584
+        },
+        "task_embedding_dim": 5120,
+        "x_total_dim": 5248
+      }
+    ],
+    "n_folds": 5,
+    "oracle_irt_all_data": {
+      "accuracy": {
+        "mean": 0.8516634050880626,
+        "std": 0.008953968917990891
+      },
+      "balanced_accuracy": {
+        "mean": 0.7884803821235735,
+        "std": 0.018225673272940793
+      },
+      "enabled": true,
+      "log_loss": {
+        "mean": 0.3149674505600275,
+        "std": 0.016425654504831053
+      },
+      "oracle_irt_device": "cuda",
+      "oracle_irt_epochs": 5000,
+      "oracle_irt_lr": 0.01,
+      "oracle_irt_model": "1d_1pl",
+      "oracle_items": 730,
+      "oracle_models": 12,
+      "oracle_out_dir": "agent_task_success_pro/oracle_irt_all_data",
+      "oracle_scaffolds": 1,
+      "roc_auc": {
+        "mean": 0.9143065190629619,
+        "std": 0.010240229147723639
+      }
+    },
+    "ridge": {
+      "accuracy": {
+        "mean": 0.758610567514677,
+        "std": 0.014963289445175552
+      },
+      "balanced_accuracy": {
+        "mean": 0.5706902690259341,
+        "std": 0.004245388428103639
+      },
+      "log_loss": {
+        "mean": 0.5348457916943831,
+        "std": 0.026747103147049325
+      },
+      "name": "Ridge",
+      "roc_auc": {
+        "mean": 0.7465122305200358,
+        "std": 0.030462059405502114
+      }
+    },
+    "split_by": "task",
+    "test_fraction_ignored_when_cv": 0.2
+  },
+  "cv_folds": 5,
+  "device": "cuda",
+  "dropout": 0.1,
+  "embed_mlp": {
+    "accuracy": {
+      "mean": 0.7544031311154599,
+      "std": 0.011523577706800235
+    },
+    "balanced_accuracy": {
+      "mean": 0.5959634645388444,
+      "std": 0.029131287382814872
+    },
+    "log_loss": {
+      "mean": 0.5003182924513413,
+      "std": 0.01843903042936575
+    },
+    "roc_auc": {
+      "mean": 0.7440489306198644,
+      "std": 0.029967400471640766
+    }
+  },
+  "embeddings_cache": "out/agent_task_success_pro/task_embeddings__qs_sol_instr_b7008f2d.npz",
+  "epochs": 10,
+  "hidden_dims": [
+    256,
+    128
+  ],
+  "log_loss": 0.5003182924513413,
+  "lr": 0.001,
+  "model_emb_dim": 64,
+  "n_dropped_missing_task_embedding": 0,
+  "n_dropped_unsplittable_subject": 0,
+  "n_obs_total": 10220,
+  "oracle_irt_all_data": {
+    "accuracy": {
+      "mean": 0.8516634050880626,
+      "std": 0.008953968917990891
+    },
+    "balanced_accuracy": {
+      "mean": 0.7884803821235735,
+      "std": 0.018225673272940793
+    },
+    "enabled": true,
+    "log_loss": {
+      "mean": 0.3149674505600275,
+      "std": 0.016425654504831053
+    },
+    "oracle_irt_device": "cuda",
+    "oracle_irt_epochs": 5000,
+    "oracle_irt_lr": 0.01,
+    "oracle_irt_model": "1d_1pl",
+    "oracle_items": 730,
+    "oracle_models": 12,
+    "oracle_out_dir": "agent_task_success_pro/oracle_irt_all_data",
+    "oracle_scaffolds": 1,
+    "roc_auc": {
+      "mean": 0.9143065190629619,
+      "std": 0.010240229147723639
+    }
+  },
+  "ridge": {
+    "accuracy": {
+      "mean": 0.758610567514677,
+      "std": 0.014963289445175552
+    },
+    "balanced_accuracy": {
+      "mean": 0.5706902690259341,
+      "std": 0.004245388428103639
+    },
+    "log_loss": {
+      "mean": 0.5348457916943831,
+      "std": 0.026747103147049325
+    },
+    "name": "Ridge",
+    "roc_auc": {
+      "mean": 0.7465122305200358,
+      "std": 0.030462059405502114
+    }
+  },
+  "roc_auc": 0.7440489306198644,
+  "scaffold_emb_dim": 64,
+  "split_by": "task",
+  "test_fraction": 0.2,
+  "train_batch_size": 256,
+  "train_benchmarks": [
+    "pro"
+  ],
+  "weight_decay": 0.01
+}
