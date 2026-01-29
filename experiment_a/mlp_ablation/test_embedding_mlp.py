@@ -44,6 +44,8 @@ def main():
     parser = argparse.ArgumentParser(description="MLP on embeddings ablation")
     parser.add_argument("--quick", action="store_true", help="Run quick test with fewer configs")
     parser.add_argument("--k_folds", type=int, default=5, help="Number of CV folds")
+    parser.add_argument("--part", type=int, choices=[1, 2], default=None,
+                        help="Run only part 1 or 2 of configs (for parallel execution)")
     args = parser.parse_args()
 
     config = ExperimentAConfig()
@@ -307,6 +309,21 @@ def main():
             )
         )
 
+    # Filter configs by part if specified (for parallel execution)
+    if args.part is not None:
+        # Split configs roughly in half
+        # Part 1: baselines + baseline MLP + frozen IRT (names containing "baseline" or "frozen" or "oracle" or "constant" or "ridge")
+        # Part 2: two-stage + dropout + PCA + early stopping
+        part1_keywords = ["oracle", "constant", "ridge", "mlp_baseline_wd", "mlp_frozen_wd"]
+        part2_keywords = ["mlp_twostage", "dropout", "pca", "earlystop"]
+
+        if args.part == 1:
+            configs = [c for c in configs if any(kw in c.name for kw in part1_keywords)]
+        else:
+            configs = [c for c in configs if any(kw in c.name for kw in part2_keywords)]
+
+        print(f"\n*** Running PART {args.part} only ({len(configs)} configs) ***")
+
     # Run CV
     results = {}
 
@@ -379,7 +396,10 @@ def main():
     # Save results
     output_dir = ROOT / "chris_output/experiment_a/mlp_embedding"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "embedding_mlp_results.json"
+    if args.part is not None:
+        output_path = output_dir / f"embedding_mlp_results_part{args.part}.json"
+    else:
+        output_path = output_dir / "embedding_mlp_results.json"
 
     def convert_numpy(obj):
         if isinstance(obj, np.ndarray):
