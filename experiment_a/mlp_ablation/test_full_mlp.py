@@ -26,7 +26,7 @@ import pandas as pd
 
 from experiment_ab_shared.feature_source import EmbeddingFeatureSource
 from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
-from experiment_a.shared.cross_validation import k_fold_split_tasks, run_cv
+from experiment_a.shared.cross_validation import k_fold_split_tasks, run_cv, CVPredictor
 from experiment_a.shared.pipeline import CVPredictorConfig
 from experiment_a.shared.mlp_predictor import FullMLPPredictor
 from experiment_a.shared.baselines import (
@@ -36,6 +36,13 @@ from experiment_a.shared.baselines import (
 )
 from experiment_a.swebench.config import ExperimentAConfig
 from experiment_ab_shared import load_dataset_for_fold
+
+
+def extract_train_auc(predictor: CVPredictor, fold_idx: int) -> float | None:
+    """Extract train AUC from fitted predictor for diagnostics."""
+    if hasattr(predictor, 'get_train_auc'):
+        return predictor.get_train_auc()
+    return None
 
 ROOT = Path(__file__).parent.parent.parent
 
@@ -299,6 +306,7 @@ def main():
             folds,
             load_fold_data,
             verbose=True,
+            diagnostics_extractor=extract_train_auc,
         )
 
         results[pc.name] = {
@@ -308,9 +316,12 @@ def main():
             "fold_aucs": cv_result.fold_aucs,
         }
 
-        # Get train AUC if available
-        if hasattr(pc.predictor, 'get_train_auc') and pc.predictor.get_train_auc() is not None:
-            results[pc.name]["train_auc"] = pc.predictor.get_train_auc()
+        # Get mean train AUC from fold diagnostics
+        if cv_result.fold_diagnostics:
+            valid_train_aucs = [t for t in cv_result.fold_diagnostics if t is not None]
+            if valid_train_aucs:
+                results[pc.name]["train_auc"] = float(np.mean(valid_train_aucs))
+                results[pc.name]["fold_train_aucs"] = valid_train_aucs
 
         print(f"   Mean AUC: {cv_result.mean_auc:.4f} ± {cv_result.std_auc:.4f}")
 
