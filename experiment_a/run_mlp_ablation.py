@@ -62,6 +62,8 @@ def build_ablation_configs(
                 source,
                 freeze_abilities=freeze,
                 feature_weight_decay=feat_wd,
+                learning_rate=0.01,  # Higher LR for faster convergence
+                n_epochs=500,        # More epochs for proper convergence
                 verbose=True,
             )
             short_name = source_name.replace(" ", "_").lower()
