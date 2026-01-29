@@ -17,6 +17,6 @@ export PYTHONUNBUFFERED=1
 python -u predict_agent_task_success.py \
   --train_benchmarks gso \
   --gso_agent_results_jsonl out/chris_irt/gso.jsonl \
-  --out_dir agent_task_success_gso \
+  --out_dir out/agent_task_success_gso \
   --split_by task \
   --embeddings_cache out/agent_task_success_gso/task_embeddings__qs_sol_instr_b7008f2d.npz

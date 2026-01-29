@@ -1,0 +1,15 @@
+benchmark,agent,model,scaffold
+gso,claude-opus-4,Claude 4 Opus,OpenHands
+gso,claude-sonnet-4,Claude 4 Sonnet,OpenHands
+gso,claude-opus-4.5,Claude 4.5 Opus,OpenHands
+gso,glm-4.5,GLM-4.5,OpenHands
+gso,gpt-5,GPT-5,OpenHands
+gso,gpt-5.1,GPT-5.1,OpenHands
+gso,gpt-5.2,GPT-5.2,OpenHands
+gso,gemini-2.5-pro,Gemini 2.5 Pro Preview,OpenHands
+gso,kimi-k2,Kimi K2,OpenHands
+gso,qwen3-coder,Qwen3-Coder-480B-A35B-Instruct-FP8,OpenHands
+gso,claude-sonnet-4.5,claude-sonnet-4-5,OpenHands
+gso,gemini-3-flash,gemini-3-flash-preview,OpenHands
+gso,gemini-3-pro,gemini-3-pro-preview,OpenHands
+gso,o3,o3,OpenHands

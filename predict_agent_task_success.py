@@ -1441,10 +1441,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "split_by": str(args.split_by),
     }
 
-    model_path = os.path.join(out_dir, "agent_task_success_embed_ms.pt")
+    model_path = os.path.join(out_dir, "agent_task_success_mlp.pt")
     torch.save(bundle, model_path)
 
-    meta_path = os.path.join(out_dir, "agent_task_success_embed_ms_metrics.json")
+    meta_path = os.path.join(out_dir, "agent_task_success_mlp_metrics.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, sort_keys=True)
         f.write("\n")
