@@ -167,7 +167,7 @@ def main():
         "--task",
         type=str,
         default="auditor_task",
-        choices=["auditor_task", "auditor_task_v2"],
+        choices=["auditor_task", "auditor_task_v2", "auditor_task_v3"],
         help="Task to run (default: auditor_task)",
     )
 

@@ -44,6 +44,7 @@ from experiment_a.auditor_agent.prompts import (
     VERIFICATION_PROMPT,
 )
 from experiment_a.auditor_agent.prompts_v2 import build_auditor_system_prompt_v2
+from experiment_a.auditor_agent.prompts_v3 import build_auditor_system_prompt_v3
 
 
 def load_swebench_samples(
@@ -196,4 +197,49 @@ def auditor_task_v2(
         solver=auditor_agent,
         scorer=None,
         name="swe_bench_auditor_v2",
+    )
+
+
+@task
+def auditor_task_v3(
+    dataset: str = "princeton-nlp/SWE-bench_Verified",
+    split: str = "test",
+    max_attempts: int = 1,
+    message_limit: int = 50,
+) -> Task:
+    """Run the v3 auditor agent on SWE-bench tasks.
+
+    V3 features (5 total, all showing strong correlation with IRT difficulty):
+    - entry_point_clarity (-0.502)
+    - change_blast_radius (+0.502)
+    - test_feedback_quality (-0.301)
+    - fix_localization (-0.587) - strongest predictor
+    - debugging_setup_ease (-0.305)
+
+    Dropped from v2: test_specificity (weak at -0.065)
+
+    Args:
+        dataset: HuggingFace dataset name
+        split: Dataset split (default: test)
+        max_attempts: Max submissions (we only want 1 - the JSON output)
+        message_limit: Max total messages in conversation
+
+    Returns:
+        Inspect Task configured with v3 auditor agent
+    """
+    samples = load_swebench_samples(dataset, split)
+
+    auditor_agent = basic_agent(
+        init=system_message(build_auditor_system_prompt_v3()),
+        tools=[bash(timeout=120)],
+        max_attempts=max_attempts,
+        message_limit=message_limit,
+        submit_description="Submit your JSON audit report with all 5 features rated.",
+    )
+
+    return Task(
+        dataset=samples,
+        solver=auditor_agent,
+        scorer=None,
+        name="swe_bench_auditor_v3",
     )

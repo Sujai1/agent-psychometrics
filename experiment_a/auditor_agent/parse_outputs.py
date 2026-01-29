@@ -28,9 +28,11 @@ if str(_project_root) not in sys.path:
 
 from experiment_a.auditor_agent.prompts import get_feature_names
 from experiment_a.auditor_agent.prompts_v2 import get_feature_names_v2
+from experiment_a.auditor_agent.prompts_v3 import get_feature_names_v3
 
 EXPECTED_FEATURES_V1 = get_feature_names()
 EXPECTED_FEATURES_V2 = get_feature_names_v2()
+EXPECTED_FEATURES_V3 = get_feature_names_v3()
 
 # Default to v1 for backwards compatibility
 EXPECTED_FEATURES = EXPECTED_FEATURES_V1
@@ -305,15 +307,16 @@ def main():
     parser.add_argument(
         "--version",
         type=int,
-        choices=[1, 2],
+        choices=[1, 2, 3],
         default=1,
-        help="Feature version to parse (1 or 2, default: 1)",
+        help="Feature version to parse (1, 2, or 3, default: 1)",
     )
 
     args = parser.parse_args()
 
     # Select feature set based on version
-    expected_features = EXPECTED_FEATURES_V1 if args.version == 1 else EXPECTED_FEATURES_V2
+    version_map = {1: EXPECTED_FEATURES_V1, 2: EXPECTED_FEATURES_V2, 3: EXPECTED_FEATURES_V3}
+    expected_features = version_map[args.version]
     print(f"Using v{args.version} features: {expected_features}")
 
     # Parse logs
