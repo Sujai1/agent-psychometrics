@@ -12,6 +12,9 @@ Varying:
 
 Usage:
     python -m experiment_a.mlp_ablation.architecture_sweep
+    python -m experiment_a.mlp_ablation.architecture_sweep --part 1  # Part 1
+    python -m experiment_a.mlp_ablation.architecture_sweep --part 2  # Part 2
+    python -m experiment_a.mlp_ablation.architecture_sweep --part 3  # Part 3 (small architectures)
     sbatch experiment_a/mlp_ablation/slurm_architecture_sweep.sh
 """
 
@@ -378,8 +381,8 @@ ROOT = Path(__file__).parent.parent.parent
 def main():
     parser = argparse.ArgumentParser(description="Architecture sweep for MLP")
     parser.add_argument("--k_folds", type=int, default=5, help="Number of CV folds")
-    parser.add_argument("--part", type=int, choices=[1, 2], default=None,
-                        help="Run only part 1 or 2 (for parallel execution)")
+    parser.add_argument("--part", type=int, choices=[1, 2, 3], default=None,
+                        help="Run only part 1, 2, or 3 (for parallel execution)")
     args = parser.parse_args()
 
     config = ExperimentAConfig()
@@ -529,13 +532,54 @@ def main():
             "dropout": dropout,
         })
 
+    # 7. Small DeepMLP architectures (Part 3)
+    # Based on finding that 256-256 > 512-512 > 1024, test even smaller
+    small_configs = []
+
+    # Smaller symmetric architectures
+    for size in [128, 64, 32]:
+        small_configs.append({
+            "name": f"deep_{size}-{size}_loss",
+            "display": f"DeepMLP ({size}-{size})",
+            "architecture": "deep",
+            "hidden_sizes": [size, size],
+            "early_stopping_metric": "loss",
+            "dropout": 0.0,
+        })
+
+    # Asymmetric/tapered architectures
+    for hidden in [[128, 64], [64, 32], [256, 128]]:
+        h_str = "-".join(map(str, hidden))
+        small_configs.append({
+            "name": f"deep_{h_str}_loss",
+            "display": f"DeepMLP ({h_str})",
+            "architecture": "deep",
+            "hidden_sizes": hidden,
+            "early_stopping_metric": "loss",
+            "dropout": 0.0,
+        })
+
+    # 3-layer small architectures
+    for hidden in [[128, 64, 32], [64, 64, 64]]:
+        h_str = "-".join(map(str, hidden))
+        small_configs.append({
+            "name": f"deep_{h_str}_loss",
+            "display": f"DeepMLP ({h_str})",
+            "architecture": "deep",
+            "hidden_sizes": hidden,
+            "early_stopping_metric": "loss",
+            "dropout": 0.0,
+        })
+
     # Split configs for parallel execution
     if args.part == 1:
         configs_to_run = all_configs[:len(all_configs)//2]
     elif args.part == 2:
         configs_to_run = all_configs[len(all_configs)//2:]
+    elif args.part == 3:
+        configs_to_run = small_configs
     else:
-        configs_to_run = all_configs
+        configs_to_run = all_configs + small_configs
 
     # Build CVPredictorConfig objects
     for cfg in configs_to_run:
