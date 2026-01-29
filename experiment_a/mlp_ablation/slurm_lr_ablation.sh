@@ -10,7 +10,7 @@
 # Learning Rate Ablation Study
 # Tests different agent_lr_scale values to see if slowing agent learning
 # can solve gradient competition without freezing abilities.
-# Run with: sbatch experiment_a/slurm_lr_ablation.sh
+# Run with: sbatch experiment_a/mlp_ablation/slurm_lr_ablation.sh
 
 set -e
 
@@ -34,7 +34,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv
 # Run LR ablation study
 echo ""
 echo "Running LR ablation study on LLM Judge..."
-python -m experiment_a.test_lr_ablation
+python -m experiment_a.mlp_ablation.test_lr_ablation
 
 echo ""
 echo "=========================================="

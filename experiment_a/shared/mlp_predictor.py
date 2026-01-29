@@ -107,6 +107,9 @@ class MLPPredictor:
         n_epochs: int = 200,
         verbose: bool = False,
         freeze_abilities: bool = False,
+        two_stage: bool = False,
+        stage1_epochs: Optional[int] = None,
+        stage2_agent_lr_scale: float = 0.1,
     ):
         """Initialize IRT-style predictor.
 
@@ -125,6 +128,12 @@ class MLPPredictor:
             verbose: Print training progress.
             freeze_abilities: If True, initialize agent abilities from IRT and freeze them.
                 This isolates the difficulty layer learning and prevents agent memorization.
+            two_stage: If True, use two-stage training:
+                Stage 1: Initialize agents from IRT, freeze them, train features only
+                Stage 2: Unfreeze agents, fine-tune both with low agent LR
+                This combines good initialization with joint adaptation.
+            stage1_epochs: Epochs for stage 1. If None, uses n_epochs // 2.
+            stage2_agent_lr_scale: Learning rate scale for agents in stage 2 (default 0.1).
         """
         self.source = source
         self.hidden_size = hidden_size  # Unused but kept for compatibility
@@ -136,6 +145,9 @@ class MLPPredictor:
         self.n_epochs = n_epochs
         self.verbose = verbose
         self.freeze_abilities = freeze_abilities
+        self.two_stage = two_stage
+        self.stage1_epochs = stage1_epochs if stage1_epochs is not None else n_epochs // 2
+        self.stage2_agent_lr_scale = stage2_agent_lr_scale
 
         # Model state (set after fit())
         self._model: Optional[IRTStyleMLP] = None
@@ -229,7 +241,10 @@ class MLPPredictor:
         if self.verbose:
             print(f"   Training IRT-style MLP: {len(y)} samples")
             print(f"   Agents: {self._n_agents}, Feature dim: {self._feature_dim}")
-            print(f"   freeze_abilities={self.freeze_abilities}, agent_lr_scale={self.agent_lr_scale}")
+            if self.two_stage:
+                print(f"   two_stage=True, stage1_epochs={self.stage1_epochs}, stage2_agent_lr_scale={self.stage2_agent_lr_scale}")
+            else:
+                print(f"   freeze_abilities={self.freeze_abilities}, agent_lr_scale={self.agent_lr_scale}")
             print(f"   weight_decay={self.weight_decay}, feature_weight_decay={self.feature_weight_decay}")
 
         # Create model
@@ -242,8 +257,8 @@ class MLPPredictor:
         if self.verbose and device.type == "cuda":
             print(f"   Using GPU: {torch.cuda.get_device_name(0)}")
 
-        # Initialize agent abilities from IRT if requested
-        if self.freeze_abilities:
+        # Initialize agent abilities from IRT if requested (freeze_abilities or two_stage)
+        if self.freeze_abilities or self.two_stage:
             with torch.no_grad():
                 for agent_id, idx in self._agent_to_idx.items():
                     if agent_id in data.train_abilities.index:
@@ -252,52 +267,114 @@ class MLPPredictor:
                     else:
                         # Default to 0 for agents without IRT abilities
                         self._model.agent_abilities.weight.data[idx, 0] = 0.0
-            # Freeze agent abilities
-            self._model.agent_abilities.requires_grad_(False)
-            if self.verbose:
-                print(f"   Initialized and froze agent abilities from IRT")
+            if self.freeze_abilities:
+                # Permanently freeze agent abilities
+                self._model.agent_abilities.requires_grad_(False)
+                if self.verbose:
+                    print(f"   Initialized and froze agent abilities from IRT")
+            elif self.two_stage:
+                # Temporarily freeze for stage 1
+                self._model.agent_abilities.requires_grad_(False)
+                if self.verbose:
+                    print(f"   Initialized agent abilities from IRT (will unfreeze in stage 2)")
 
         # Convert to tensors
         agent_tensor = torch.tensor(agent_indices, dtype=torch.long, device=device)
         features_tensor = torch.tensor(features, dtype=torch.float32, device=device)
         y_tensor = torch.tensor(y, dtype=torch.float32, device=device)
 
-        # Optimizer with per-parameter group regularization and learning rates
-        if self.freeze_abilities:
-            # Only optimize difficulty layer when abilities are frozen
-            optimizer = torch.optim.Adam(
+        criterion = nn.BCELoss()
+
+        if self.two_stage:
+            # ===== TWO-STAGE TRAINING =====
+            # Stage 1: Train features only with frozen IRT abilities
+            stage2_epochs = self.n_epochs - self.stage1_epochs
+
+            if self.verbose:
+                print(f"   Stage 1: Training features only for {self.stage1_epochs} epochs...")
+
+            optimizer_stage1 = torch.optim.Adam(
                 self._model.difficulty_layer.parameters(),
                 lr=self.learning_rate,
                 weight_decay=self.feature_weight_decay,
             )
-        else:
-            # Separate weight_decay and learning rates for agent abilities vs feature weights
-            agent_lr = self.learning_rate * self.agent_lr_scale
-            optimizer = torch.optim.Adam([
+
+            self._model.train()
+            for epoch in range(self.stage1_epochs):
+                optimizer_stage1.zero_grad()
+                y_pred = self._model(agent_tensor, features_tensor)
+                loss = criterion(y_pred, y_tensor)
+                loss.backward()
+                optimizer_stage1.step()
+
+                loss_val = loss.item()
+                self._training_losses.append(loss_val)
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Stage 1 Epoch {epoch + 1}/{self.stage1_epochs}: Loss = {loss_val:.6f}")
+
+            # Stage 2: Unfreeze agents, fine-tune both with low agent LR
+            if self.verbose:
+                print(f"   Stage 2: Fine-tuning both for {stage2_epochs} epochs (agent_lr_scale={self.stage2_agent_lr_scale})...")
+
+            self._model.agent_abilities.requires_grad_(True)
+            agent_lr = self.learning_rate * self.stage2_agent_lr_scale
+
+            optimizer_stage2 = torch.optim.Adam([
                 {'params': self._model.agent_abilities.parameters(), 'lr': agent_lr, 'weight_decay': self.weight_decay},
                 {'params': self._model.difficulty_layer.parameters(), 'lr': self.learning_rate, 'weight_decay': self.feature_weight_decay},
             ])
-        criterion = nn.BCELoss()
 
-        # Training loop (full-batch)
-        self._model.train()
-        for epoch in range(self.n_epochs):
-            optimizer.zero_grad()
+            for epoch in range(stage2_epochs):
+                optimizer_stage2.zero_grad()
+                y_pred = self._model(agent_tensor, features_tensor)
+                loss = criterion(y_pred, y_tensor)
+                loss.backward()
+                optimizer_stage2.step()
 
-            # Forward pass
-            y_pred = self._model(agent_tensor, features_tensor)
-            loss = criterion(y_pred, y_tensor)
+                loss_val = loss.item()
+                self._training_losses.append(loss_val)
 
-            # Backward pass
-            loss.backward()
-            optimizer.step()
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Stage 2 Epoch {epoch + 1}/{stage2_epochs}: Loss = {loss_val:.6f}")
 
-            # Track loss per iteration
-            loss_val = loss.item()
-            self._training_losses.append(loss_val)
+        else:
+            # ===== SINGLE-STAGE TRAINING =====
+            # Optimizer with per-parameter group regularization and learning rates
+            if self.freeze_abilities:
+                # Only optimize difficulty layer when abilities are frozen
+                optimizer = torch.optim.Adam(
+                    self._model.difficulty_layer.parameters(),
+                    lr=self.learning_rate,
+                    weight_decay=self.feature_weight_decay,
+                )
+            else:
+                # Separate weight_decay and learning rates for agent abilities vs feature weights
+                agent_lr = self.learning_rate * self.agent_lr_scale
+                optimizer = torch.optim.Adam([
+                    {'params': self._model.agent_abilities.parameters(), 'lr': agent_lr, 'weight_decay': self.weight_decay},
+                    {'params': self._model.difficulty_layer.parameters(), 'lr': self.learning_rate, 'weight_decay': self.feature_weight_decay},
+                ])
 
-            if self.verbose and (epoch + 1) % 50 == 0:
-                print(f"      Epoch {epoch + 1}/{self.n_epochs}: Loss = {loss_val:.6f}")
+            # Training loop (full-batch)
+            self._model.train()
+            for epoch in range(self.n_epochs):
+                optimizer.zero_grad()
+
+                # Forward pass
+                y_pred = self._model(agent_tensor, features_tensor)
+                loss = criterion(y_pred, y_tensor)
+
+                # Backward pass
+                loss.backward()
+                optimizer.step()
+
+                # Track loss per iteration
+                loss_val = loss.item()
+                self._training_losses.append(loss_val)
+
+                if self.verbose and (epoch + 1) % 50 == 0:
+                    print(f"      Epoch {epoch + 1}/{self.n_epochs}: Loss = {loss_val:.6f}")
 
         self._is_fitted = True
 

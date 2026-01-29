@@ -7,9 +7,9 @@ Tests 4 conditions per feature source:
 - D) Both fixes: IRT abilities frozen, strong regularization
 
 Usage:
-    python -m experiment_a.run_mlp_ablation
-    python -m experiment_a.run_mlp_ablation --source embedding  # Single source
-    python -m experiment_a.run_mlp_ablation --source llm_judge
+    python -m experiment_a.mlp_ablation.run_mlp_ablation
+    python -m experiment_a.mlp_ablation.run_mlp_ablation --source embedding  # Single source
+    python -m experiment_a.mlp_ablation.run_mlp_ablation --source llm_judge
 """
 
 import argparse
@@ -33,7 +33,7 @@ from experiment_a.shared.baselines import OraclePredictor, ConstantPredictor
 from experiment_a.swebench.config import ExperimentAConfig
 from experiment_ab_shared import load_dataset_for_fold
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).parent.parent.parent
 
 
 def build_ablation_configs(

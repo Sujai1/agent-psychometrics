@@ -4,7 +4,7 @@ Tests whether slowing down agent learning can solve gradient competition
 without freezing abilities to IRT values.
 
 Usage:
-    python -m experiment_a.test_lr_ablation
+    python -m experiment_a.mlp_ablation.test_lr_ablation
 """
 
 import json
@@ -22,7 +22,7 @@ from experiment_a.shared.baselines import OraclePredictor, ConstantPredictor
 from experiment_a.swebench.config import ExperimentAConfig
 from experiment_ab_shared import load_dataset_for_fold
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).parent.parent.parent
 
 
 def main():

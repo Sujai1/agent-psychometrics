@@ -5,8 +5,8 @@ This script can be used to visualize the training loss curves for MLP predictors
 across cross-validation folds.
 
 Usage:
-    python -m experiment_a.plot_mlp_training_loss --losses_json path/to/losses.json
-    python -m experiment_a.plot_mlp_training_loss --run_cv  # Run CV and plot
+    python -m experiment_a.mlp_ablation.plot_mlp_training_loss --losses_json path/to/losses.json
+    python -m experiment_a.mlp_ablation.plot_mlp_training_loss --run_cv  # Run CV and plot
 """
 
 import argparse

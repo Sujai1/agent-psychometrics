@@ -23,7 +23,7 @@ from experiment_a.swebench.config import ExperimentAConfig
 from experiment_a.shared.cross_validation import k_fold_split_tasks
 from experiment_ab_shared import load_dataset_for_fold
 
-ROOT = Path(__file__).parent.parent
+ROOT = Path(__file__).parent.parent.parent
 
 
 def main():

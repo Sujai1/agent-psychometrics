@@ -9,7 +9,7 @@
 
 # MLP Ablation Study for Experiment A
 # Tests 4 conditions: baseline, frozen_irt, strong_reg, both_fixes
-# Run with: sbatch experiment_a/slurm_mlp_ablation.sh
+# Run with: sbatch experiment_a/mlp_ablation/slurm_mlp_ablation.sh
 
 set -e
 
@@ -33,7 +33,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv
 # Run ablation study
 echo ""
 echo "Running ablation study on all sources (embedding, llm_judge, grouped)..."
-python -m experiment_a.run_mlp_ablation --source all --k_folds 5
+python -m experiment_a.mlp_ablation.run_mlp_ablation --source all --k_folds 5
 
 echo ""
 echo "=========================================="
