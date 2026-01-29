@@ -1478,11 +1478,102 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print(json.dumps(metrics, indent=2, sort_keys=True))
 
-    # Write metrics file (but do not train/save a final model bundle).
+    # -----------------------------
+    # Train final model on ALL data (and save)
+    # -----------------------------
+    device = torch.device(str(args.device))
+
+    # All-data mapping (no UNK needed, but keep UNK=0 for safety / future inference).
+    all_models = sorted(set([r.model for r in obs]))
+    all_scaffolds = sorted(set([r.scaffold for r in obs]))
+    model_to_idx_all = {"__UNK__": 0, **{m: (j + 1) for j, m in enumerate(all_models)}}
+    scaffold_to_idx_all = {"__UNK__": 0, **{s: (j + 1) for j, s in enumerate(all_scaffolds)}}
+
+    net = AgentTaskSuccessNet(
+        n_models=len(model_to_idx_all),
+        n_scaffolds=len(scaffold_to_idx_all),
+        task_dim=int(emb_dim),
+        model_emb_dim=int(args.model_emb_dim),
+        scaffold_emb_dim=int(args.scaffold_emb_dim),
+        hidden=hidden_dims,
+        dropout=float(args.dropout),
+    ).to(device)
+
+    opt = torch.optim.AdamW(net.parameters(), lr=float(args.lr), weight_decay=float(args.weight_decay))
+    loss_fn = torch.nn.BCEWithLogitsLoss()
+
+    all_idx = list(range(len(obs)))
+    train_bs = int(args.train_batch_size)
+    for _epoch in range(int(args.epochs)):
+        net.train()
+        random.shuffle(all_idx)
+        loss_sum = 0.0
+        n_seen = 0
+        for off in range(0, len(all_idx), train_bs):
+            chunk = all_idx[off : off + train_bs]
+            m_t, s_t, t_t, y_t = _tensorize(chunk, model_to_idx_all, scaffold_to_idx_all, device=device)
+            logits = net(m_t, s_t, t_t)
+            loss = loss_fn(logits, y_t)
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            opt.step()
+            bs = int(y_t.shape[0])
+            loss_sum += float(loss.detach().item()) * float(bs)
+            n_seen += bs
+        if int(args.epochs) <= 20 or ((_epoch + 1) % 5 == 0) or (_epoch == 0) or (_epoch + 1 == int(args.epochs)):
+            avg = (loss_sum / float(max(1, n_seen))) if n_seen else float("nan")
+            _p(f"[progress] final-train epoch {_epoch + 1}/{int(args.epochs)} loss={avg:.4f}")
+
+    # PCA diagnostics: learned embeddings vs oracle IRT theta.
+    if (not bool(getattr(args, "no_pca_embed_vs_oracle_theta", False))) and oracle_theta_by_model and oracle_theta_by_scaffold:
+        try:
+            pca_diag = {
+                "model": _pca_pc2_vs_theta(
+                    out_dir=out_dir,
+                    entity="model",
+                    emb_weight=net.model_emb.weight,
+                    id_to_idx=model_to_idx_all,
+                    theta_by_id=oracle_theta_by_model,
+                    seed=int(args.seed),
+                ),
+                "scaffold": _pca_pc2_vs_theta(
+                    out_dir=out_dir,
+                    entity="scaffold",
+                    emb_weight=net.scaffold_emb.weight,
+                    id_to_idx=scaffold_to_idx_all,
+                    theta_by_id=oracle_theta_by_scaffold,
+                    seed=int(args.seed),
+                ),
+            }
+        except Exception as e:
+            pca_diag = {"enabled": True, "error": str(e)}
+        metrics["embed_mlp_embedding_pca_vs_oracle_theta"] = pca_diag
+
+    # Save bundle.
+    bundle = {
+        "state_dict": {k: v.detach().cpu() for k, v in net.state_dict().items()},
+        "model_to_idx": model_to_idx_all,
+        "scaffold_to_idx": scaffold_to_idx_all,
+        "task_embedding_dim": int(emb_dim),
+        "model_emb_dim": int(args.model_emb_dim),
+        "scaffold_emb_dim": int(args.scaffold_emb_dim),
+        "hidden_dims": list(hidden_dims),
+        "dropout": float(args.dropout),
+        "metrics": metrics,
+        "embeddings_cache": str(cache_path),
+        "train_benchmarks": list(train_benchmarks),
+        "split_by": str(args.split_by),
+    }
+
+    model_path = os.path.join(out_dir, "agent_task_success_embed_ms.pt")
+    torch.save(bundle, model_path)
+
     meta_path = os.path.join(out_dir, "agent_task_success_embed_ms_metrics.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, sort_keys=True)
         f.write("\n")
+
+    print(f"Wrote model bundle: {model_path}")
     print(f"Wrote metrics: {meta_path}")
     return 0
 
