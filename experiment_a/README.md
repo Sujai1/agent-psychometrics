@@ -289,9 +289,11 @@ Key differences from Grouped Ridge:
 
 **When to use**: Stacked (Emb → LLM) is recommended for smaller datasets (like GSO) where it outperforms Grouped Ridge. For larger datasets (like SWE-bench), Grouped Ridge performs slightly better.
 
-### Decision Tree and Random Forest
+### Decision Tree and Random Forest (Experimental)
 
 Tree-based methods for difficulty prediction. Both train on LLM judge features to predict IRT difficulty.
+
+**Note:** These methods are **off by default** (`--no-trees`) since they don't consistently outperform Ridge regression. Use `--trees` to include them.
 
 **Decision Tree** (`LLM Judge (Tree)`):
 - Uses cross-validated hyperparameter search over `max_depth` values: [3, 5, 7, 10]
@@ -488,6 +490,7 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 --exclude_unsolved    Exclude tasks no agent solved
 --include_feature_irt Include Feature-IRT joint learning methods (off by default)
 --mlp / --no-mlp      Include/exclude MLP predictors (default: --mlp). Use --no-mlp for faster local runs without PyTorch training.
+--trees / --no-trees  Include/exclude tree-based predictors (default: --no-trees). Use --trees to include Decision Tree and Random Forest.
 ```
 
 ## Output

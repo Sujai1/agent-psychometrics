@@ -88,6 +88,7 @@ def run_single_dataset(
     n_jobs_methods: int = 1,
     n_jobs_folds: int = 1,
     include_mlp: bool = True,
+    include_trees: bool = False,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_a on a single dataset and return results.
 
@@ -100,6 +101,7 @@ def run_single_dataset(
         n_jobs_methods: Number of parallel jobs for method execution.
         n_jobs_folds: Number of parallel jobs for fold execution.
         include_mlp: Whether to include MLP predictors (default True).
+        include_trees: Whether to include tree-based predictors (default False).
 
     Returns:
         Tuple of (dataset_name, results_dict).
@@ -158,6 +160,7 @@ def run_single_dataset(
             metadata_loader=None,
             include_feature_irt=False,
             include_mlp=include_mlp,
+            include_trees=include_trees,
             n_jobs_methods=n_jobs_methods,
             n_jobs_folds=n_jobs_folds,
         )
@@ -223,7 +226,7 @@ def format_results_table(
     """
     if methods is None:
         methods = ["Oracle", "Stacked (Emb → LLM)", "Grouped Ridge", "Embedding", "LLM Judge",
-                   "LLM Judge (Tree)", "LLM Judge (RF)", "MLP (Emb)", "MLP (Judge)", "MLP (Grouped)", "Baseline"]
+                   "MLP (Emb)", "MLP (Judge)", "MLP (Grouped)", "Baseline"]
 
     # Build data rows first to calculate column widths
     data_rows = []
@@ -279,7 +282,7 @@ def save_results_csv(
 
     if methods is None:
         methods = ["Oracle", "Stacked (Emb → LLM)", "Grouped Ridge", "Embedding", "LLM Judge",
-                   "LLM Judge (Tree)", "LLM Judge (RF)", "MLP (Emb)", "MLP (Judge)", "MLP (Grouped)", "Baseline"]
+                   "MLP (Emb)", "MLP (Judge)", "MLP (Grouped)", "Baseline"]
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -365,6 +368,12 @@ def main():
         default=True,
         help="Include MLP predictors (default: True). Use --no-mlp to skip for faster local runs.",
     )
+    parser.add_argument(
+        "--trees",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include tree-based predictors (default: False). Use --trees to include Decision Tree and Random Forest.",
+    )
 
     args = parser.parse_args()
 
@@ -379,7 +388,7 @@ def main():
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
     print(f"Unified judge features: {args.unified_judge}")
     print(f"K-folds: {args.k_folds}")
-    print(f"Include MLP: {args.mlp}")
+    print(f"Include MLP: {args.mlp}, Include trees: {args.trees}")
     print(f"Parallelization: datasets={args.max_workers}, methods={args.n_jobs_methods}, folds={args.n_jobs_folds}")
     print()
 
@@ -398,6 +407,7 @@ def main():
                 n_jobs_methods=args.n_jobs_methods,
                 n_jobs_folds=args.n_jobs_folds,
                 include_mlp=args.mlp,
+                include_trees=args.trees,
             )
             metrics = extract_metrics(results)
             all_results[name] = metrics
@@ -424,6 +434,7 @@ def main():
                     args.n_jobs_methods,
                     args.n_jobs_folds,
                     args.mlp,
+                    args.trees,
                 ): config.name
                 for config in datasets_to_run
             }

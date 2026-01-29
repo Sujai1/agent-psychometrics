@@ -122,17 +122,26 @@ Frontier ability is linear over time (R² = 0.98 for 2PL).
 
 ## Development Guidelines
 
+**Current context (January 2026):**
+- Best available models: Claude Opus 4.5, GPT 5.2
+
 **Keep git status clean:**
 - Always commit changes after completing a group of related modifications
 - Add any new experimental output files to `.gitignore` before committing
 - Goal: leave the repository in the same clean state you found it
 
-**Fail loudly on data issues:**
+**Fail loudly — no silent fallbacks:**
 - Never write code that silently skips or ignores missing data
 - Raise explicit errors when expected data is missing (tasks, agents, features, dates, etc.)
+- Never use fallbacks that hide problems — if a precondition is not met, throw an error
 - Use warnings for non-critical issues, but errors for data that should exist
 - Example: if a task is expected to have embeddings but doesn't, raise an error rather than silently excluding it
 - This makes debugging much easier by catching issues at their source
+
+**Code reuse — avoid duplication:**
+- Always look for existing code that can be reused before writing new code
+- Never duplicate code — extract shared logic into functions or classes
+- If you find yourself copying code, refactor it into a shared module instead
 
 **MIT Engaging Cluster:**
 - HuggingFace cache is stored on scratch to avoid home quota limits

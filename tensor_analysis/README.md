@@ -9,6 +9,7 @@ Extends binary response matrices (agents × tasks → 0/1) with trajectory-level
 | `trajectory_features.py` | Extract features from agent trajectories (char counts) |
 | `eda.py` | Distribution analysis and visualization |
 | `response_matrix.py` | PCA analysis on response matrices |
+| `tensor_decomposition.py` | CP/Tucker tensor decomposition on (agents × tasks × features) |
 
 ## Data Coverage
 
@@ -71,6 +72,61 @@ The PC1-PC2 scatter plot for SWE-bench Verified shows a striking inverted parabo
 - Success: mean=28.2K chars, median=11.1K
 - Failure: mean=43.4K chars, median=21.4K
 
+### Tensor Decomposition (CP/Tucker)
+
+Built 3D tensors (agents × tasks × 2 features) where features are [resolved, standardized_char_count] and ran CP and Tucker decomposition.
+
+**SWE-bench Verified (44 × 500 × 2):**
+
+| Method | Rank/Size | Explained Variance |
+|--------|-----------|-------------------|
+| CP | 1 | 38.0% |
+| CP | 2 | 70.2% |
+| CP | 3 | 70.8% |
+| CP | 5 | 80.5% |
+| Tucker | (2,2,2) | 70.2% |
+| Tucker | (5,5,2) | 81.4% |
+
+**Feature Loadings (CP rank=2):**
+- Component 1: +resolved, −char_count (success = shorter trajectories)
+- Component 2: ~0 resolved, +char_count (trajectory length dimension)
+
+**Validation Against IRT:**
+- Agent Factor 1 vs IRT ability: **r = 0.924** (p < 1e-18)
+- Task Factor 1 vs IRT difficulty: **r = −0.958** (p < 1e-272)
+
+**Guttman Effect Check:**
+- Factor 2 vs IRT ability: **quadratic R² = 0.087** ✓ (no Guttman effect)
+
+**What Factor 2 Captures:**
+- Factor 2 vs mean agent char count: **r = 0.997** (near-perfect!)
+- Factor 2 represents **agent-level verbosity** — some agents consistently write longer trajectories than others, independent of ability
+
+**Interpretation:** The tensor decomposition reveals **two meaningful dimensions**:
+1. **Component 1**: Ability/difficulty axis (r = 0.92 with IRT ability)
+2. **Component 2**: Agent verbosity axis (r = 0.997 with mean trajectory length)
+
+The second dimension is NOT the Guttman artifact — it captures real variance in how verbose different agents are, regardless of their success rate. Examples:
+- High verbosity (Factor 2 > 3): honeycomb, frogmini-14b, agentless-1.5
+- Low verbosity (Factor 2 < -0.8): cortexa, bloop, cortexa_o3
+
+Note: PCA on binary responses alone DOES show the Guttman effect. But when trajectory length is included as a second feature, it captures genuine agent-level variance.
+
+**SWE-bench Pro (10 × 398 × 2):**
+
+| Method | Rank/Size | Explained Variance |
+|--------|-----------|-------------------|
+| CP | 1 | 37.1% |
+| CP | 2 | 51.9% |
+| CP | 3 | 72.9% |
+| CP | 5 | 85.4% |
+| Tucker | (2,2,2) | 57.6% |
+| Tucker | (5,5,2) | 85.8% |
+
+Feature loadings match Verified pattern. No IRT data available for Pro validation.
+
+Note: `resolved` status is joined from the response matrix (`swebench_pro.jsonl`) since trajectory files don't include outcome data.
+
 ## Usage
 
 ```bash
@@ -82,6 +138,9 @@ python -m tensor_analysis.eda
 
 # Run PCA analysis
 python -m tensor_analysis.response_matrix
+
+# Run tensor decomposition
+python -m tensor_analysis.tensor_decomposition
 ```
 
 ## Output Files
@@ -92,3 +151,10 @@ All outputs saved to `chris_output/tensor_analysis/`:
 - `swebench_pro_char_counts.csv` - Character counts (10 agents × 398 tasks)
 - `pca_results.json` - PCA explained variance and agent scores
 - `plots/` - EDA and PCA visualizations
+- `decomposition/` - Tensor decomposition results:
+  - `decomposition_summary.json` - Explained variance for all methods
+  - `*_scree.png` - Scree plots for rank selection
+  - `*_feature_loadings.png` - How features load on components
+  - `*_agent_factors.png` - Agent factor scatter + IRT validation
+  - `*_task_factors.png` - Task factor scatter + IRT validation
+  - `*_guttman_check.png` - Quadratic fit to detect Guttman artifact

@@ -115,6 +115,7 @@ def build_cv_predictors(
     llm_judge_features: Optional[List[str]] = None,
     include_feature_irt: bool = False,
     include_mlp: bool = True,
+    include_trees: bool = False,
     full_firt_l2_weight: float = 0.001,
     full_firt_l2_residual: float = 0.0001,
 ) -> List[CVPredictorConfig]:
@@ -130,6 +131,8 @@ def build_cv_predictors(
             Defaults to False since they provide minimal improvement over Ridge.
         include_mlp: Whether to include MLP predictors (default True).
             Set to False for faster local execution (skips PyTorch training).
+        include_trees: Whether to include tree-based predictors (Decision Tree, Random Forest).
+            Defaults to False since they don't consistently outperform Ridge.
 
     Returns:
         List of CVPredictorConfig objects with pre-instantiated predictors.
@@ -233,25 +236,27 @@ def build_cv_predictors(
                 )
             )
 
-        # LLM Judge with Decision Tree (nonlinear, interpretable)
-        tree_predictor = DecisionTreePredictor(source)
-        configs.append(
-            CVPredictorConfig(
-                predictor=DifficultyPredictorAdapter(tree_predictor),
-                name="llm_judge_tree",
-                display_name="LLM Judge (Tree)",
+        # Tree-based predictors (off by default - don't consistently outperform Ridge)
+        if include_trees:
+            # LLM Judge with Decision Tree (nonlinear, interpretable)
+            tree_predictor = DecisionTreePredictor(source)
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(tree_predictor),
+                    name="llm_judge_tree",
+                    display_name="LLM Judge (Tree)",
+                )
             )
-        )
 
-        # LLM Judge with Random Forest (ensemble, more robust than single tree)
-        rf_predictor = RandomForestPredictor(source)
-        configs.append(
-            CVPredictorConfig(
-                predictor=DifficultyPredictorAdapter(rf_predictor),
-                name="llm_judge_rf",
-                display_name="LLM Judge (RF)",
+            # LLM Judge with Random Forest (ensemble, more robust than single tree)
+            rf_predictor = RandomForestPredictor(source)
+            configs.append(
+                CVPredictorConfig(
+                    predictor=DifficultyPredictorAdapter(rf_predictor),
+                    name="llm_judge_rf",
+                    display_name="LLM Judge (RF)",
+                )
             )
-        )
 
     # Trajectory features predictor (Ridge regression)
     if "Trajectory" in source_by_name:
@@ -483,6 +488,7 @@ def run_cross_validation(
     metadata_loader: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
     include_feature_irt: bool = False,
     include_mlp: bool = True,
+    include_trees: bool = False,
     full_firt_l2_weight: float = 0.001,
     full_firt_l2_residual: float = 0.0001,
     expansion_mode: Optional[str] = None,
@@ -506,6 +512,8 @@ def run_cross_validation(
             Defaults to False since they provide minimal improvement over Ridge.
         include_mlp: Whether to include MLP predictors (default True).
             Set to False for faster local execution (skips PyTorch training).
+        include_trees: Whether to include tree-based predictors (Decision Tree, Random Forest).
+            Defaults to False since they don't consistently outperform Ridge.
         expansion_mode: Override AUC expansion method ("binary", "expand", or None)
         binomial_responses: Original binomial responses, required for expansion_mode="expand"
             when data is binary (trained on sampled data)
@@ -571,6 +579,7 @@ def run_cross_validation(
         config, root, llm_judge_features=None,  # Auto-detect from CSV
         include_feature_irt=include_feature_irt,
         include_mlp=include_mlp,
+        include_trees=include_trees,
         full_firt_l2_weight=full_firt_l2_weight,
         full_firt_l2_residual=full_firt_l2_residual,
     )
