@@ -21,6 +21,7 @@ Usage:
 
 import argparse
 import json
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -590,6 +591,9 @@ ROOT = Path(__file__).parent.parent.parent
 
 
 def main():
+    main_start = time.time()
+    print(f"Script starting at: {time.strftime('%H:%M:%S')}")
+
     parser = argparse.ArgumentParser(description="Architecture sweep for MLP")
     parser.add_argument("--k_folds", type=int, default=5, help="Number of CV folds")
     parser.add_argument("--part", type=int, choices=[1, 2, 3, 4], default=None,
@@ -607,8 +611,9 @@ def main():
     if not embeddings_path.exists():
         raise FileNotFoundError(f"Embeddings not found: {embeddings_path}")
 
+    print(f"Loading embeddings at: {time.strftime('%H:%M:%S')}")
     embedding_source = EmbeddingFeatureSource(embeddings_path)
-    print(f"Loaded embeddings: {embedding_source.feature_dim} dimensions")
+    print(f"Loaded embeddings: {embedding_source.feature_dim} dimensions (took {time.time() - main_start:.1f}s)")
 
     full_items = pd.read_csv(items_path, index_col=0)
     all_task_ids = list(full_items.index)
@@ -819,6 +824,7 @@ def main():
 
     # Part 4: Combined features (embeddings + judge) - single-path vs dual-path
     if args.part == 4:
+        print(f"Part 4 setup starting at: {time.strftime('%H:%M:%S')}")
         llm_judge_path = ROOT / config.llm_judge_features_path
         if not llm_judge_path.exists():
             raise FileNotFoundError(f"LLM judge features not found: {llm_judge_path}")
@@ -928,9 +934,10 @@ def main():
 
     # Run CV
     results = {}
+    cv_start = time.time()
 
     print("\n" + "=" * 85)
-    print("ARCHITECTURE SWEEP")
+    print(f"ARCHITECTURE SWEEP (starting CV at {time.strftime('%H:%M:%S')})")
     print(f"Fixed: weight_decay={weight_decay}, init_from_irt=True, early_stopping=True")
     print(f"Configs to run: {len(configs)}")
     print("=" * 85)
@@ -939,6 +946,7 @@ def main():
         print(f"\n[{i}/{len(configs)}] {pc.display_name}")
         print("-" * 60)
 
+        config_start = time.time()
         cv_result = run_cv(
             pc.predictor,
             folds,
@@ -946,6 +954,7 @@ def main():
             verbose=True,
             diagnostics_extractor=extract_train_auc,
         )
+        config_elapsed = time.time() - config_start
 
         results[pc.name] = {
             "display_name": pc.display_name,
@@ -960,6 +969,7 @@ def main():
                 results[pc.name]["train_auc"] = float(np.mean(valid_train_aucs))
 
         print(f"   Mean AUC: {cv_result.mean_auc:.4f} ± {cv_result.std_auc:.4f}")
+        print(f"   Config time: {config_elapsed:.1f}s")
 
     # Print summary
     print("\n" + "=" * 85)

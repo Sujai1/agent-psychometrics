@@ -28,6 +28,7 @@ cd /home/cge7/model_irt
 source .venv/bin/activate
 
 export HF_HOME="$HOME/orcd/scratch/.cache/huggingface"
+export PYTHONUNBUFFERED=1
 
 echo ""
 echo "Running architecture sweep Part ${SLURM_ARRAY_TASK_ID}..."
