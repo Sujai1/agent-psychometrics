@@ -1069,6 +1069,7 @@ class AgentEmbeddingModel(nn.Module):
 
 
 class FullMLPPredictor:
+    """Full MLP predictor that concatenates agent and task features.
 
     Unlike MLPPredictor (IRTStyleMLP) which separates agent and task processing
     with the IRT formula (θ - β), this predictor concatenates agent one-hot
@@ -1076,11 +1077,11 @@ class FullMLPPredictor:
 
     Architecture:
         Input: [agent_one_hot (n_agents) | task_features (feature_dim)]
-        → Linear(input_dim, hidden_size)
-        → ReLU
-        → Dropout (optional)
-        → Linear(hidden_size, 1)
-        → Sigmoid
+        -> Linear(input_dim, hidden_size)
+        -> ReLU
+        -> Dropout (optional)
+        -> Linear(hidden_size, 1)
+        -> Sigmoid
         Output: P(success)
 
     This allows learning arbitrary interactions between agent identity and
