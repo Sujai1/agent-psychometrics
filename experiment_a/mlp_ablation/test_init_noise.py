@@ -150,7 +150,7 @@ def main():
         display_name="AgentEmb (random init)",
     ))
 
-    # 2. IRT init with various noise scales
+    # 2. IRT init with various noise scales (64D)
     for noise_scale in noise_scales:
         name = f"irt_noise_{noise_scale}".replace(".", "p")
         display = f"AgentEmb (IRT + noise σ={noise_scale})"
@@ -176,6 +176,27 @@ def main():
             name=name,
             display_name=display,
         ))
+
+    # 3. 1D embedding (scalar agent representation)
+    configs.append(CVPredictorConfig(
+        predictor=AgentEmbeddingPredictor(
+            embedding_source,
+            agent_emb_dim=1,  # Just a scalar per agent
+            hidden_sizes=[64, 64],
+            dropout=0.0,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            n_epochs=n_epochs,
+            init_from_irt=True,
+            init_noise_scale=0.0,
+            early_stopping=True,
+            val_fraction=0.1,
+            patience=30,
+            verbose=True,
+        ),
+        name="emb_1d",
+        display_name="AgentEmb (1D scalar, IRT init)",
+    ))
 
     print(f"\n*** Running {len(configs)} configs ***")
 
