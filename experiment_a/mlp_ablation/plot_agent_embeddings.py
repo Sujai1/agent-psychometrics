@@ -1,11 +1,14 @@
 """Plot learned agent embeddings using PCA.
 
-Run locally after transferring agent_embeddings.csv from cluster.
+Run locally after transferring agent_embeddings*.csv from cluster.
 
 Usage:
     python experiment_a/mlp_ablation/plot_agent_embeddings.py
+    python experiment_a/mlp_ablation/plot_agent_embeddings.py --noise 1.0
+    python experiment_a/mlp_ablation/plot_agent_embeddings.py --compare
 """
 
+import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -17,9 +20,107 @@ from sklearn.decomposition import PCA
 ROOT = Path(__file__).parent.parent.parent
 
 
+def analyze_embeddings(df, label=""):
+    """Analyze and return stats for embeddings."""
+    emb_cols = [c for c in df.columns if c.startswith("emb_")]
+    X = df[emb_cols].values
+
+    # PCA
+    pca = PCA(n_components=2)
+    X_2d = pca.fit_transform(X)
+
+    # Stats
+    std_per_agent = X.std(axis=1)
+    correlations = [np.corrcoef(df["ability"], X[:, i])[0, 1] for i in range(X.shape[1])]
+
+    stats = {
+        "label": label,
+        "X": X,
+        "X_2d": X_2d,
+        "pca": pca,
+        "within_agent_std_mean": std_per_agent.mean(),
+        "within_agent_std_max": std_per_agent.max(),
+        "ability_corr_mean": np.abs(correlations).mean(),
+        "pc1_var": pca.explained_variance_ratio_[0],
+        "pc2_var": pca.explained_variance_ratio_[1],
+    }
+    return stats
+
+
 def main():
-    # Load embeddings
-    emb_path = ROOT / "chris_output/experiment_a/mlp_embedding/agent_embeddings.csv"
+    parser = argparse.ArgumentParser(description="Plot agent embeddings")
+    parser.add_argument("--noise", type=float, default=None,
+                        help="Noise level to plot (default: no noise)")
+    parser.add_argument("--compare", action="store_true",
+                        help="Compare no-noise vs noise=1.0")
+    args = parser.parse_args()
+
+    if args.compare:
+        # Load both files
+        path_no_noise = ROOT / "chris_output/experiment_a/mlp_embedding/agent_embeddings.csv"
+        path_noise = ROOT / "chris_output/experiment_a/mlp_embedding/agent_embeddings_noise1.0.csv"
+
+        if not path_no_noise.exists() or not path_noise.exists():
+            print(f"Need both files for comparison:")
+            print(f"  {path_no_noise} - {'exists' if path_no_noise.exists() else 'MISSING'}")
+            print(f"  {path_noise} - {'exists' if path_noise.exists() else 'MISSING'}")
+            return
+
+        df_no_noise = pd.read_csv(path_no_noise)
+        df_noise = pd.read_csv(path_noise)
+
+        stats_no_noise = analyze_embeddings(df_no_noise, "No noise")
+        stats_noise = analyze_embeddings(df_noise, "Noise σ=1.0")
+
+        # Print comparison
+        print("=" * 60)
+        print("EMBEDDING COMPARISON: No Noise vs Noise σ=1.0")
+        print("=" * 60)
+        print(f"\n{'Metric':<35} {'No Noise':>12} {'Noise σ=1.0':>12}")
+        print("-" * 60)
+        print(f"{'Within-agent std (mean)':<35} {stats_no_noise['within_agent_std_mean']:>12.6f} {stats_noise['within_agent_std_mean']:>12.6f}")
+        print(f"{'Within-agent std (max)':<35} {stats_no_noise['within_agent_std_max']:>12.6f} {stats_noise['within_agent_std_max']:>12.6f}")
+        print(f"{'PC1 variance explained':<35} {stats_no_noise['pc1_var']:>12.1%} {stats_noise['pc1_var']:>12.1%}")
+        print(f"{'PC2 variance explained':<35} {stats_no_noise['pc2_var']:>12.1%} {stats_noise['pc2_var']:>12.1%}")
+        print(f"{'Mean |corr| with ability':<35} {stats_no_noise['ability_corr_mean']:>12.3f} {stats_noise['ability_corr_mean']:>12.3f}")
+
+        # Plot comparison
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+
+        for i, (stats, df) in enumerate([(stats_no_noise, df_no_noise), (stats_noise, df_noise)]):
+            # PCA plot
+            ax = axes[0, i]
+            scatter = ax.scatter(
+                stats["X_2d"][:, 0], stats["X_2d"][:, 1],
+                c=df["ability"], cmap="RdYlGn", s=50, alpha=0.7,
+                edgecolors="black", linewidths=0.5,
+            )
+            plt.colorbar(scatter, ax=ax, label="IRT Ability")
+            ax.set_xlabel(f"PC1 ({stats['pc1_var']:.1%} var)")
+            ax.set_ylabel(f"PC2 ({stats['pc2_var']:.1%} var)")
+            ax.set_title(f"{stats['label']}\nWithin-agent std: {stats['within_agent_std_mean']:.4f}")
+
+            # PC1 vs ability
+            ax2 = axes[1, i]
+            corr = np.corrcoef(df["ability"], stats["X_2d"][:, 0])[0, 1]
+            ax2.scatter(df["ability"], stats["X_2d"][:, 0], alpha=0.6, s=30)
+            ax2.set_xlabel("IRT Ability (θ)")
+            ax2.set_ylabel("PC1")
+            ax2.set_title(f"PC1 vs Ability (r = {corr:.3f})")
+
+        plt.tight_layout()
+        output_path = ROOT / "chris_output/experiment_a/mlp_embedding/agent_embeddings_comparison.png"
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"\nSaved comparison plot to: {output_path}")
+        plt.show()
+        return
+
+    # Single file mode
+    if args.noise is not None and args.noise > 0:
+        emb_path = ROOT / f"chris_output/experiment_a/mlp_embedding/agent_embeddings_noise{args.noise}.csv"
+    else:
+        emb_path = ROOT / "chris_output/experiment_a/mlp_embedding/agent_embeddings.csv"
+
     if not emb_path.exists():
         print(f"Embeddings not found at: {emb_path}")
         print("Run extract_agent_embeddings.py on cluster first, then transfer the file.")

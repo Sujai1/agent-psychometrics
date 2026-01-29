@@ -25,10 +25,17 @@ source .venv/bin/activate
 export HF_HOME="$HOME/orcd/scratch/.cache/huggingface"
 export PYTHONUNBUFFERED=1
 
-python -m experiment_a.mlp_ablation.extract_agent_embeddings
+echo "Extracting embeddings WITHOUT noise..."
+python -m experiment_a.mlp_ablation.extract_agent_embeddings --noise 0.0
+
+echo ""
+echo "Extracting embeddings WITH noise (σ=1.0)..."
+python -m experiment_a.mlp_ablation.extract_agent_embeddings --noise 1.0
 
 echo ""
 echo "=========================================="
 echo "Finished at: $(date)"
-echo "Output: chris_output/experiment_a/mlp_embedding/agent_embeddings.csv"
+echo "Outputs:"
+echo "  chris_output/experiment_a/mlp_embedding/agent_embeddings.csv"
+echo "  chris_output/experiment_a/mlp_embedding/agent_embeddings_noise1.0.csv"
 echo "=========================================="
