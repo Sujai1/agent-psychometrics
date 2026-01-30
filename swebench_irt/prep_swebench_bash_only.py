@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Agents with missing per_instance_details.json files (excluded by default)
+# These agents have metadata but no task-level results
+EXCLUDED_AGENTS = {
+    "20250720_mini-v0.0.0-Llama-4-Scout-17B-Instruct",
+    "20250720_mini-v0.0.0-gpt-4o-2024-11-20",
+    "20250720_mini-v0.0.0_gpt-4.1-mini-2025-04-14",
+    "20250726_mini-v1.0.0_gemini-2.0-flash",
+    "20250726_mini-v1.0.0_gemini-2.5-flash",
+    "20250726_mini-v1.0.0_gpt-4.1-2025-04-14",
+}
+
 
 def resolve_path(path_str: str) -> Path:
     path = Path(path_str).expanduser()
@@ -103,11 +114,31 @@ def main() -> None:
     agents_payload = []
 
     agent_dirs = [d for d in sorted(experiments_dir.iterdir()) if d.is_dir()]
+    excluded_count = 0
     for agent_dir in agent_dirs:
+        # Skip agents known to have missing data
+        if agent_dir.name in EXCLUDED_AGENTS:
+            excluded_count += 1
+            continue
         responses, items, source = collect_agent(agent_dir)
         if responses:
             all_items.update(items)
         agents_payload.append((agent_dir, responses, source))
+
+    if excluded_count > 0:
+        print(f"Excluded {excluded_count} agents with known missing data")
+
+    # Check for agents with missing data files
+    missing_data_agents = [
+        agent_dir.name for agent_dir, responses, source in agents_payload
+        if source == "missing"
+    ]
+    if missing_data_agents:
+        raise ValueError(
+            f"Found {len(missing_data_agents)} agents without per_instance_details.json. "
+            f"Cannot proceed with incomplete data. Missing agents:\n"
+            + "\n".join(f"  - {name}" for name in missing_data_agents)
+        )
 
     selected = []
     for agent_dir, responses, source in agents_payload:
