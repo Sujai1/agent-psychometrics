@@ -52,6 +52,11 @@ from experiment_ab_shared.llm_judge.prompts.swebench_test_quality import (
     SWEBENCH_TEST_QUALITY_CONFIG,
 )
 
+# Extended problem-only features (8 additional features for ablation)
+from experiment_ab_shared.llm_judge.prompts.swebench_problem_extended import (
+    SWEBENCH_PROBLEM_EXTENDED_CONFIG,
+)
+
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench": SWEBENCH_CONFIG,
@@ -85,6 +90,8 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     # Test patch features
     "swebench_with_test": SWEBENCH_WITH_TEST_CONFIG,
     "swebench_test_quality": SWEBENCH_TEST_QUALITY_CONFIG,
+    # Extended problem-only features
+    "swebench_problem_extended": SWEBENCH_PROBLEM_EXTENDED_CONFIG,
 }
 
 
@@ -167,4 +174,6 @@ __all__ = [
     # Test patch features
     "SWEBENCH_WITH_TEST_CONFIG",
     "SWEBENCH_TEST_QUALITY_CONFIG",
+    # Extended problem-only
+    "SWEBENCH_PROBLEM_EXTENDED_CONFIG",
 ]

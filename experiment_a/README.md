@@ -543,6 +543,46 @@ LLM judge features have multiple variants that progressively add information sou
 - **Solution features contribute +1.6%**: Problem + Auditor + Test (0.8180) → Full (0.8336)
 - **Grouped Ridge consistently outperforms LLM Judge alone** by ~0.5-1%
 
+#### Feature-Controlled Ablation (15 features each)
+
+To verify that improvements come from **better features** (not just more features), we extracted 8 additional problem-only features and used Ridge coefficient-based selection to hold feature count constant at 15:
+
+| Method | # Features | LLM Judge AUC | Grouped Ridge AUC |
+|--------|------------|---------------|-------------------|
+| Problem Only | 15 | 0.7821 ± 0.0164 | 0.8226 ± 0.0229 |
+| Problem + Auditor | 15 | 0.8014 ± 0.0174 | 0.8283 ± 0.0222 |
+| Problem + Auditor + Test | 15 | 0.8215 ± 0.0235 | 0.8370 ± 0.0209 |
+| **Full** | 15 | **0.8368 ± 0.0209** | **0.8418 ± 0.0214** |
+
+**Feature selection method**: Ridge regression on all available features → rank by |coefficient| → keep top 15.
+
+**Key finding**: Even with the same number of features, adding affordances provides significant improvement:
+- +Auditor: +1.9% LLM Judge, +0.6% Grouped Ridge
+- +Test: +2.0% LLM Judge, +0.9% Grouped Ridge
+- +Solution: +1.5% LLM Judge, +0.5% Grouped Ridge
+
+All affordance-specific features (auditor, test, solution) ranked in the top 15 by coefficient magnitude, confirming they capture information not available from the problem statement alone.
+
+**Full model coefficients (23 features, ranked by |coefficient|)**:
+
+| Rank | Feature | Coefficient | Source |
+|------|---------|-------------|--------|
+| 1 | solution_complexity | +0.566 | Solution |
+| 2 | integration_complexity | +0.450 | Solution |
+| 3 | test_comprehensiveness | +0.386 | Test |
+| 4 | test_edge_case_coverage | +0.334 | Test |
+| 5 | information_completeness | +0.332 | Problem (ext) |
+| 6 | fix_localization | -0.311 | Auditor |
+| 7 | entry_point_clarity | -0.303 | Auditor |
+| 8 | atypicality | +0.238 | Problem (orig) |
+| 9 | similar_issue_likelihood | +0.189 | Problem (ext) |
+| 10 | codebase_scope | +0.189 | Problem (ext) |
+| 11 | problem_clarity | -0.187 | Problem (orig) |
+| 12 | change_blast_radius | +0.159 | Auditor |
+| 13 | error_specificity | -0.140 | Problem (ext) |
+| 14 | solution_hint | -0.104 | Problem (orig) |
+| 15 | debugging_complexity | +0.099 | Problem (ext) |
+
 To run the ablation across all datasets:
 ```bash
 # Run all datasets with judge ablation
