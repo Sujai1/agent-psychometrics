@@ -41,7 +41,9 @@ class Obs:
     model: str
     scaffold: str
     task_id: str
-    task_key: str  # "<bench>::<task_id>"
+    # Canonical task identifier used across the pipeline.
+    # NOTE: We intentionally do NOT prefix with benchmark; task names are globally unique.
+    task_key: str
     y: int
 
 
@@ -281,7 +283,7 @@ def _load_or_build_task_embeddings(
 ) -> Tuple["Dict[str, Any]", int, str]:
     """
     Returns: (embedding_by_task_key, embedding_dim, cache_path)
-    where task_key is always "<bench>::<task_id>".
+    where task_key is the task id string (no benchmark prefix).
     """
     os.makedirs(str(out_dir), exist_ok=True)
     cache_path = str(embeddings_cache or "").strip()
@@ -306,7 +308,7 @@ def _load_or_build_task_embeddings(
         _p(f"[progress] Loaded embeddings: n={len(task_keys)} dim={emb_dim}")
         return by_key, int(emb_dim), cache_path
 
-    # Build items list (with globally-unique prefixed ids).
+    # Build items list.
     items: List[base.ItemRecord] = []
     _p("[progress] Building task embeddings (cache miss or --overwrite).")
     for bench, raw_ids in task_ids_by_benchmark.items():
@@ -342,7 +344,7 @@ def _load_or_build_task_embeddings(
         _p(f"[progress]  - {b}: loaded {len(loaded)} task records")
 
         for it in loaded:
-            key = f"{b}::{str(it.item_id)}"
+            key = str(it.item_id)
             items.append(base.ItemRecord(item_id=key, question_statement=str(it.question_statement), solution=str(it.solution)))
 
     if not items:
@@ -766,7 +768,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 n_dropped_unsplittable += 1
                 continue
             task_id = str(tid)
-            task_key = f"{b}::{task_id}"
+            task_key = task_id
             obs.append(Obs(benchmark=b, subject_id=str(subj), model=str(m), scaffold=str(sc), task_id=task_id, task_key=task_key, y=int(yy)))
             if task_id not in seen_task_ids_by_bench[b]:
                 seen_task_ids_by_bench[b].add(task_id)
