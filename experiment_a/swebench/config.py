@@ -46,9 +46,11 @@ class ExperimentAConfig:
         default_factory=lambda: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
     )
 
-    # LLM Judge predictor config (now includes auditor features)
+    # LLM Judge predictor config
+    # Default: 15 features = 9 unified + 3 auditor + 3 test quality
+    # See experiment_a/README.md for ablation study details
     llm_judge_features_path: Optional[Path] = Path(
-        "chris_output/experiment_a/llm_judge_features/llm_judge_plus_auditor.csv"
+        "chris_output/experiment_a/llm_judge_features/unified_auditor_test.csv"
     )
     llm_judge_max_features: Optional[int] = None  # None = use all features
 

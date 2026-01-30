@@ -43,20 +43,20 @@ python -m experiment_a.swebench.train_evaluate --dry_run
 
 ## Results (2026-01-30)
 
-### Summary Table (Unified Judge Features + Auditor, Default)
+### Summary Table (Unified Judge + Auditor + Test, Default)
 
 Run with: `python -m experiment_a.run_all_datasets`
 
 | Dataset | Oracle | Grouped Ridge (Emb+LLM) | LLM Judge | Embedding | Baseline |
 |---------|--------|-------------------------|-----------|-----------|----------|
-| SWE-bench Verified | 0.9441 | **0.8331** | 0.8303 | 0.8230 | 0.7146 |
+| SWE-bench Verified | 0.9441 | **0.8415** | 0.8336 | 0.8230 | 0.7146 |
 | GSO | 0.8516 | **0.7496** | 0.7333 | 0.7332 | 0.7262 |
 | TerminalBench | 0.8995 | **0.8006** | 0.7700 | 0.7905 | 0.7076 |
 | SWE-bench Pro | 0.9183 | **0.7443** | 0.7212 | 0.7366 | 0.6567 |
 
 **Key findings**:
 - **Grouped Ridge (Emb+LLM) is best**: Outperforms single sources on all datasets
-- **Auditor features help**: Adding 3 auditor features to LLM Judge improved SWE-bench AUC from 0.8163 → 0.8303 (+1.7%)
+- **Test patch features help**: Adding 3 test quality features improved SWE-bench Grouped Ridge from 0.8331 → 0.8415 (+1.0%)
 - **Combining features helps**: Grouped Ridge outperforms single sources (+0.5% to +1.8%)
 
 ### SWE-bench Verified (5-Fold Cross-Validation)
@@ -66,17 +66,13 @@ Run with: `python -m experiment_a.run_all_datasets`
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.9441 | 0.0085 |
-| Grouped Ridge (Emb + LLM) | 0.8331 | 0.0175 |
-| LLM Judge (13 features) | 0.8303 | 0.0121 |
-| Grouped Ridge (LLM + Env) | 0.8291 | 0.0143 |
-| Stacked (Emb → LLM) | 0.8291 | 0.0179 |
+| Grouped Ridge (Emb + LLM) | 0.8415 | 0.0197 |
+| Stacked (Emb → LLM) | 0.8383 | 0.0188 |
+| LLM Judge (15 features) | 0.8336 | 0.0211 |
 | Embedding | 0.8230 | 0.0193 |
-| LLM Judge (no solution + auditor) | 0.8005 | 0.0175 |
-| LLM Judge (problem only) | 0.7707 | 0.0189 |
-| Environment | 0.7186 | 0.0082 |
 | Constant (mean b) | 0.7146 | 0.0083 |
 
-**Note**: LLM Judge includes 10 semantic features + 3 auditor features (entry_point_clarity, change_blast_radius, fix_localization). The auditor features improved LLM Judge from 0.8163 → 0.8303 (+1.7%).
+**Note**: LLM Judge includes 9 unified semantic features + 3 auditor features + 3 test quality features = 15 features total. See ablation study below for feature contribution breakdown.
 
 ### SWE-bench Pro (5-Fold Cross-Validation)
 
@@ -434,9 +430,9 @@ python -m experiment_a.auditor_agent.parse_outputs
 
 **Output**: `chris_output/auditor_pilot/v3_features_top3.csv`
 
-**Integration**: Auditor features are combined with LLM Judge features by default:
-- Combined file: `chris_output/experiment_a/llm_judge_features/llm_judge_plus_auditor.csv`
-- 13 total features: 10 LLM judge + 3 auditor
+**Integration**: Auditor and test quality features are combined with unified LLM Judge features by default:
+- Combined file: `chris_output/experiment_a/llm_judge_features/unified_auditor_test.csv`
+- 15 total features: 9 unified + 3 auditor + 3 test quality
 
 See [experiment_a/auditor_agent/README.md](auditor_agent/README.md) for detailed documentation.
 
@@ -444,9 +440,10 @@ See [experiment_a/auditor_agent/README.md](auditor_agent/README.md) for detailed
 
 Semantic features extracted via LLM structured output:
 
-**SWE-bench Verified (10 features)**:
-- fix_in_description, problem_clarity, error_message_provided, reproduction_steps
-- fix_locality, domain_knowledge_required, fix_complexity, logical_reasoning_required, atypicality, integration_complexity
+**SWE-bench Verified (15 features, default)**:
+- **Unified (9)**: solution_hint, problem_clarity, solution_complexity, domain_knowledge_required, logical_reasoning_required, atypicality, verification_difficulty, standard_pattern_available, integration_complexity
+- **Auditor (3)**: entry_point_clarity, change_blast_radius, fix_localization
+- **Test Quality (3)**: test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage
 
 **SWE-bench Pro (8 features, auto-detected from v5 CSV)**:
 - LLM features: fix_complexity, verification_difficulty, standard_pattern_available, integration_complexity
@@ -525,21 +522,26 @@ Embeddings are generated with a prompt containing `question_statement + solution
 
 #### LLM Judge Ablation (SWE-bench Verified)
 
-LLM judge features have three variants:
-- **Full** (13 features): All task info including gold patch + 3 auditor features
-- **No Solution + Auditor** (10 features): Problem + tests + repo + env exploration (no patch)
-- **Problem Only** (7 features): Problem statement only (no env access)
+LLM judge features have multiple variants that progressively add information sources:
 
-| Variant | Features | AUC | Δ vs Full |
-|---------|----------|-----|-----------|
-| Full (LLM + Auditor) | 13 | **0.8303** | - |
-| No Solution + Auditor | 10 | 0.8005 | -3.6% |
-| Problem Only | 7 | 0.7707 | -7.2% |
+| Method | # Features | LLM Judge AUC | Grouped Ridge AUC |
+|--------|------------|---------------|-------------------|
+| Problem Only | 7 | 0.7707 ± 0.0189 | 0.8230 ± 0.0218 |
+| Problem + Auditor | 10 | 0.7984 ± 0.0172 | 0.8286 ± 0.0208 |
+| Problem + Auditor + Test | 13 | 0.8180 ± 0.0245 | 0.8364 ± 0.0195 |
+| **Full (9 unified + auditor + test)** | 15 | **0.8336 ± 0.0211** | **0.8415 ± 0.0197** |
+
+**Feature breakdown**:
+- **Problem Only (7)**: solution_hint, problem_clarity, domain_knowledge_required, logical_reasoning_required, atypicality, verification_difficulty, standard_pattern_available
+- **+ Auditor (3)**: entry_point_clarity, change_blast_radius, fix_localization
+- **+ Test (3)**: test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage
+- **Full (9 unified)**: adds solution_complexity, integration_complexity (require gold patch)
 
 **Key findings**:
-- **Solution information contributes ~3%**: Full (0.8303) vs No Solution + Auditor (0.8005)
-- **Environment exploration contributes ~3%**: No Solution + Auditor (0.8005) vs Problem Only (0.7707)
-- **Auditor features are valuable without solution**: Adding auditor to no_solution improved AUC from 0.7745 → 0.8005 (+2.6%)
+- **Auditor features contribute +2.8%**: Problem Only (0.7707) → Problem + Auditor (0.7984)
+- **Test features contribute +2.0%**: Problem + Auditor (0.7984) → Problem + Auditor + Test (0.8180)
+- **Solution features contribute +1.6%**: Problem + Auditor + Test (0.8180) → Full (0.8336)
+- **Grouped Ridge consistently outperforms LLM Judge alone** by ~0.5-1%
 
 To run the ablation across all datasets:
 ```bash

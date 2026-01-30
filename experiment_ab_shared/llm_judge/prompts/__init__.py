@@ -44,6 +44,14 @@ from experiment_ab_shared.llm_judge.prompts.gso_unified import (
     GSO_UNIFIED_PROBLEM_ONLY_CONFIG,
 )
 
+# Test patch features (SWE-bench with test patch analysis)
+from experiment_ab_shared.llm_judge.prompts.swebench_with_test import (
+    SWEBENCH_WITH_TEST_CONFIG,
+)
+from experiment_ab_shared.llm_judge.prompts.swebench_test_quality import (
+    SWEBENCH_TEST_QUALITY_CONFIG,
+)
+
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench": SWEBENCH_CONFIG,
@@ -74,6 +82,9 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "gso_unified": GSO_UNIFIED_CONFIG,
     "gso_unified_no_solution": GSO_UNIFIED_NO_SOLUTION_CONFIG,
     "gso_unified_problem_only": GSO_UNIFIED_PROBLEM_ONLY_CONFIG,
+    # Test patch features
+    "swebench_with_test": SWEBENCH_WITH_TEST_CONFIG,
+    "swebench_test_quality": SWEBENCH_TEST_QUALITY_CONFIG,
 }
 
 
@@ -153,4 +164,7 @@ __all__ = [
     "GSO_UNIFIED_CONFIG",
     "GSO_UNIFIED_NO_SOLUTION_CONFIG",
     "GSO_UNIFIED_PROBLEM_ONLY_CONFIG",
+    # Test patch features
+    "SWEBENCH_WITH_TEST_CONFIG",
+    "SWEBENCH_TEST_QUALITY_CONFIG",
 ]
