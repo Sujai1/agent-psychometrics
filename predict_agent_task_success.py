@@ -100,29 +100,36 @@ def _split_subject_to_model_scaffold(*, benchmark: str, subject_id: str) -> Tupl
     filt = _import_swebench_irt_module("filter_subjects_by_scaffold_count")
     split_mod = _import_swebench_irt_module("split_agents_model_scaffold")
 
+    def _canon_out(mm: Optional[str], ss: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        m2 = str(mm) if mm is not None else ""
+        s2 = str(ss) if ss is not None else ""
+        if m2:
+            try:
+                m2 = str(split_mod._canonical_model(m2))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        if s2:
+            try:
+                s2 = str(split_mod._canonical_scaffold(s2))  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        return (m2 or None), (s2 or None)
+
     if b == "pro":
         m = filt._model_for_subject(subj, treat_as_pro=True)  # type: ignore[attr-defined]
         sc = filt._scaffold_for_subject(subj, treat_as_pro=True)  # type: ignore[attr-defined]
-        return (str(m) if m is not None else None), (str(sc) if sc is not None else None)
+        return _canon_out((str(m) if m is not None else None), (str(sc) if sc is not None else None))
 
     if b == "gso":
         # GSO exports are model-only strings; assume OpenHands and canonicalize.
         assume = split_mod.assumed_scaffold_for_benchmark("gso")  # type: ignore[attr-defined]
         assume_s = str(assume or "OpenHands").strip()
-        try:
-            m = str(split_mod._canonical_model(subj))  # type: ignore[attr-defined]
-        except Exception:
-            m = subj
-        try:
-            sc = str(split_mod._canonical_scaffold(assume_s))  # type: ignore[attr-defined]
-        except Exception:
-            sc = assume_s
-        return (m or None), (sc or None)
+        return _canon_out(subj, assume_s)
 
     # verified / terminal_bench
     m = filt._model_for_subject(subj, treat_as_pro=False)  # type: ignore[attr-defined]
     sc = filt._scaffold_for_subject(subj, treat_as_pro=False)  # type: ignore[attr-defined]
-    return (str(m) if m is not None else None), (str(sc) if sc is not None else None)
+    return _canon_out((str(m) if m is not None else None), (str(sc) if sc is not None else None))
 
 
 def _iter_obs_from_responses(
@@ -474,7 +481,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # -----------------------------
     # Train/test split settings
     # -----------------------------
-    p.add_argument("--split_by", type=str, default="task", choices=["task", "agent", "observation"], help="Hold-out split unit.")
+    p.add_argument(
+        "--split_by",
+        type=str,
+        default="task",
+        choices=["task", "agent", "benchmark", "observation"],
+        help="Hold-out split unit.",
+    )
+    p.add_argument(
+        "--held_out_benchmark",
+        type=str,
+        default="",
+        help="When --split_by=benchmark, evaluate on this benchmark and train on --train_benchmarks.",
+    )
     p.add_argument("--test_fraction", type=float, default=0.2)
     p.add_argument("--cv_folds", type=int, default=5, help="If >=2, run group K-fold CV (default: 5). If <2, use --test_fraction holdout.")
 
@@ -541,13 +560,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     _set_seeds(int(args.seed))
 
     # Resolve benchmarks + per-benchmark jsonl paths.
+    split_by = str(args.split_by)
     train_benchmarks = _parse_benchmarks(str(args.train_benchmarks))
-    if len(train_benchmarks) < 1:
-        raise ValueError("--train_benchmarks is empty")
+    held_out_benchmark = ""
+    if split_by == "benchmark":
+        hob = str(getattr(args, "held_out_benchmark", "") or "").strip()
+        if not hob:
+            raise ValueError("--held_out_benchmark is required when --split_by=benchmark")
+        held_out_benchmark = _canon_benchmark(hob)
+        # Ensure train_benchmarks is truly the TRAIN set (exclude held-out if user included it).
+        train_benchmarks = [b for b in train_benchmarks if b != held_out_benchmark]
+        if len(train_benchmarks) < 1:
+            raise ValueError("--train_benchmarks is empty after removing --held_out_benchmark")
+        benchmarks_all = list(train_benchmarks) + [held_out_benchmark]
+    else:
+        if len(train_benchmarks) < 1:
+            raise ValueError("--train_benchmarks is empty")
+        benchmarks_all = list(train_benchmarks)
 
     bench_to_jsonl: Dict[str, str] = {}
     bench_to_norm: Dict[str, bool] = {}
-    for b in train_benchmarks:
+    for b in benchmarks_all:
         if b == "verified":
             bench_to_jsonl[b] = str(args.verified_agent_results_jsonl or "").strip()
             bench_to_norm[b] = True
@@ -563,7 +596,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             raise AssertionError(f"Unhandled benchmark: {b}")
 
-    missing_paths = [b for b in train_benchmarks if not bench_to_jsonl.get(b)]
+    missing_paths = [b for b in benchmarks_all if not bench_to_jsonl.get(b)]
     if missing_paths:
         raise ValueError(f"Missing required agent-results JSONL path(s) for: {missing_paths}. Set the corresponding --*_agent_results_jsonl.")
     for b, pth in bench_to_jsonl.items():
@@ -722,10 +755,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # Expand response matrices into per-observation rows, splitting subject -> (model, scaffold).
     obs: List[Obs] = []
     n_dropped_unsplittable = 0
-    task_ids_by_bench: Dict[str, List[str]] = {b: [] for b in train_benchmarks}
-    seen_task_ids_by_bench: Dict[str, set] = {b: set() for b in train_benchmarks}
+    task_ids_by_bench: Dict[str, List[str]] = {b: [] for b in benchmarks_all}
+    seen_task_ids_by_bench: Dict[str, set] = {b: set() for b in benchmarks_all}
 
-    for b in train_benchmarks:
+    for b in benchmarks_all:
         jsonl_path = bench_to_jsonl[b]
         for subj, tid, yy in _iter_obs_from_responses(benchmark=b, agent_results_jsonl=jsonl_path, normalize_item_ids=bool(bench_to_norm[b])):
             m, sc = _split_subject_to_model_scaffold(benchmark=b, subject_id=subj)
@@ -743,7 +776,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         raise RuntimeError("No observations were loaded (after dropping unsplittable subjects). Check inputs.")
     _p(
         f"[progress] Loaded observations: n={len(obs)} "
-        f"(benchmarks={train_benchmarks}, dropped_unsplittable={int(n_dropped_unsplittable)})"
+        f"(benchmarks={benchmarks_all}, dropped_unsplittable={int(n_dropped_unsplittable)})"
     )
 
     # Load/build task embeddings (by task_key).
@@ -819,6 +852,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             groups.append(str(r.task_key))
         elif str(args.split_by) == "agent":
             groups.append(f"{r.benchmark}::{r.subject_id}")
+        elif str(args.split_by) == "benchmark":
+            groups.append(str(r.benchmark))
         else:
             groups.append(f"{r.benchmark}::{r.subject_id}::{r.task_id}")
 
@@ -827,7 +862,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # This matters for downstream inference setups that cannot score unseen model/scaffold ids.
     agent_group_to_ms: Dict[str, Tuple[str, str]] = {}
     agent_group_inconsistent: List[str] = []
-    if str(args.split_by) == "agent":
+    if str(args.split_by) in {"agent", "benchmark"}:
         tmp: Dict[str, set] = {}
         tmp_sc: Dict[str, set] = {}
         for r in obs:
@@ -1284,7 +1319,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     # Choose CV vs holdout.
     cv_folds = int(args.cv_folds)
-    if cv_folds >= 2:
+    if str(args.split_by) == "benchmark":
+        if not str(held_out_benchmark or "").strip():
+            raise RuntimeError("--held_out_benchmark must be set when --split_by=benchmark")
+        uniq_bench = sorted(set([str(r.benchmark) for r in obs]))
+        if str(held_out_benchmark) not in set(uniq_bench):
+            raise RuntimeError(
+                f"--held_out_benchmark={str(held_out_benchmark)!r} not found in loaded observations. "
+                f"Loaded benchmarks: {uniq_bench}"
+            )
+        train_g = set([b for b in uniq_bench if b != str(held_out_benchmark)])
+        test_g = set([str(held_out_benchmark)])
+        if not train_g:
+            raise RuntimeError(
+                f"--held_out_benchmark={str(held_out_benchmark)!r} leaves no training benchmarks. "
+                f"Loaded benchmarks: {uniq_bench}"
+            )
+        fold_splits = [(train_g, test_g)]
+    elif cv_folds >= 2:
         fold_splits = _stable_group_kfold(groups, n_splits=cv_folds, seed=int(args.seed))
     else:
         train_g, test_g = _stable_group_split(groups, test_fraction=float(args.test_fraction), seed=int(args.seed))
@@ -1301,6 +1353,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 f"Fold {fold_idx}: empty train or test set (train={len(train_idx)}, test={len(test_idx)}). "
                 f"Try adjusting --cv_folds/--test_fraction or --split_by."
             )
+        if str(args.split_by) == "benchmark":
+            hob = str(held_out_benchmark or "").strip()
+            if not hob:
+                raise RuntimeError("Internal error: --held_out_benchmark missing for --split_by=benchmark")
+            train_b = set([str(obs[i].benchmark) for i in train_idx])
+            test_b = set([str(obs[i].benchmark) for i in test_idx])
+            if hob in train_b:
+                raise RuntimeError(
+                    f"Internal error: held-out benchmark {hob!r} appears in train split benchmarks {sorted(list(train_b))}."
+                )
+            if test_b != {hob}:
+                raise RuntimeError(
+                    f"Internal error: expected test split to contain only held-out benchmark {hob!r}, got {sorted(list(test_b))}."
+                )
 
         # If splitting by agent, remove test agents whose model and/or scaffold are not present in train.
         # This ensures we only evaluate on agents that are "in-domain" with respect to (model, scaffold).
@@ -1367,6 +1433,74 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             test_idx = test_idx_effective
             test_g = test_g_effective
 
+        # If splitting by benchmark, remove test agents (in the held-out benchmark) whose model and/or scaffold
+        # are not present in train. This ensures we only evaluate on agents that are "in-domain" w.r.t. (model, scaffold),
+        # matching the behavior of the agent split.
+        effective_test_agent_groups: Optional[List[str]] = None
+        if str(args.split_by) == "benchmark":
+            train_models = set([obs[i].model for i in train_idx])
+            train_scaffolds = set([obs[i].scaffold for i in train_idx])
+
+            def _agent_group(ii: int) -> str:
+                rr = obs[int(ii)]
+                return f"{rr.benchmark}::{rr.subject_id}"
+
+            test_agent_groups_all = set([_agent_group(i) for i in test_idx])
+            keep_groups: set = set()
+            removed_any: set = set()
+            removed_unseen_model: set = set()
+            removed_unseen_scaffold: set = set()
+            removed_missing_meta: set = set()
+
+            for g in sorted(test_agent_groups_all):
+                ms = agent_group_to_ms.get(str(g), None)
+                if ms is None:
+                    removed_any.add(str(g))
+                    removed_missing_meta.add(str(g))
+                    continue
+                m, sc = ms
+                unseen_m = (m not in train_models)
+                unseen_sc = (sc not in train_scaffolds)
+                if unseen_m or unseen_sc:
+                    removed_any.add(str(g))
+                    if unseen_m:
+                        removed_unseen_model.add(str(g))
+                    if unseen_sc:
+                        removed_unseen_scaffold.add(str(g))
+                else:
+                    keep_groups.add(str(g))
+
+            test_idx_effective = [i for i in test_idx if _agent_group(i) in keep_groups]
+
+            agent_filter_stats = {
+                "enabled": True,
+                "n_test_agents_original": int(len(test_agent_groups_all)),
+                "n_test_agents_removed": int(len(removed_any)),
+                "n_test_agents_remaining": int(len(keep_groups)),
+                "n_test_agents_removed_unseen_model": int(len(removed_unseen_model)),
+                "n_test_agents_removed_unseen_scaffold": int(len(removed_unseen_scaffold)),
+                "n_test_agents_removed_missing_meta": int(len(removed_missing_meta)),
+                "n_test_obs_original": int(len(test_idx)),
+                "n_test_obs_removed": int(len(test_idx) - len(test_idx_effective)),
+                "n_test_obs_remaining": int(len(test_idx_effective)),
+            }
+
+            _p(
+                "[progress] benchmark-split filter: "
+                f"removed {agent_filter_stats['n_test_agents_removed']}/{agent_filter_stats['n_test_agents_original']} test agents "
+                f"(unseen_model={agent_filter_stats['n_test_agents_removed_unseen_model']}, unseen_scaffold={agent_filter_stats['n_test_agents_removed_unseen_scaffold']}); "
+                f"remaining={agent_filter_stats['n_test_agents_remaining']} agents "
+                f"({agent_filter_stats['n_test_obs_remaining']}/{agent_filter_stats['n_test_obs_original']} obs)"
+            )
+
+            if not test_idx_effective:
+                raise RuntimeError(
+                    f"Fold {fold_idx}: after filtering unseen model/scaffold test agents, test set is empty. "
+                    f"Removed {agent_filter_stats['n_test_agents_removed']}/{agent_filter_stats['n_test_agents_original']} test agents."
+                )
+            test_idx = test_idx_effective
+            effective_test_agent_groups = sorted(list(keep_groups))
+
         fr = _fit_eval_fold(train_idx, test_idx, fold_seed=int(args.seed) + int(fold_idx), fold_idx=int(fold_idx))
         fr["fold_idx"] = int(fold_idx)
         fr["n_groups_train"] = int(len(train_g))
@@ -1375,6 +1509,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if str(args.split_by) == "agent":
             # Store effective test groups for the oracle scoring step (which previously referenced fold_splits directly).
             fr["effective_test_groups"] = sorted([str(g) for g in set(test_g)])
+        if str(args.split_by) == "benchmark" and isinstance(effective_test_agent_groups, list) and effective_test_agent_groups:
+            fr["effective_test_agent_groups"] = list(effective_test_agent_groups)
         fold_results.append(fr)
 
     # -----------------------------
@@ -1490,11 +1626,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             fold_idx = int(fr["fold_idx"])
             # Use the effective test groups (after filtering), if present.
             eff = fr.get("effective_test_groups", None)
+            eff_agents = fr.get("effective_test_agent_groups", None)
             if isinstance(eff, list) and eff:
                 test_g = set([str(x) for x in eff])
+                test_idx = [i for i, g in enumerate(groups) if str(g) in set([str(x) for x in test_g])]
+            elif isinstance(eff_agents, list) and eff_agents:
+                eff_set = set([str(x) for x in eff_agents])
+                test_idx = [i for i in range(len(obs)) if f"{obs[i].benchmark}::{obs[i].subject_id}" in eff_set]
             else:
                 _train_g, test_g = fold_splits[fold_idx]
-            test_idx = [i for i, g in enumerate(groups) if str(g) in set([str(x) for x in test_g])]
+                test_idx = [i for i, g in enumerate(groups) if str(g) in set([str(x) for x in test_g])]
             y_test = np.array([y[i] for i in test_idx], dtype=np.int64)
             global_p = float(fr.get("global_p_train", 0.5))
             oracle_probs: List[float] = []
@@ -1534,7 +1675,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     oracle_ll = [float(d.get("log_loss", float("nan"))) for d in oracle_fold_scores]
 
     cv_summary = {
-        "enabled": bool(cv_folds >= 2),
+        "enabled": bool((cv_folds >= 2) and (str(args.split_by) != "benchmark")),
         "n_folds": int(len(fold_results)),
         "split_by": str(args.split_by),
         "test_fraction_ignored_when_cv": float(args.test_fraction),
@@ -1573,6 +1714,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "n_dropped_unsplittable_subject": int(n_dropped_unsplittable),
         "n_dropped_missing_task_embedding": int(n_dropped_missing_task),
         "split_by": str(args.split_by),
+        "held_out_benchmark": str(held_out_benchmark) if str(args.split_by) == "benchmark" else "",
+        "benchmarks_loaded": list(benchmarks_all),
         "test_fraction": float(args.test_fraction),
         "cv_folds": int(args.cv_folds),
         "cv": cv_summary,
@@ -1585,7 +1728,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "n_test_obs_removed_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_obs_removed", 0)) for fr in fold_results],
                 "n_test_obs_remaining_per_fold": [int(fr.get("agent_split_unfamiliar_filter", {}).get("n_test_obs_remaining", 0)) for fr in fold_results],
             }
-            if str(args.split_by) == "agent"
+            if str(args.split_by) in {"agent", "benchmark"}
             else {"enabled": False}
         ),
         # Backwards-compatible top-level aliases (primary model metrics).
@@ -1731,6 +1874,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "metrics": metrics,
         "embeddings_cache": str(cache_path),
         "train_benchmarks": list(train_benchmarks),
+        "held_out_benchmark": str(held_out_benchmark) if str(args.split_by) == "benchmark" else "",
+        "benchmarks_loaded": list(benchmarks_all),
         "split_by": str(args.split_by),
     }
 

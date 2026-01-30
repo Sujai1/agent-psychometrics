@@ -199,7 +199,9 @@ def _canonical_model(m: str) -> str:
     if not ml:
         return ml
     leaf = _model_leaf(ml)
-    low = leaf.lower().replace("_", "-")
+    # Normalize separators: many exports use underscores; some use spaces in "pretty" names.
+    # Treat spaces like hyphens so canonicalization is stable across sources.
+    low = re.sub(r"\s+", "-", leaf.lower().replace("_", "-"))
 
     # -----------------------------
     # Terminal-Bench-oriented canon
@@ -248,6 +250,9 @@ def _canonical_model(m: str) -> str:
         return "Claude 4.5 Haiku"
     # Opus variants seen in Terminal-Bench / OOD exports.
     # IMPORTANT: keep 4 vs 4.5 distinct.
+    # Some datasets use "claude-4-opus" while others use "claude-opus-4" for the same model.
+    if re.fullmatch(r"claude-4-opus", low) or re.fullmatch(r"claude-4[-_]?0-opus", low):
+        return "Claude 4 Opus"
     if re.fullmatch(r"claude-opus-4", low):
         return "Claude 4 Opus"
     if re.fullmatch(r"claude-opus-4-5(?:[-_]?\\d{8})?", low) or re.fullmatch(r"claude-opus-4\.5", low):
