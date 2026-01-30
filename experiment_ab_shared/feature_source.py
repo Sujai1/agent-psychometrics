@@ -572,6 +572,7 @@ def build_feature_sources(
     trajectory_features_path: Optional[Path] = None,
     trajectory_feature_cols: Optional[List[str]] = None,
     env_features_path: Optional[Path] = None,
+    auditor_features_path: Optional[Path] = None,
     verbose: bool = True,
 ) -> List[Tuple[str, TaskFeatureSource]]:
     """Build list of available feature sources from paths.
@@ -587,6 +588,7 @@ def build_feature_sources(
         trajectory_feature_cols: Optional list of feature columns for trajectory.
             If None, auto-detects numeric columns from CSV.
         env_features_path: Path to environment features CSV (None to skip)
+        auditor_features_path: Path to auditor agent features CSV (None to skip)
         verbose: Print messages about missing paths (default True)
 
     Returns:
@@ -624,5 +626,13 @@ def build_feature_sources(
         ))
     elif verbose and env_features_path:
         print(f"\nEnvironment features not found: {env_features_path}")
+
+    if auditor_features_path and auditor_features_path.exists():
+        sources.append((
+            "Auditor",
+            CSVFeatureSource(auditor_features_path, name="Auditor"),
+        ))
+    elif verbose and auditor_features_path:
+        print(f"\nAuditor features not found: {auditor_features_path}")
 
     return sources

@@ -5,7 +5,7 @@ This is a thin wrapper around the shared pipeline in experiment_a.shared.pipelin
 
 from pathlib import Path
 
-from experiment_a.config import ExperimentAConfig
+from experiment_a.swebench.config import ExperimentAConfig
 from experiment_a.shared.pipeline import ExperimentSpec, run_experiment_main
 
 

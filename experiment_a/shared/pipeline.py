@@ -173,6 +173,11 @@ def build_cv_predictors(
         if getattr(config, "env_features_path", None) is not None
         else None
     )
+    auditor_features_path = (
+        root / config.auditor_features_path
+        if getattr(config, "auditor_features_path", None) is not None
+        else None
+    )
 
     # Build feature sources once using shared utility (verbose=False to avoid extra output)
     feature_source_list = build_feature_sources(
@@ -181,6 +186,7 @@ def build_cv_predictors(
         llm_judge_feature_cols=llm_judge_features,
         trajectory_features_path=trajectory_path,
         env_features_path=env_features_path,
+        auditor_features_path=auditor_features_path,
         verbose=False,
     )
 
@@ -347,12 +353,29 @@ def build_cv_predictors(
             )
         )
 
+    # Auditor agent features predictor (Ridge regression)
+    if "Auditor" in source_by_name:
+        source = source_by_name["Auditor"]
+        difficulty_predictor = FeatureBasedPredictor(
+            source,
+            alphas=list(config.ridge_alphas),
+        )
+        configs.append(
+            CVPredictorConfig(
+                predictor=DifficultyPredictorAdapter(difficulty_predictor),
+                name="auditor_predictor",
+                display_name="Auditor",
+            )
+        )
+
     # Pairwise grouped ridge predictors (all 2-source combinations)
     # This helps identify which feature source combinations are most valuable
     pairwise_sources = [
         ("Embedding", "Environment"),
         ("LLM Judge", "Environment"),
         ("Embedding", "LLM Judge"),
+        ("Embedding", "Auditor"),
+        ("LLM Judge", "Auditor"),
     ]
     for src1_name, src2_name in pairwise_sources:
         if src1_name in source_by_name and src2_name in source_by_name:
@@ -364,7 +387,7 @@ def build_cv_predictors(
             ])
             pairwise_predictor = GroupedRidgePredictor(pairwise_grouped)
             # Create short display name: "Emb + Env", "LLM + Env", "Emb + LLM"
-            short_names = {"Embedding": "Emb", "LLM Judge": "LLM", "Environment": "Env"}
+            short_names = {"Embedding": "Emb", "LLM Judge": "LLM", "Environment": "Env", "Auditor": "Aud"}
             short1 = short_names.get(src1_name, src1_name)
             short2 = short_names.get(src2_name, src2_name)
             configs.append(
@@ -901,6 +924,12 @@ def create_main_parser(experiment_name: str, default_output_dir: str) -> argpars
         help="Path to environment features CSV file",
     )
     parser.add_argument(
+        "--auditor_features_path",
+        type=str,
+        default=None,
+        help="Path to auditor agent features CSV file",
+    )
+    parser.add_argument(
         "--output_dir",
         type=str,
         default=default_output_dir,
@@ -1007,6 +1036,8 @@ def run_experiment_main(
         config_kwargs["llm_judge_max_features"] = args.llm_judge_max_features
     if args.env_features_path is not None:
         config_kwargs["env_features_path"] = Path(args.env_features_path)
+    if args.auditor_features_path is not None:
+        config_kwargs["auditor_features_path"] = Path(args.auditor_features_path)
     if args.items_path:
         config_kwargs["items_path"] = Path(args.items_path)
     if args.abilities_path:

@@ -46,9 +46,9 @@ class ExperimentAConfig:
         default_factory=lambda: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
     )
 
-    # LLM Judge predictor config
+    # LLM Judge predictor config (now includes auditor features)
     llm_judge_features_path: Optional[Path] = Path(
-        "chris_output/experiment_a/llm_judge_features/llm_judge_features.csv"
+        "chris_output/experiment_a/llm_judge_features/llm_judge_plus_auditor.csv"
     )
     llm_judge_max_features: Optional[int] = None  # None = use all features
 
@@ -59,6 +59,10 @@ class ExperimentAConfig:
     # Environment features config (from env_features extraction)
     # Default is None. Use --env_features_path to specify.
     env_features_path: Optional[Path] = None
+
+    # Auditor agent features config (from auditor_agent extraction)
+    # Top 3 features: entry_point_clarity, change_blast_radius, fix_localization
+    auditor_features_path: Optional[Path] = None
 
     # Task filtering
     exclude_unsolved: bool = False  # Exclude tasks no agent solved
@@ -80,7 +84,7 @@ class ExperimentAConfig:
         path_fields = {
             "abilities_path", "items_path", "responses_path",
             "output_dir", "embeddings_path", "llm_judge_features_path",
-            "trajectory_features_path", "env_features_path"
+            "trajectory_features_path", "env_features_path", "auditor_features_path"
         }
         converted = {}
         for k, v in d.items():

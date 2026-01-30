@@ -49,7 +49,9 @@ DATASETS = [
         config_module="experiment_a.swebench.config",
         config_class_name="ExperimentAConfig",  # Note: SWE-bench uses ExperimentAConfig
         spec_module="experiment_a.swebench.train_evaluate",
-        unified_judge_path=Path("chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv"),
+        # Combined LLM judge (10 features) + auditor (3 features) = 13 features
+        unified_judge_path=Path("chris_output/experiment_a/llm_judge_features/llm_judge_plus_auditor.csv"),
+        # Ablation variants (no auditor since they don't see solution/environment)
         unified_judge_no_solution_path=Path("chris_output/llm_judge_features/swebench_unified_no_solution/llm_judge_features.csv"),
         unified_judge_problem_only_path=Path("chris_output/llm_judge_features/swebench_unified_problem_only/llm_judge_features.csv"),
         env_features_path=Path("chris_output/env_features/swebench_verified/env_features.csv"),

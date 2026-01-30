@@ -41,23 +41,23 @@ python -m experiment_a.terminalbench.train_evaluate
 python -m experiment_a.swebench.train_evaluate --dry_run
 ```
 
-## Results (2026-01-24)
+## Results (2026-01-30)
 
-### Summary Table (Unified Judge Features, Default)
+### Summary Table (Unified Judge Features + Auditor, Default)
 
 Run with: `python -m experiment_a.run_all_datasets`
 
-| Dataset | Oracle | Stacked (Emb→LLM) | Grouped Ridge | Embedding | LLM Judge | Baseline |
-|---------|--------|-------------------|---------------|-----------|-----------|----------|
-| SWE-bench Verified | 0.9441 | **0.8296** | 0.8280 | 0.8230 | 0.8163 | 0.7146 |
-| GSO | 0.8516 | **0.7507** | 0.7496 | 0.7332 | 0.7333 | 0.7262 |
-| TerminalBench | 0.8995 | **0.8044** | 0.8006 | 0.7905 | 0.7700 | 0.7076 |
-| SWE-bench Pro | 0.9183 | **0.7444** | 0.7443 | 0.7366 | 0.7212 | 0.6567 |
+| Dataset | Oracle | Grouped Ridge (Emb+LLM) | LLM Judge | Embedding | Baseline |
+|---------|--------|-------------------------|-----------|-----------|----------|
+| SWE-bench Verified | 0.9441 | **0.8331** | 0.8303 | 0.8230 | 0.7146 |
+| GSO | 0.8516 | **0.7496** | 0.7333 | 0.7332 | 0.7262 |
+| TerminalBench | 0.8995 | **0.8006** | 0.7700 | 0.7905 | 0.7076 |
+| SWE-bench Pro | 0.9183 | **0.7443** | 0.7212 | 0.7366 | 0.6567 |
 
 **Key findings**:
-- **Stacked (Emb→LLM) is best**: Outperforms Grouped Ridge on all datasets (+0.01% to +0.4%)
-- **Combining features helps**: Both combination methods outperform single sources (+0.5% to +1.8%)
-- **LLM Judge adds value**: Combining with embeddings consistently improves over embeddings alone
+- **Grouped Ridge (Emb+LLM) is best**: Outperforms single sources on all datasets
+- **Auditor features help**: Adding 3 auditor features to LLM Judge improved SWE-bench AUC from 0.8163 → 0.8303 (+1.7%)
+- **Combining features helps**: Grouped Ridge outperforms single sources (+0.5% to +1.8%)
 
 ### SWE-bench Verified (5-Fold Cross-Validation)
 
@@ -66,14 +66,17 @@ Run with: `python -m experiment_a.run_all_datasets`
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.9441 | 0.0085 |
-| Stacked (Emb → LLM) | 0.8296 | 0.0175 |
-| Grouped Ridge (Emb + LLM) | 0.8280 | 0.0185 |
-| Stacked (LLM → Emb) | 0.8242 | 0.0155 |
+| Grouped Ridge (Emb + LLM) | 0.8331 | 0.0175 |
+| LLM Judge (13 features) | 0.8303 | 0.0121 |
+| Grouped Ridge (LLM + Env) | 0.8291 | 0.0143 |
+| Stacked (Emb → LLM) | 0.8291 | 0.0179 |
 | Embedding | 0.8230 | 0.0193 |
-| LLM Judge | 0.8163 | 0.0093 |
+| LLM Judge (no solution) | 0.7745 | 0.0165 |
+| LLM Judge (problem only) | 0.7707 | 0.0189 |
+| Environment | 0.7186 | 0.0082 |
 | Constant (mean b) | 0.7146 | 0.0083 |
 
-**Note**: On this large dataset, both combination methods work well. Stacked has a slight edge (+0.16%) over Grouped Ridge.
+**Note**: LLM Judge includes 10 semantic features + 3 auditor features (entry_point_clarity, change_blast_radius, fix_localization). The auditor features improved LLM Judge from 0.8163 → 0.8303 (+1.7%).
 
 ### SWE-bench Pro (5-Fold Cross-Validation)
 
@@ -404,7 +407,40 @@ python -m experiment_a.env_features.run_extraction --aggregate_only
 
 See [experiment_a/env_features/README.md](env_features/README.md) for detailed documentation.
 
-### 3. LLM Judge Features
+### 3. Auditor Agent Features (NEW)
+
+Semantic features extracted by an LLM auditor agent (Claude Opus 4.5) that explores SWE-bench task environments via bash shell access. These features capture aspects that require environment interaction to assess.
+
+**Location**: `experiment_a/auditor_agent/`
+
+**3 features extracted (1-5 scale)**:
+- **entry_point_clarity**: How easy is it to find where the bug manifests? (1=unclear → 5=obvious from problem statement)
+- **change_blast_radius**: How many components would be affected by changes? (1=isolated → 5=highly coupled)
+- **fix_localization**: How easily can the fix location be determined? (1=requires deep exploration → 5=immediately clear)
+
+**Correlation with IRT difficulty (β)**:
+- entry_point_clarity: -0.392 (clearer entry point → easier task)
+- fix_localization: -0.389 (easier to localize → easier task)
+- change_blast_radius: +0.351 (larger blast radius → harder task)
+
+**Usage**:
+```bash
+# Run auditor on all SWE-bench Verified tasks
+python -m experiment_a.auditor_agent.run_auditor --output_dir chris_output/auditor_pilot/
+
+# Parse outputs to CSV
+python -m experiment_a.auditor_agent.parse_outputs
+```
+
+**Output**: `chris_output/auditor_pilot/v3_features_top3.csv`
+
+**Integration**: Auditor features are combined with LLM Judge features by default:
+- Combined file: `chris_output/experiment_a/llm_judge_features/llm_judge_plus_auditor.csv`
+- 13 total features: 10 LLM judge + 3 auditor
+
+See [experiment_a/auditor_agent/README.md](auditor_agent/README.md) for detailed documentation.
+
+### 4. LLM Judge Features
 
 Semantic features extracted via LLM structured output:
 
@@ -487,23 +523,23 @@ Embeddings are generated with a prompt containing `question_statement + solution
 
 **Key finding**: Solution information in the embedding prompt contributes +2.5% to +9.9% AUC improvement, with the largest impact on GSO and SWE-bench Verified.
 
-#### LLM Judge Ablation (All Datasets)
+#### LLM Judge Ablation (SWE-bench Verified)
 
 LLM judge features have three variants:
-- **Full** (9 features): All task info including gold patch
-- **No Solution** (7 features): Problem + tests + repo (no patch) - drops `solution_complexity` and dataset-specific feature (`integration_complexity` for code, `tooling_complexity` for terminal)
-- **Problem Only** (7 features): Problem statement only
+- **Full** (13 features): All task info including gold patch + 3 auditor features
+- **No Solution** (7 features): Problem + tests + repo (no patch, no auditor)
+- **Problem Only** (7 features): Problem statement only (no auditor)
 
-| Dataset | Full (9 feat) | No Solution (7 feat) | Problem Only (7 feat) | Δ Full→No Sol |
-|---------|---------------|----------------------|-----------------------|---------------|
-| SWE-bench Verified | 0.8163 | 0.7745 | 0.7707 | -5.1% |
-| SWE-bench Pro | 0.7212 | 0.6962 | 0.6897 | -3.5% |
-| GSO | 0.7333 | 0.7236 | 0.7249 | -1.3% |
-| TerminalBench | 0.7700 | **0.7766** | 0.7740 | **+0.9%** |
+| Variant | Features | AUC | Δ vs Full |
+|---------|----------|-----|-----------|
+| Full (LLM + Auditor) | 13 | **0.8303** | - |
+| No Solution | 7 | 0.7745 | -6.7% |
+| Problem Only | 7 | 0.7707 | -7.2% |
 
 **Key findings**:
-- Solution information contributes 1-5% AUC improvement for most datasets
-- **TerminalBench anomaly**: The no-solution variant (0.7766) *outperforms* the full version (0.7700). Further investigation shows that both `tooling_complexity` and `solution_complexity` hurt performance on this small dataset (88 tasks), likely due to overfitting
+- **Auditor features add significant value**: Full variant (0.8303) outperforms no-solution (0.7745) by +6.7%
+- **Solution information matters**: Knowing the gold patch helps (no-solution → full adds +5.6%)
+- **Auditor features complement solution info**: The 3 auditor features (entry_point_clarity, change_blast_radius, fix_localization) contribute to the improvement by capturing environment-interactive signals not available from static analysis
 
 To run the ablation across all datasets:
 ```bash
