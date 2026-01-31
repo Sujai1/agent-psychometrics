@@ -47,10 +47,11 @@ class ExperimentAConfig:
     )
 
     # LLM Judge predictor config
-    # Default: 15 features = 9 unified + 3 auditor + 3 test quality
+    # Default: Top 15 features selected by Ridge coefficient from 23-feature pool
+    # (7 problem_orig + 8 problem_ext + 3 auditor + 3 test + 2 solution)
     # See experiment_a/README.md for ablation study details
     llm_judge_features_path: Optional[Path] = Path(
-        "chris_output/experiment_a/llm_judge_features/unified_auditor_test.csv"
+        "chris_output/llm_judge_features/swebench_ablation_controlled_v3/4_full_15.csv"
     )
     llm_judge_max_features: Optional[int] = None  # None = use all features
 

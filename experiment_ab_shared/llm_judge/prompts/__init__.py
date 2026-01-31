@@ -51,6 +51,9 @@ from experiment_ab_shared.llm_judge.prompts.swebench_with_test import (
 from experiment_ab_shared.llm_judge.prompts.swebench_test_quality import (
     SWEBENCH_TEST_QUALITY_CONFIG,
 )
+from experiment_ab_shared.llm_judge.prompts.swebench_test_quality_no_solution import (
+    SWEBENCH_TEST_QUALITY_NO_SOLUTION_CONFIG,
+)
 
 # Extended problem-only features (8 additional features for ablation)
 from experiment_ab_shared.llm_judge.prompts.swebench_problem_extended import (
@@ -89,7 +92,9 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "gso_unified_problem_only": GSO_UNIFIED_PROBLEM_ONLY_CONFIG,
     # Test patch features
     "swebench_with_test": SWEBENCH_WITH_TEST_CONFIG,
-    "swebench_test_quality": SWEBENCH_TEST_QUALITY_CONFIG,
+    # NOTE: swebench_test_quality included solution in prompt - use _no_solution for clean ablation
+    "swebench_test_quality_with_solution": SWEBENCH_TEST_QUALITY_CONFIG,  # DEPRECATED: has solution leakage
+    "swebench_test_quality_no_solution": SWEBENCH_TEST_QUALITY_NO_SOLUTION_CONFIG,  # Clean version for ablation
     # Extended problem-only features
     "swebench_problem_extended": SWEBENCH_PROBLEM_EXTENDED_CONFIG,
 }
@@ -174,6 +179,7 @@ __all__ = [
     # Test patch features
     "SWEBENCH_WITH_TEST_CONFIG",
     "SWEBENCH_TEST_QUALITY_CONFIG",
+    "SWEBENCH_TEST_QUALITY_NO_SOLUTION_CONFIG",
     # Extended problem-only
     "SWEBENCH_PROBLEM_EXTENDED_CONFIG",
 ]

@@ -430,9 +430,7 @@ python -m experiment_a.auditor_agent.parse_outputs
 
 **Output**: `chris_output/auditor_pilot/v3_features_top3.csv`
 
-**Integration**: Auditor and test quality features are combined with unified LLM Judge features by default:
-- Combined file: `chris_output/experiment_a/llm_judge_features/unified_auditor_test.csv`
-- 15 total features: 9 unified + 3 auditor + 3 test quality
+**Integration**: Auditor features are included in the default LLM Judge feature set via coefficient-based selection.
 
 See [experiment_a/auditor_agent/README.md](auditor_agent/README.md) for detailed documentation.
 
@@ -441,9 +439,13 @@ See [experiment_a/auditor_agent/README.md](auditor_agent/README.md) for detailed
 Semantic features extracted via LLM structured output:
 
 **SWE-bench Verified (15 features, default)**:
-- **Unified (9)**: solution_hint, problem_clarity, solution_complexity, domain_knowledge_required, logical_reasoning_required, atypicality, verification_difficulty, standard_pattern_available, integration_complexity
+
+The default feature set is `chris_output/llm_judge_features/swebench_ablation_controlled_v3/4_full_15.csv`, which contains the top 15 features selected by Ridge coefficient magnitude from a pool of 23 features:
+- **Problem (7)**: solution_hint, problem_clarity, domain_knowledge_required, logical_reasoning_required, atypicality, verification_difficulty, standard_pattern_available
+- **Problem Extended (8)**: error_specificity, reproduction_clarity, expected_behavior_clarity, debugging_complexity, codebase_scope, information_completeness, similar_issue_likelihood, backwards_compatibility_risk
 - **Auditor (3)**: entry_point_clarity, change_blast_radius, fix_localization
 - **Test Quality (3)**: test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage
+- **Solution (2)**: solution_complexity, integration_complexity
 
 **SWE-bench Pro (8 features, auto-detected from v5 CSV)**:
 - LLM features: fix_complexity, verification_difficulty, standard_pattern_available, integration_complexity
@@ -507,13 +509,24 @@ Both approaches yield comparable results (within ~0.005 AUC noise). Dataset-spec
 
 To measure how much the solution patch contributes to feature quality, we ran ablation experiments removing solution information from both embeddings and LLM judge features.
 
-#### Embedding Ablation (No Solution in Prompt)
+#### Embedding Ablation (SWE-bench Verified)
 
 Embeddings are generated with a prompt containing `question_statement + solution + instruction`. The "no solution" variant removes the solution from the prompt.
 
+| Embedding Variant | Source Alone | Grouped Ridge |
+|-------------------|--------------|---------------|
+| Without Solution | 0.7506 | 0.7800 |
+| **With Solution** | **0.8230** | **0.8436** |
+
+**Note**: Grouped Ridge pairs each embedding variant with the corresponding LLM features:
+- No-solution embedding: paired with Problem Only LLM features
+- With-solution embedding: paired with Full LLM features
+
+**Cross-dataset embedding ablation (Source Alone):**
+
 | Dataset | With Solution | No Solution | Δ AUC |
 |---------|---------------|-------------|-------|
-| SWE-bench Verified | 0.823 | 0.756 | -0.067 (-8.1%) |
+| SWE-bench Verified | 0.823 | 0.751 | -0.072 (-8.7%) |
 | SWE-bench Pro | 0.747 | 0.728 | -0.019 (-2.5%) |
 | TerminalBench | 0.804 | 0.784 | -0.020 (-2.5%) |
 | GSO | 0.728 | 0.656 | -0.072 (-9.9%) |
@@ -522,44 +535,33 @@ Embeddings are generated with a prompt containing `question_statement + solution
 
 #### LLM Judge Ablation (SWE-bench Verified)
 
-LLM judge features have multiple variants that progressively add information sources:
+To measure the contribution of different information sources, we ran ablation experiments progressively adding features from different affordances. Feature count is held constant at 15 via Ridge coefficient-based selection to isolate the value of each information source:
 
 | Method | # Features | LLM Judge AUC | Grouped Ridge AUC |
 |--------|------------|---------------|-------------------|
-| Problem Only | 7 | 0.7707 ± 0.0189 | 0.8230 ± 0.0218 |
-| Problem + Auditor | 10 | 0.7984 ± 0.0172 | 0.8286 ± 0.0208 |
-| Problem + Auditor + Test | 13 | 0.8180 ± 0.0245 | 0.8364 ± 0.0195 |
-| **Full (9 unified + auditor + test)** | 15 | **0.8336 ± 0.0211** | **0.8415 ± 0.0197** |
+| Problem Only | 15 | 0.7821 ± 0.0164 | 0.7800 ± 0.0241 |
+| Problem + Auditor | 15 | 0.8015 ± 0.0167 | 0.7967 ± 0.0240 |
+| Problem + Auditor + Test | 15 | 0.8225 ± 0.0230 | 0.8174 ± 0.0235 |
+| **Full** | 15 | **0.8363 ± 0.0205** | **0.8436 ± 0.0216** |
 
-**Feature breakdown**:
-- **Problem Only (7)**: solution_hint, problem_clarity, domain_knowledge_required, logical_reasoning_required, atypicality, verification_difficulty, standard_pattern_available
-- **+ Auditor (3)**: entry_point_clarity, change_blast_radius, fix_localization
-- **+ Test (3)**: test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage
-- **Full (9 unified)**: adds solution_complexity, integration_complexity (require gold patch)
+**Note**: Grouped Ridge pairs each LLM ablation level with the corresponding embedding variant:
+- Problem Only, +Auditor, +Test: paired with no-solution embedding (neither has solution access)
+- Full: paired with with-solution embedding (both have solution access)
 
-**Key findings**:
-- **Auditor features contribute +2.8%**: Problem Only (0.7707) → Problem + Auditor (0.7984)
-- **Test features contribute +2.0%**: Problem + Auditor (0.7984) → Problem + Auditor + Test (0.8180)
-- **Solution features contribute +1.6%**: Problem + Auditor + Test (0.8180) → Full (0.8336)
-- **Grouped Ridge consistently outperforms LLM Judge alone** by ~0.5-1%
-
-#### Feature-Controlled Ablation (15 features each)
-
-To verify that improvements come from **better features** (not just more features), we extracted 8 additional problem-only features and used Ridge coefficient-based selection to hold feature count constant at 15:
-
-| Method | # Features | LLM Judge AUC | Grouped Ridge AUC |
-|--------|------------|---------------|-------------------|
-| Problem Only | 15 | 0.7821 ± 0.0164 | 0.8226 ± 0.0229 |
-| Problem + Auditor | 15 | 0.8014 ± 0.0174 | 0.8283 ± 0.0222 |
-| Problem + Auditor + Test | 15 | 0.8215 ± 0.0235 | 0.8370 ± 0.0209 |
-| **Full** | 15 | **0.8368 ± 0.0209** | **0.8418 ± 0.0214** |
+**Information sources**:
+- **Problem Only**: Features derived from the problem statement alone (7 original + 8 extended)
+- **+ Auditor**: 3 features requiring shell access to task environment (entry_point_clarity, change_blast_radius, fix_localization)
+- **+ Test**: 3 features analyzing the test patch diff (test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage)
+- **+ Solution (Full)**: 2 features requiring the gold solution patch (solution_complexity, integration_complexity)
 
 **Feature selection method**: Ridge regression on all available features → rank by |coefficient| → keep top 15.
 
-**Key finding**: Even with the same number of features, adding affordances provides significant improvement:
-- +Auditor: +1.9% LLM Judge, +0.6% Grouped Ridge
-- +Test: +2.0% LLM Judge, +0.9% Grouped Ridge
-- +Solution: +1.5% LLM Judge, +0.5% Grouped Ridge
+**Key finding**: Even with the same number of features, adding affordances provides significant improvement in LLM Judge AUC:
+- +Auditor: +1.9% (0.782 → 0.801)
+- +Test: +2.1% (0.801 → 0.823)
+- +Solution: +1.4% (0.823 → 0.836)
+
+**Note**: Test features are extracted WITHOUT access to the solution patch, ensuring clean ablation. The Grouped Ridge column uses matching embedding variants (no-solution for levels 1-3, with-solution for Full).
 
 All affordance-specific features (auditor, test, solution) ranked in the top 15 by coefficient magnitude, confirming they capture information not available from the problem statement alone.
 
@@ -582,6 +584,15 @@ All affordance-specific features (auditor, test, solution) ranked in the top 15 
 | 13 | error_specificity | -0.140 | Problem (ext) |
 | 14 | solution_hint | -0.104 | Problem (orig) |
 | 15 | debugging_complexity | +0.099 | Problem (ext) |
+
+To run the ablation study:
+```bash
+# Run information source ablation (SWE-bench Verified)
+python -m experiment_a.run_information_ablation
+
+# Rebuild ablation CSVs (if feature sources change)
+python -m experiment_a.run_information_ablation --rebuild_csvs
+```
 
 To run the ablation across all datasets:
 ```bash
