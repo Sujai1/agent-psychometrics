@@ -559,6 +559,9 @@ python -m experiment_b.threshold_sweep --datasets swebench --use_cv_hyperparams
 
 # Combine both flags for comprehensive analysis
 python -m experiment_b.threshold_sweep --datasets swebench --test_all_feature_configs --use_cv_hyperparams
+
+# Baseline-only mode: show only Oracle IRT and Baseline IRT (skip Feature-IRT)
+python -m experiment_b.threshold_sweep --baseline_only
 ```
 
 ### Output Files

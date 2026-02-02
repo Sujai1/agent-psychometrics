@@ -192,6 +192,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Test all feature configurations (Embedding, Trajectory, Embedding+Trajectory)",
     )
+    parser.add_argument(
+        "--baseline_only",
+        action="store_true",
+        help="Only show Oracle IRT and Baseline IRT (skip Feature-IRT training and date forecasting)",
+    )
     return parser.parse_args()
 
 
@@ -274,6 +279,7 @@ def run_single_dataset(
     enable_date_forecast: bool,
     use_cv_hyperparams: bool = False,
     test_all_feature_configs: bool = False,
+    baseline_only: bool = False,
 ) -> None:
     """Run full threshold sweep for one dataset.
 
@@ -290,10 +296,15 @@ def run_single_dataset(
         enable_date_forecast: If True, compute date forecasting metrics and plots
         use_cv_hyperparams: If True, use CV-based hyperparameter selection
         test_all_feature_configs: If True, test Embedding, Trajectory, and combined
+        baseline_only: If True, only show Oracle IRT and Baseline IRT (skip Feature-IRT)
     """
     print(f"\n{'='*60}")
     print(f"Dataset: {dataset_name}")
     print(f"{'='*60}")
+
+    # Force disable date forecasting in baseline_only mode
+    if baseline_only:
+        enable_date_forecast = False
 
     config = get_dataset_config(dataset_name)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -346,56 +357,59 @@ def run_single_dataset(
     baseline_abilities = data.baseline_abilities
     print(f"  Baseline IRT: {len(baseline_items)} tasks, {len(baseline_abilities)} agents")
 
-    # Build feature sources
-    print(f"\nBuilding feature sources...")
-    feature_sources = build_feature_sources(config)
-    source_dict = {name: source for name, source in feature_sources}
-
-    # Build feature configurations to test
+    # Build feature sources (skip if baseline_only)
     feature_configs: List[Tuple[str, TaskFeatureSource]] = []
+    if not baseline_only:
+        print(f"\nBuilding feature sources...")
+        feature_sources = build_feature_sources(config)
+        source_dict = {name: source for name, source in feature_sources}
 
-    # Always test Embedding if available
-    if "Embedding" in source_dict:
-        feature_configs.append(("Embedding", source_dict["Embedding"]))
+        # Always test Embedding if available
+        if "Embedding" in source_dict:
+            feature_configs.append(("Embedding", source_dict["Embedding"]))
 
-    # Test all feature configurations if enabled
-    if test_all_feature_configs:
-        # Single sources
-        if "LLM Judge" in source_dict:
-            feature_configs.append(("LLM Judge", source_dict["LLM Judge"]))
-        if "Trajectory" in source_dict:
-            feature_configs.append(("Trajectory", source_dict["Trajectory"]))
+        # Test all feature configurations if enabled
+        if test_all_feature_configs:
+            # Single sources
+            if "LLM Judge" in source_dict:
+                feature_configs.append(("LLM Judge", source_dict["LLM Judge"]))
+            if "Trajectory" in source_dict:
+                feature_configs.append(("Trajectory", source_dict["Trajectory"]))
 
-        # Two-source combinations with Embedding
-        if "Embedding" in source_dict and "LLM Judge" in source_dict:
-            combined_source = GroupedFeatureSource([
-                RegularizedFeatureSource(source_dict["Embedding"]),
-                RegularizedFeatureSource(source_dict["LLM Judge"]),
-            ])
-            feature_configs.append(("Embedding + LLM Judge", combined_source))
+            # Two-source combinations with Embedding
+            if "Embedding" in source_dict and "LLM Judge" in source_dict:
+                combined_source = GroupedFeatureSource([
+                    RegularizedFeatureSource(source_dict["Embedding"]),
+                    RegularizedFeatureSource(source_dict["LLM Judge"]),
+                ])
+                feature_configs.append(("Embedding + LLM Judge", combined_source))
 
-        if "Embedding" in source_dict and "Trajectory" in source_dict:
-            combined_source = GroupedFeatureSource([
-                RegularizedFeatureSource(source_dict["Embedding"]),
-                RegularizedFeatureSource(source_dict["Trajectory"]),
-            ])
-            feature_configs.append(("Embedding + Trajectory", combined_source))
+            if "Embedding" in source_dict and "Trajectory" in source_dict:
+                combined_source = GroupedFeatureSource([
+                    RegularizedFeatureSource(source_dict["Embedding"]),
+                    RegularizedFeatureSource(source_dict["Trajectory"]),
+                ])
+                feature_configs.append(("Embedding + Trajectory", combined_source))
 
-        # Three-source combination
-        if "Embedding" in source_dict and "LLM Judge" in source_dict and "Trajectory" in source_dict:
-            combined_source = GroupedFeatureSource([
-                RegularizedFeatureSource(source_dict["Embedding"]),
-                RegularizedFeatureSource(source_dict["LLM Judge"]),
-                RegularizedFeatureSource(source_dict["Trajectory"]),
-            ])
-            feature_configs.append(("Embedding + LLM Judge + Trajectory", combined_source))
+            # Three-source combination
+            if "Embedding" in source_dict and "LLM Judge" in source_dict and "Trajectory" in source_dict:
+                combined_source = GroupedFeatureSource([
+                    RegularizedFeatureSource(source_dict["Embedding"]),
+                    RegularizedFeatureSource(source_dict["LLM Judge"]),
+                    RegularizedFeatureSource(source_dict["Trajectory"]),
+                ])
+                feature_configs.append(("Embedding + LLM Judge + Trajectory", combined_source))
 
-    print(f"  Feature configs to test: {[name for name, _ in feature_configs]}")
+        print(f"  Feature configs to test: {[name for name, _ in feature_configs]}")
+    else:
+        print(f"\nSkipping Feature-IRT (baseline_only mode)")
 
-    # Train Feature-IRT for each configuration
+    # Train Feature-IRT for each configuration (skip if baseline_only)
     feature_irt_results: Dict[str, Tuple[Dict[str, float], Dict[str, float]]] = {}
 
-    if baseline_abilities is None:
+    if baseline_only:
+        pass  # Skip Feature-IRT training entirely
+    elif baseline_abilities is None:
         print("  Skipping Feature-IRT (no baseline abilities)")
     else:
         baseline_theta = baseline_abilities["theta"].values
@@ -515,12 +529,13 @@ def run_single_dataset(
             all_abilities[method_name] = abilities
 
     # Generate scatter plot of predicted vs oracle for zero_pre frontier tasks
+    # (skip if baseline_only)
     # Default to Embedding if available, otherwise use first available config
     scatter_config_name = "Embedding" if "Embedding" in feature_irt_results else (
         list(feature_irt_results.keys())[0] if feature_irt_results else None
     )
 
-    if scatter_config_name is not None:
+    if not baseline_only and scatter_config_name is not None:
         _, scatter_preds = feature_irt_results[scatter_config_name]
 
         zero_pre_frontier = identify_frontier_tasks_for_threshold(
@@ -748,7 +763,9 @@ def main():
         print("Testing all feature configurations (Embedding, Trajectory, Embedding+Trajectory)")
     if args.post_frontier_oracle:
         print("Using POST-FRONTIER Oracle mode")
-    if args.date_forecast_all:
+    if args.baseline_only:
+        print("Baseline-only mode: showing Oracle IRT and Baseline IRT only")
+    elif args.date_forecast_all:
         print("Date forecasting enabled for ALL datasets")
     else:
         print(f"Date forecasting enabled for: {DATE_FORECAST_DATASETS}")
@@ -771,6 +788,7 @@ def main():
                 enable_date_forecast,
                 args.use_cv_hyperparams,
                 args.test_all_feature_configs,
+                args.baseline_only,
             ),
         )
         processes.append(p)
