@@ -701,21 +701,18 @@ def generate_source_bar_graph(
         if source in source_coefs:
             source_coefs[source].append(abs(coef))
 
-    # Calculate mean and std for each source
+    # Calculate mean for each source
     sources = ["Problem Statement", "Environment", "Test Patch", "Solution Patch"]
     means = []
-    stds = []
     counts = []
 
     for source in sources:
         coefs = source_coefs[source]
         if coefs:
             means.append(np.mean(coefs))
-            stds.append(np.std(coefs))
             counts.append(len(coefs))
         else:
             means.append(0)
-            stds.append(0)
             counts.append(0)
 
     # Create bar plot
@@ -724,11 +721,11 @@ def generate_source_bar_graph(
     colors = ['#2ecc71', '#3498db', '#e74c3c', '#9b59b6']  # Green, Blue, Red, Purple
     x = np.arange(len(sources))
 
-    bars = ax.bar(x, means, yerr=stds, capsize=5, color=colors, edgecolor='black', linewidth=1)
+    bars = ax.bar(x, means, color=colors, edgecolor='black', linewidth=1)
 
     # Add count labels on bars
-    for i, (bar, count, mean) in enumerate(zip(bars, counts, means)):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + stds[i] + 0.01,
+    for bar, count in zip(bars, counts):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                 f'n={count}', ha='center', va='bottom', fontsize=10)
 
     ax.set_xlabel('Feature Source', fontsize=12)
