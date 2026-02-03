@@ -179,6 +179,19 @@ def get_embedding_dim(embeddings_path: Path) -> int:
     return int(data["X"].shape[1])
 
 
+def get_num_features(csv_path: Path) -> int:
+    """Read number of numeric feature columns from CSV file."""
+    df = pd.read_csv(csv_path)
+    # Count numeric columns excluding metadata (instance_id, _task_id, etc.)
+    feature_cols = [
+        c for c in df.columns
+        if pd.api.types.is_numeric_dtype(df[c])
+        and not c.startswith("_")
+        and c not in ("instance_id", "task_id")
+    ]
+    return len(feature_cols)
+
+
 def run_experiment(embeddings_path: Path, llm_judge_path: Path, k_folds: int) -> Dict[str, Any]:
     """Run a single experiment and parse results."""
     cmd = [
@@ -208,6 +221,11 @@ def run_experiment(embeddings_path: Path, llm_judge_path: Path, k_folds: int) ->
     if grouped_match:
         results["grouped_auc"] = float(grouped_match.group(1))
         results["grouped_std"] = float(grouped_match.group(2))
+
+    oracle_match = re.search(r'Oracle \(true b\)\s+(\d+\.\d+)\s+(\d+\.\d+)', output)
+    if oracle_match:
+        results["oracle_auc"] = float(oracle_match.group(1))
+        results["oracle_std"] = float(oracle_match.group(2))
 
     return results
 
@@ -239,11 +257,17 @@ def main():
     ]
 
     llm_results = []
+    oracle_auc = None
     for name, llm_path, emb_path in llm_ablation_configs:
         print(f"\nRunning: {name}")
         results = run_experiment(emb_path, llm_path, config.k_folds)
         results["name"] = name
+        results["llm_path"] = llm_path
+        results["n_features"] = get_num_features(llm_path)
         llm_results.append(results)
+        # Capture Oracle AUC from first run
+        if oracle_auc is None and results.get("oracle_auc"):
+            oracle_auc = results["oracle_auc"]
         llm_auc = results.get('llm_auc')
         llm_std = results.get('llm_std')
         grouped_auc = results.get('grouped_auc')
@@ -287,7 +311,8 @@ def main():
     for r in llm_results:
         llm_str = f"{r.get('llm_auc', 0):.4f} ± {r.get('llm_std', 0):.4f}"
         grouped_str = f"{r.get('grouped_auc', 0):.4f} ± {r.get('grouped_std', 0):.4f}"
-        print(f"{r['name']:<25} {'15':<8} {llm_str:<18} {grouped_str:<18}")
+        n_feat = r.get('n_features', 15)
+        print(f"{r['name']:<25} {n_feat:<8} {llm_str:<18} {grouped_str:<18}")
 
     print("\nEmbedding Ablation:")
     print(f"{'Method':<25} {'# Feat':<8} {'Source Alone':<18} {'Grouped Ridge':<18}")
@@ -318,22 +343,24 @@ Information Source & \# Feat. & Source Alone & Grouped Ridge \\
         if r["name"] == "Full":
             name_display = "+ Solution Patch (Full)"
 
+        n_feat = r.get('n_features', 15)
         llm_val = f"{r.get('llm_auc', 0):.3f}"
         grouped_val = f"{r.get('grouped_auc', 0):.3f}"
 
         if r["name"] == "Full":
-            print(f"{prefix}{name_display} & 15 & \\textbf{{{llm_val}}} & \\textbf{{{grouped_val}}} \\\\")
+            print(f"{prefix}{name_display} & {n_feat} & \\textbf{{{llm_val}}} & \\textbf{{{grouped_val}}} \\\\")
         else:
-            print(f"{prefix}{name_display} & 15 & {llm_val} & {grouped_val} \\\\")
+            print(f"{prefix}{name_display} & {n_feat} & {llm_val} & {grouped_val} \\\\")
 
     print(r"""\midrule
 \multicolumn{4}{l}{\textit{Embedding Ablation}} \\""")
     print(f"\\quad Without Solution & {emb_dim} & {emb_no_sol_results.get('emb_auc', 0):.3f} & {emb_no_sol_results.get('grouped_auc', 0):.3f} \\\\")
     print(f"\\quad With Solution & {emb_dim} & {emb_with_sol_results.get('emb_auc', 0):.3f} & {emb_with_sol_results.get('grouped_auc', 0):.3f} \\\\")
-    print(r"""\midrule
-Oracle & --- & --- & 0.944 \\
+    oracle_str = f"{oracle_auc:.3f}" if oracle_auc else "N/A"
+    print(rf"""\midrule
+Oracle & --- & --- & {oracle_str} \\
 \bottomrule
-\end{tabular}""")
+\end{{tabular}}""")
 
 
 if __name__ == "__main__":
