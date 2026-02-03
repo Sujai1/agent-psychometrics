@@ -173,6 +173,12 @@ def build_ablation_csvs(config: AblationConfig) -> None:
         print(f"  Saved {output_path}")
 
 
+def get_embedding_dim(embeddings_path: Path) -> int:
+    """Read embedding dimension from npz file."""
+    data = np.load(embeddings_path, allow_pickle=True)
+    return int(data["X"].shape[1])
+
+
 def run_experiment(embeddings_path: Path, llm_judge_path: Path, k_folds: int) -> Dict[str, Any]:
     """Run a single experiment and parse results."""
     cmd = [
@@ -286,8 +292,9 @@ def main():
     print("\nEmbedding Ablation:")
     print(f"{'Method':<25} {'# Feat':<8} {'Source Alone':<18} {'Grouped Ridge':<18}")
     print("-" * 70)
-    print(f"{'Without Solution':<25} {'3072':<8} {emb_no_sol_results.get('emb_auc', 0):.4f}{'':14} {emb_no_sol_results.get('grouped_auc', 0):.4f}")
-    print(f"{'With Solution':<25} {'3072':<8} {emb_with_sol_results.get('emb_auc', 0):.4f}{'':14} {emb_with_sol_results.get('grouped_auc', 0):.4f}")
+    emb_dim = get_embedding_dim(config.emb_no_sol_path)
+    print(f"{'Without Solution':<25} {emb_dim:<8} {emb_no_sol_results.get('emb_auc', 0):.4f}{'':14} {emb_no_sol_results.get('grouped_auc', 0):.4f}")
+    print(f"{'With Solution':<25} {emb_dim:<8} {emb_with_sol_results.get('emb_auc', 0):.4f}{'':14} {emb_with_sol_results.get('grouped_auc', 0):.4f}")
 
     # LaTeX table
     print("\n" + "=" * 70)
@@ -321,8 +328,8 @@ Information Source & \# Feat. & Source Alone & Grouped Ridge \\
 
     print(r"""\midrule
 \multicolumn{4}{l}{\textit{Embedding Ablation}} \\""")
-    print(f"\\quad Without Solution & 3072 & {emb_no_sol_results.get('emb_auc', 0):.3f} & {emb_no_sol_results.get('grouped_auc', 0):.3f} \\\\")
-    print(f"\\quad With Solution & 3072 & {emb_with_sol_results.get('emb_auc', 0):.3f} & {emb_with_sol_results.get('grouped_auc', 0):.3f} \\\\")
+    print(f"\\quad Without Solution & {emb_dim} & {emb_no_sol_results.get('emb_auc', 0):.3f} & {emb_no_sol_results.get('grouped_auc', 0):.3f} \\\\")
+    print(f"\\quad With Solution & {emb_dim} & {emb_with_sol_results.get('emb_auc', 0):.3f} & {emb_with_sol_results.get('grouped_auc', 0):.3f} \\\\")
     print(r"""\midrule
 Oracle & --- & --- & 0.944 \\
 \bottomrule
