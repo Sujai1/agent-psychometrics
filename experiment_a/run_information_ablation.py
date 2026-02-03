@@ -17,8 +17,6 @@ Usage:
 """
 
 import argparse
-import subprocess
-import re
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
@@ -28,8 +26,19 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
+from experiment_a.swebench.config import ExperimentAConfig
+from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
+
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Experiment specification for SWE-bench (matches train_evaluate.py)
+SPEC = ExperimentSpec(
+    name="SWE-bench",
+    is_binomial=False,
+    irt_cache_dir=ROOT / "chris_output" / "experiment_a" / "irt_splits",
+    llm_judge_features=[],  # Features come from CSV, not hardcoded list
+)
 
 
 @dataclass
@@ -193,39 +202,56 @@ def get_num_features(csv_path: Path) -> int:
 
 
 def run_experiment(embeddings_path: Path, llm_judge_path: Path, k_folds: int) -> Dict[str, Any]:
-    """Run a single experiment and parse results."""
-    cmd = [
-        "python", "-m", "experiment_a.swebench.train_evaluate",
-        "--embeddings_path", str(embeddings_path),
-        "--llm_judge_features_path", str(llm_judge_path),
-        "--k_folds", str(k_folds),
-    ]
+    """Run a single experiment by calling the pipeline directly.
 
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
-    output = result.stdout
+    Args:
+        embeddings_path: Path to embeddings .npz file
+        llm_judge_path: Path to LLM judge features CSV
+        k_folds: Number of cross-validation folds
 
-    # Parse results
+    Returns:
+        Dict with AUC results for each predictor type
+    """
+    # Create config with the specified paths
+    config = ExperimentAConfig(
+        embeddings_path=embeddings_path,
+        llm_judge_features_path=llm_judge_path,
+    )
+
+    # Run cross-validation directly
+    cv_output = run_cross_validation(config, SPEC, ROOT, k=k_folds)
+    cv_results = cv_output["cv_results"]
+
+    # Extract results from the cv_results dict
     results = {}
 
-    llm_match = re.search(r'LLM Judge\s+(\d+\.\d+)\s+(\d+\.\d+)', output)
-    if llm_match:
-        results["llm_auc"] = float(llm_match.group(1))
-        results["llm_std"] = float(llm_match.group(2))
+    # LLM Judge
+    if "llm_judge_predictor" in cv_results:
+        r = cv_results["llm_judge_predictor"]
+        if r.get("mean_auc") is not None:
+            results["llm_auc"] = r["mean_auc"]
+            results["llm_std"] = r["std_auc"]
 
-    emb_match = re.search(r'Embedding\s+(\d+\.\d+)\s+(\d+\.\d+)', output)
-    if emb_match:
-        results["emb_auc"] = float(emb_match.group(1))
-        results["emb_std"] = float(emb_match.group(2))
+    # Embedding
+    if "embedding_predictor" in cv_results:
+        r = cv_results["embedding_predictor"]
+        if r.get("mean_auc") is not None:
+            results["emb_auc"] = r["mean_auc"]
+            results["emb_std"] = r["std_auc"]
 
-    grouped_match = re.search(r'Grouped Ridge \(Emb \+ LLM\)\s+(\d+\.\d+)\s+(\d+\.\d+)', output)
-    if grouped_match:
-        results["grouped_auc"] = float(grouped_match.group(1))
-        results["grouped_std"] = float(grouped_match.group(2))
+    # Grouped Ridge (Emb + LLM)
+    if "grouped_ridge" in cv_results:
+        r = cv_results["grouped_ridge"]
+        if r.get("mean_auc") is not None:
+            results["grouped_auc"] = r["mean_auc"]
+            results["grouped_std"] = r["std_auc"]
 
-    oracle_match = re.search(r'Oracle \(true b\)\s+(\d+\.\d+)\s+(\d+\.\d+)', output)
-    if oracle_match:
-        results["oracle_auc"] = float(oracle_match.group(1))
-        results["oracle_std"] = float(oracle_match.group(2))
+    # Oracle
+    if "oracle" in cv_results:
+        r = cv_results["oracle"]
+        if r.get("mean_auc") is not None:
+            results["oracle_auc"] = r["mean_auc"]
+            results["oracle_std"] = r["std_auc"]
 
     return results
 
