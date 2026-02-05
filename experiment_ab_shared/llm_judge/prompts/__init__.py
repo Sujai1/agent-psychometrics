@@ -60,6 +60,17 @@ from experiment_ab_shared.llm_judge.prompts.swebench_problem_extended import (
     SWEBENCH_PROBLEM_EXTENDED_CONFIG,
 )
 
+# New features (7 additional features to extend existing 8 core features)
+from experiment_ab_shared.llm_judge.prompts.swebench_pro_new_features import (
+    SWEBENCH_PRO_NEW_FEATURES_CONFIG,
+)
+from experiment_ab_shared.llm_judge.prompts.gso_new_features import (
+    GSO_NEW_FEATURES_CONFIG,
+)
+from experiment_ab_shared.llm_judge.prompts.terminalbench_new_features import (
+    TERMINALBENCH_NEW_FEATURES_CONFIG,
+)
+
 # Registry of all available prompt configurations
 _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench": SWEBENCH_CONFIG,
@@ -97,6 +108,10 @@ _PROMPT_CONFIGS: Dict[str, PromptConfig] = {
     "swebench_test_quality_no_solution": SWEBENCH_TEST_QUALITY_NO_SOLUTION_CONFIG,  # Clean version for ablation
     # Extended problem-only features
     "swebench_problem_extended": SWEBENCH_PROBLEM_EXTENDED_CONFIG,
+    # New features (7 additional features to extend existing 8 core)
+    "swebench_pro_new_features": SWEBENCH_PRO_NEW_FEATURES_CONFIG,
+    "gso_new_features": GSO_NEW_FEATURES_CONFIG,
+    "terminalbench_new_features": TERMINALBENCH_NEW_FEATURES_CONFIG,
 }
 
 
@@ -182,4 +197,8 @@ __all__ = [
     "SWEBENCH_TEST_QUALITY_NO_SOLUTION_CONFIG",
     # Extended problem-only
     "SWEBENCH_PROBLEM_EXTENDED_CONFIG",
+    # New features (7 additional)
+    "SWEBENCH_PRO_NEW_FEATURES_CONFIG",
+    "GSO_NEW_FEATURES_CONFIG",
+    "TERMINALBENCH_NEW_FEATURES_CONFIG",
 ]
