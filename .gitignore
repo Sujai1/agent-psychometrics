@@ -241,3 +241,33 @@ chris_output/experiment_b/frontier_analysis/
 chris_output/auditor_pilot/
 embed_pca_vs_oracle_theta__model.csv
 chris_output/llm_judge_prompts_latex.tex
+
+# Misc regenerable outputs
+chris_output/bash_only_abilities.png
+chris_output/swebench_verified_unified_9_features.csv
+
+# Experiment A auditor/LLM auditor outputs (regenerable)
+chris_output/experiment_a/with_auditor/
+chris_output/experiment_a/with_combined_llm_auditor/
+
+# Experiment B frontier analysis v3 (regenerable)
+chris_output/experiment_b/frontier_analysis_v3/
+
+# LLM judge coefficient analysis (regenerable)
+chris_output/llm_judge_coefficient_analysis/
+
+# LLM judge feature experiment variants (regenerable via LLM API)
+chris_output/llm_judge_features/*_no_solution/
+chris_output/llm_judge_features/*_problem_only/
+chris_output/llm_judge_features/*_no_tooling/
+chris_output/llm_judge_features/*_new_features/
+chris_output/llm_judge_features/swebench_ablation/
+chris_output/llm_judge_features/swebench_ablation_controlled/
+chris_output/llm_judge_features/swebench_ablation_controlled_v2/
+chris_output/llm_judge_features/swebench_all_combined/
+chris_output/llm_judge_features/swebench_baseline_plus_test/
+chris_output/llm_judge_features/swebench_with_test/
+chris_output/llm_judge_features/swebench_problem_extended/
+chris_output/llm_judge_features/swebench_test_quality/
+chris_output/llm_judge_features/experiment_a_defaults_backup*/
+chris_output/llm_judge_features/terminalbench_error_specificity_fix.json
