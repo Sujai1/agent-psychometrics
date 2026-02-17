@@ -7,7 +7,6 @@ This script compares:
 3. Embedding + Ridge: Task embeddings with Ridge regression
 4. LLM Judge + Ridge: LLM-extracted semantic features with Ridge
 5. Feature-IRT: Joint learning of feature weights and agent abilities
-6. SAD-IRT (optional): From experiment_sad_irt extracted beta values
 
 Methods are evaluated by:
 - ROC-AUC on frontier tasks using oracle abilities and aligned difficulties
@@ -41,7 +40,6 @@ from experiment_b.shared import (
     collect_ridge_predictions,
     collect_grouped_ridge_predictions,
     collect_feature_irt_predictions,
-    collect_sad_irt_predictions,
     collect_ordered_logit_irt_predictions,
     # Frontier evaluation
     setup_date_forecasting,
@@ -104,12 +102,6 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Path to trajectory features CSV (overrides dataset default)",
-    )
-    parser.add_argument(
-        "--sad_irt_beta_dir",
-        type=Path,
-        default=Path("chris_output/sad_irt_beta_values"),
-        help="Directory containing extracted SAD-IRT beta CSV files",
     )
     parser.add_argument(
         "--cutoff_date",
@@ -178,11 +170,6 @@ def parse_args() -> argparse.Namespace:
              "'pre_only' = <=X%% pre (no post filter, uses --pre_threshold); "
              "'irt' = IRT probability threshold; "
              "'human_hard' = human-labeled difficulty >= '1-4 hours'",
-    )
-    parser.add_argument(
-        "--show_all_sad_irt",
-        action="store_true",
-        help="Show all individual SAD-IRT runs instead of compressing to 'SAD-IRT (best)'",
     )
     parser.add_argument(
         "--device",
@@ -256,12 +243,6 @@ def main():
     }
     if data.baseline_abilities is not None:
         method_abilities["Baseline IRT (pre-frontier only)"] = data.baseline_abilities["theta"].to_dict()
-
-    # Load SAD-IRT predictions (each run added as separate method)
-    # NOTE: Temporarily disabled - uncomment to re-enable
-    # sad_preds, sad_abilities = collect_sad_irt_predictions(args.sad_irt_beta_dir)
-    # raw_predictions.update(sad_preds)
-    # method_abilities.update(sad_abilities)
 
     # Build feature sources and collect Ridge predictions
     feature_sources = build_feature_sources(
@@ -351,7 +332,6 @@ def main():
         date_info=date_info,
         alignment_method=args.alignment_method,
         verbose=args.verbose,
-        show_all_sad_irt=args.show_all_sad_irt,
     )
 
     # =========================================================================

@@ -20,11 +20,7 @@ papers/
 trajectory_data/unified_trajs/
 trajectory_data/filtered_unified/
 trajectory_data/swebench_pro/
-IssueSolvingEmpirical/
-reeval/
 terminal_bench/
-gso-experiments/
-stochastic-agent-evals/
 
 # Embeddings from cluster (large files, don't sync back)
 out/

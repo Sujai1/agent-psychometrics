@@ -108,7 +108,6 @@ def run_single_dataset(
     k_folds: int = 5,
     n_jobs_methods: int = 1,
     n_jobs_folds: int = 1,
-    include_mlp: bool = False,
     include_trees: bool = False,
     judge_ablation: bool = False,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
@@ -124,7 +123,6 @@ def run_single_dataset(
         k_folds: Number of CV folds.
         n_jobs_methods: Number of parallel jobs for method execution.
         n_jobs_folds: Number of parallel jobs for fold execution.
-        include_mlp: Whether to include MLP predictors (default False).
         include_trees: Whether to include tree-based predictors (default False).
         judge_ablation: Whether to include no-solution and problem-only LLM judge ablations.
         extra_embeddings_paths: Additional embedding paths for ablation studies.
@@ -203,7 +201,6 @@ def run_single_dataset(
             config, spec, root, k_folds,
             metadata_loader=None,
             include_feature_irt=False,
-            include_mlp=include_mlp,
             include_trees=include_trees,
             n_jobs_methods=n_jobs_methods,
             n_jobs_folds=n_jobs_folds,
@@ -244,9 +241,6 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
         "grouped_ridge_llm_env": "LLM + Env",
         "grouped_ridge_emb_llm": "Emb + LLM",
         "stacked_residual": "Stacked (Emb → LLM)",
-        "mlp_embedding": "MLP (Emb)",
-        "mlp_llm_judge": "MLP (Judge)",
-        "mlp_grouped": "MLP (Grouped)",
         "constant_baseline": "Baseline",
         # Ablation study predictors
         "llm_judge_no_solution": "LLM (no sol)",
@@ -416,12 +410,6 @@ def main():
         help="Parallel jobs for folds within each method (default: 1 = sequential)",
     )
     parser.add_argument(
-        "--mlp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Include MLP predictors (default: False). Use --mlp to include PyTorch-based MLP predictors.",
-    )
-    parser.add_argument(
         "--trees",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -485,7 +473,7 @@ def main():
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
     print(f"Unified judge features: {args.unified_judge}")
     print(f"K-folds: {args.k_folds}")
-    print(f"Include MLP: {args.mlp}, Include trees: {args.trees}, Judge ablation: {args.judge_ablation}")
+    print(f"Include trees: {args.trees}, Judge ablation: {args.judge_ablation}")
     print(f"Parallelization: datasets={args.max_workers}, methods={args.n_jobs_methods}, folds={args.n_jobs_folds}")
     if extra_embeddings_paths:
         print(f"Extra embedding paths: {[name for name, _ in extra_embeddings_paths]}")
@@ -507,7 +495,6 @@ def main():
                 k_folds=args.k_folds,
                 n_jobs_methods=args.n_jobs_methods,
                 n_jobs_folds=args.n_jobs_folds,
-                include_mlp=args.mlp,
                 include_trees=args.trees,
                 judge_ablation=args.judge_ablation,
                 extra_embeddings_paths=extra_embeddings_paths,
@@ -537,7 +524,6 @@ def main():
                     args.k_folds,
                     args.n_jobs_methods,
                     args.n_jobs_folds,
-                    args.mlp,
                     args.trees,
                     args.judge_ablation,
                     extra_embeddings_paths,

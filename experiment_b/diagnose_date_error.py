@@ -29,7 +29,6 @@ from scipy import stats
 from experiment_b import get_dataset_config, list_datasets
 from experiment_b.shared import (
     load_and_prepare_data,
-    collect_sad_irt_predictions,
     split_agents_by_dates,
     parse_date,
 )
@@ -368,18 +367,6 @@ def main():
     # Baseline IRT
     if data.baseline_abilities is not None:
         method_abilities["Baseline IRT"] = data.baseline_abilities["theta"].to_dict()
-
-    # SAD-IRT (load from files)
-    sad_irt_dir = Path("chris_output/sad_irt_theta_values")
-    if sad_irt_dir.exists():
-        for theta_file in sad_irt_dir.glob("*.csv"):
-            try:
-                theta_df = pd.read_csv(theta_file, index_col=0)
-                if "theta" in theta_df.columns:
-                    stem = theta_file.stem
-                    method_abilities[f"SAD-IRT ({stem})"] = theta_df["theta"].to_dict()
-            except Exception:
-                pass
 
     print(f"\nMethods with abilities: {list(method_abilities.keys())}")
 

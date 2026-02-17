@@ -13,8 +13,6 @@ Methods compared:
 - Baseline IRT: Train IRT on pre-frontier agents only
 - Embedding + Ridge: Task embeddings from any backbone model
 - LLM Judge + Ridge: LLM-extracted semantic features
-- (Optional) SAD-IRT: State-aware deep IRT from experiment_sad_irt
-
 Usage:
     python -m experiment_b.swebench.compare_methods
     python -m experiment_b.terminalbench.compare_methods

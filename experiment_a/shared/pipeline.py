@@ -56,8 +56,6 @@ from experiment_a.shared.baselines import (
     FeatureIRTCVPredictor,
     FullFeatureIRTAdapter,
 )
-from experiment_a.shared.mlp_predictor import MLPPredictor
-
 # Default SWE-bench LLM Judge features (all 9 semantic features)
 SWEBENCH_LLM_JUDGE_FEATURES = [
     "fix_in_description",
@@ -114,7 +112,6 @@ def build_cv_predictors(
     root: Path,
     llm_judge_features: Optional[List[str]] = None,
     include_feature_irt: bool = False,
-    include_mlp: bool = False,
     include_trees: bool = False,
     full_firt_l2_weight: float = 0.001,
     full_firt_l2_residual: float = 0.0001,
@@ -131,8 +128,6 @@ def build_cv_predictors(
         llm_judge_features: Optional list of feature columns for LLM Judge.
         include_feature_irt: Whether to include Feature-IRT joint learning methods.
             Defaults to False since they provide minimal improvement over Ridge.
-        include_mlp: Whether to include MLP predictors (default True).
-            Set to False for faster local execution (skips PyTorch training).
         include_trees: Whether to include tree-based predictors (Decision Tree, Random Forest).
             Defaults to False since they don't consistently outperform Ridge.
         extra_embeddings_paths: List of (name, path) tuples for additional embedding
@@ -451,44 +446,6 @@ def build_cv_predictors(
             )
         )
 
-    # MLP predictors (IRT-style: learns P = sigmoid(θ_agent - β_task) end-to-end)
-    # Skip if include_mlp=False (for faster local execution without PyTorch)
-    if include_mlp:
-        # MLP with Embedding features
-        if "Embedding" in source_by_name:
-            configs.append(
-                CVPredictorConfig(
-                    predictor=MLPPredictor(source_by_name["Embedding"]),
-                    name="mlp_embedding",
-                    display_name="MLP (Embedding)",
-                )
-            )
-
-        # MLP with LLM Judge features
-        if "LLM Judge" in source_by_name:
-            configs.append(
-                CVPredictorConfig(
-                    predictor=MLPPredictor(source_by_name["LLM Judge"]),
-                    name="mlp_llm_judge",
-                    display_name="MLP (LLM Judge)",
-                )
-            )
-
-        # MLP with combined features
-        if len(feature_source_list) >= 2:
-            # Reuse the grouped source if available, otherwise create one
-            feature_sources = [source for _, source in feature_source_list]
-            mlp_grouped_source = GroupedFeatureSource([
-                RegularizedFeatureSource(src) for src in feature_sources
-            ])
-            configs.append(
-                CVPredictorConfig(
-                    predictor=MLPPredictor(mlp_grouped_source),
-                    name="mlp_grouped",
-                    display_name=f"MLP ({mlp_grouped_source.name})",
-                )
-            )
-
     # Constant baseline (mean difficulty)
     configs.append(
         CVPredictorConfig(
@@ -597,7 +554,6 @@ def run_cross_validation(
     k: int = 5,
     metadata_loader: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
     include_feature_irt: bool = False,
-    include_mlp: bool = False,
     include_trees: bool = False,
     full_firt_l2_weight: float = 0.001,
     full_firt_l2_residual: float = 0.0001,
@@ -622,8 +578,6 @@ def run_cross_validation(
         metadata_loader: Optional callable to load task metadata
         include_feature_irt: Whether to include Feature-IRT joint learning methods.
             Defaults to False since they provide minimal improvement over Ridge.
-        include_mlp: Whether to include MLP predictors (default True).
-            Set to False for faster local execution (skips PyTorch training).
         include_trees: Whether to include tree-based predictors (Decision Tree, Random Forest).
             Defaults to False since they don't consistently outperform Ridge.
         expansion_mode: Override AUC expansion method ("binary", "expand", or None)
@@ -694,7 +648,6 @@ def run_cross_validation(
     predictor_configs = build_cv_predictors(
         config, root, llm_judge_features=None,  # Auto-detect from CSV
         include_feature_irt=include_feature_irt,
-        include_mlp=include_mlp,
         include_trees=include_trees,
         extra_embeddings_paths=extra_embeddings_paths,
         extra_llm_judge_paths=extra_llm_judge_paths,
