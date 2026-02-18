@@ -18,16 +18,16 @@ See [chris proposal.md](chris%20proposal.md) for full research motivation.
 model_irt/
 ├── experiment_a/           # Prior validation (IRT AUC)
 ├── experiment_b/           # Frontier task difficulty prediction
-├── experiment_b_old/       # [ARCHIVED] Old posterior prediction approach
-├── experiment_sad_irt/     # SAD-IRT model for frontier difficulty
+├── experiment_ab_shared/   # Shared infrastructure for A & B
 ├── swebench_irt/           # IRT model training
-├── llm_judge/              # LLM-as-judge for difficulty prediction
 ├── trajectory_upload/      # Trajectory conversion and upload
+├── trajectory_summarization_api/  # Trajectory summarization
 ├── py_irt/                 # IRT library (local fork)
 ├── clean_data/             # Trained IRT models
+├── data/                   # Input data
 ├── chris_output/           # Outputs and results
 ├── trajectory_data/        # Downloaded trajectories (76 agents)
-├── experiments/            # SWE-bench experiments repo (gitignored)
+├── aws_setup/              # AWS cluster setup
 └── docs/                   # Detailed documentation
 ```
 
@@ -48,8 +48,6 @@ python -m experiment_b.compare_methods
 python swebench_irt/train.py --dims 1 --model 1pl \
     --data_path clean_data/swebench_verified/swebench_verified_20251115_full.jsonl
 
-# Run tests
-pytest tests/test_irt_pipeline.py -v
 ```
 
 ## Current Dataset
@@ -113,7 +111,6 @@ Frontier ability is linear over time (R² = 0.98 for 2PL).
 | `experiment_b/compare_methods.py` | Run Experiment B |
 | `swebench_irt/train.py` | Train IRT models |
 | `swebench_irt/prep_swebench.py` | Build response matrix |
-| `llm_judge/llm_judge.py` | LLM feature extraction |
 | `experiment_ab_shared/feature_source.py` | Feature source abstractions (`GroupedFeatureSource`, `RegularizedFeatureSource`) |
 | `experiment_ab_shared/feature_predictor.py` | Predictors (`FeatureBasedPredictor`, `GroupedRidgePredictor`) |
 

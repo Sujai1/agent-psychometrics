@@ -40,7 +40,6 @@ from experiment_b.shared.prediction_methods import (
     collect_ridge_predictions,
     collect_grouped_ridge_predictions,
     collect_feature_irt_predictions,
-    collect_sad_irt_predictions,
 )
 
 # Ordered Logit IRT
@@ -139,7 +138,6 @@ __all__ = [
     "collect_ridge_predictions",
     "collect_grouped_ridge_predictions",
     "collect_feature_irt_predictions",
-    "collect_sad_irt_predictions",
     # ordered_logit_predictor
     "OrderedLogitIRTPredictor",
     "collect_ordered_logit_irt_predictions",
