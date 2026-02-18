@@ -4,7 +4,7 @@ Extract Terminal-Bench 2.0 task statements ("instruction") from the local
 `terminal-bench/tasks/` registry and write a SWE-bench-like JSONL.
 
 Output JSONL schema per line:
-  {"task_id": "...", "problem_statement": "...", "patch": "..."}
+  {"task_id": "...", "problem_statement": "...", "patch": "...", "tests": "..."}
 
 Gold patches:
   - We store the *entire* contents of `solution.sh` (when present) in the `patch`
@@ -126,6 +126,49 @@ def extract_patch_from_solution_sh(solution_sh_text: str) -> str:
     return s
 
 
+def _read_text_truncated(path: Path, *, max_chars: int = 50_000) -> str:
+    """
+    Read a text file with UTF-8 and truncate extremely large files to keep JSONL
+    and downstream prompts reasonable.
+    """
+    try:
+        s = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        # Best-effort: some tasks may contain non-UTF8 bytes in auxiliary files.
+        s = path.read_text(encoding="utf-8", errors="replace")
+    s = normalize_newlines_preserve_whitespace(s)
+    if len(s) > int(max_chars):
+        return s[: int(max_chars)].rstrip() + "\n\n# [truncated]\n"
+    return s
+
+
+def extract_tests_from_task_dir(task_dir: Path) -> str:
+    """
+    Extract Terminal-Bench tests in a prompt-friendly form.
+
+    We include:
+      - `run-tests.sh` when present (how evaluation is invoked)
+      - all files under `tests/` (actual test cases)
+    """
+    chunks: List[str] = []
+
+    run_tests = task_dir / "run-tests.sh"
+    if run_tests.exists() and run_tests.is_file():
+        chunks.append(f"### run-tests.sh\n{_read_text_truncated(run_tests)}")
+
+    tests_dir = task_dir / "tests"
+    if tests_dir.exists() and tests_dir.is_dir():
+        # Stable ordering
+        for p in sorted(tests_dir.rglob("*")):
+            if not p.is_file():
+                continue
+            rel = p.relative_to(task_dir).as_posix()
+            chunks.append(f"### {rel}\n{_read_text_truncated(p)}")
+
+    s = "\n\n".join(chunks)
+    return normalize_text(s) if s.strip() else ""
+
+
 def load_task_list(meta_json_path: Path) -> List[str]:
     meta = json.loads(meta_json_path.read_text(encoding="utf-8"))
     task_list = meta.get("task_list")
@@ -163,6 +206,7 @@ def main() -> int:
     missing_instruction: List[str] = []
     missing_task_dir: List[str] = []
     patches_found = 0
+    tests_found = 0
 
     for tid in task_ids:
         task_path = tasks_dir / tid
@@ -187,7 +231,11 @@ def main() -> int:
             if patch:
                 patches_found += 1
 
-        records.append({"task_id": tid, "problem_statement": instr, "patch": patch})
+        tests = extract_tests_from_task_dir(task_path)
+        if tests:
+            tests_found += 1
+
+        records.append({"task_id": tid, "problem_statement": instr, "patch": patch, "tests": tests})
 
     with open(args.out, "w", encoding="utf-8") as f:
         for r in records:
@@ -195,6 +243,7 @@ def main() -> int:
 
     print(f"Wrote {len(records)} tasks to {args.out}")
     print(f"Found {patches_found} tasks with non-empty patches")
+    print(f"Found {tests_found} tasks with non-empty tests")
     if missing_task_dir:
         print(f"WARNING: missing task.yaml for {len(missing_task_dir)} tasks, e.g. {missing_task_dir[:10]}")
     if missing_instruction:
