@@ -17,6 +17,100 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 
+def _normalize_cell_text(s: str) -> str:
+    return " ".join(s.replace("\u00a0", " ").split()).strip()
+
+
+def get_leaderboard_column_indices(page) -> dict[str, int]:
+    """
+    Return a mapping from canonical column keys -> cell index within a row.
+
+    We prefer using the rendered table header row so we don't get tripped up by
+    extra leading columns (e.g., selection checkboxes) or responsive markup.
+    """
+    header_candidates = page.locator('tr[data-slot="table-column-headers"], thead tr')
+    col_idx: dict[str, int] = {}
+
+    if header_candidates.count() > 0:
+        header_row = header_candidates.first
+        header_cells = header_row.locator("th, td").all()
+        header_texts = [_normalize_cell_text(c.inner_text()).lower() for c in header_cells]
+
+        want = {
+            "rank": "rank",
+            "agent": "agent",
+            "model": "model",
+            "date": "date",
+            "agent org": "agent_org",
+            "model org": "model_org",
+            "accuracy": "accuracy",
+        }
+        for i, t in enumerate(header_texts):
+            key = want.get(t)
+            if key:
+                col_idx[key] = i
+
+    # Fallback: infer positions from the first data row length.
+    if "agent" not in col_idx or "model" not in col_idx:
+        first_row = page.locator('tr[data-slot="table-row"][data-state]').first
+        if first_row.count() > 0:
+            n = first_row.locator("th, td").count()
+            # Common layouts:
+            # - 7 columns: Rank, Agent, Model, Date, Agent Org, Model Org, Accuracy
+            # - 8 columns: (blank select), Rank, Agent, Model, Date, Agent Org, Model Org, Accuracy
+            base = 1 if n >= 8 else 0
+            col_idx = {
+                "rank": 0 + base,
+                "agent": 1 + base,
+                "model": 2 + base,
+                "date": 3 + base,
+                "agent_org": 4 + base,
+                "model_org": 5 + base,
+                "accuracy": 6 + base,
+            }
+
+    return col_idx
+
+
+def parse_leaderboard_row(row, col_idx: dict[str, int]) -> dict | None:
+    """
+    Parse a single leaderboard <tr> into expected columns.
+
+    Expected order: Rank, Agent, Model, Date, Agent Org, Model Org, Accuracy
+    """
+    cells = row.locator("th, td")
+
+    def _get(key: str) -> str:
+        i = col_idx.get(key)
+        if i is None:
+            return ""
+        if i < 0 or i >= cells.count():
+            return ""
+        return _normalize_cell_text(cells.nth(i).inner_text())
+
+    rank = _get("rank")
+    agent_name = _get("agent")
+    model_name = _get("model")
+    date = _get("date")
+    agent_org = _get("agent_org")
+    model_org = _get("model_org")
+    accuracy = _get("accuracy")
+
+    # Require at least the two columns the downstream code depends on.
+    if agent_name == "" or model_name == "":
+        return None
+
+    return {
+        "rank": rank,
+        "agent": agent_name,
+        "model": model_name,
+        "date": date,
+        "agent_org": agent_org,
+        "model_org": model_org,
+        "accuracy": accuracy,
+    }
+
+
 def parse_task_results(html_content: str) -> dict[str, tuple[int, int]]:
     """
     Parse per-task results from an agent detail page.
@@ -82,7 +176,7 @@ def create_subject_id(agent_name: str, model_name: str) -> str:
     return f"{agent_clean}_{model_clean}"
 
 
-def scrape_all_agents(headless: bool = True, delay: float = 1.0):
+def scrape_all_agents(headless: bool = True, delay: float = 1.0, limit: int | None = None):
     """
     Scrape all agents from the Terminal Bench leaderboard.
 
@@ -91,7 +185,13 @@ def scrape_all_agents(headless: bool = True, delay: float = 1.0):
     all_results = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        # Many cluster / container environments require disabling Chromium sandboxing.
+        # This also tends to avoid silent hangs during launch.
+        print("Launching browser...")
+        browser = p.chromium.launch(
+            headless=headless,
+            args=["--no-sandbox", "--disable-dev-shm-usage"],
+        )
         page = browser.new_page()
 
         # Go to leaderboard
@@ -100,9 +200,13 @@ def scrape_all_agents(headless: bool = True, delay: float = 1.0):
                   wait_until='networkidle', timeout=60000)
         page.wait_for_timeout(2000)
 
+        col_idx = get_leaderboard_column_indices(page)
+
         # Get all data rows
         rows = page.locator('tr[data-slot="table-row"][data-state]').all()
         num_agents = len(rows)
+        if limit is not None:
+            num_agents = min(num_agents, max(0, limit))
         print(f"Found {num_agents} agents")
 
         for i in range(num_agents):
@@ -114,22 +218,19 @@ def scrape_all_agents(headless: bool = True, delay: float = 1.0):
             rows = page.locator('tr[data-slot="table-row"][data-state]').all()
             row = rows[i]
 
-            # Get row info
-            row_text = row.inner_text()
-            parts = row_text.split('\t')
-
-            # Parse row: Rank, Agent, Model, Date, Agent Org, Model Org, Accuracy
-            if len(parts) >= 7:
-                rank = parts[0].strip()
-                agent_name = parts[1].strip()
-                model_name = parts[2].strip()
-                date = parts[3].strip()
-                agent_org = parts[4].strip()
-                model_org = parts[5].strip()
-                accuracy = parts[6].strip()
-            else:
-                print(f"  [{i+1}/{num_agents}] Skipping malformed row: {row_text[:50]}")
+            parsed = parse_leaderboard_row(row, col_idx)
+            if not parsed:
+                row_text = _normalize_cell_text(row.inner_text())
+                print(f"  [{i+1}/{num_agents}] Skipping malformed row: {row_text[:80]}")
                 continue
+
+            rank = parsed["rank"]
+            agent_name = parsed["agent"]
+            model_name = parsed["model"]
+            date = parsed["date"]
+            agent_org = parsed["agent_org"]
+            model_org = parsed["model_org"]
+            accuracy = parsed["accuracy"]
 
             print(f"[{i+1}/{num_agents}] {agent_name} + {model_name} ({agent_org}/{model_org})")
 
@@ -183,6 +284,10 @@ def main():
                        help="Run browser in visible mode (for debugging)")
     parser.add_argument("--dry-run", action="store_true",
                        help="Print what would be done without making requests")
+    parser.add_argument("--limit", type=int, default=None,
+                       help="Only scrape first N agents (for debugging)")
+    parser.add_argument("--irt-only", action="store_true",
+                       help="Write strict IRT records (only subject_id + responses)")
     args = parser.parse_args()
 
     output_path = Path(args.output)
@@ -196,7 +301,11 @@ def main():
 
     # Scrape all agents
     print("Starting scraper...")
-    all_results = scrape_all_agents(headless=not args.no_headless, delay=args.delay)
+    all_results = scrape_all_agents(
+        headless=not args.no_headless,
+        delay=args.delay,
+        limit=args.limit,
+    )
 
     print(f"\nSuccessfully scraped {len(all_results)} agents")
 
@@ -218,10 +327,23 @@ def main():
             if task not in binary_responses:
                 binary_responses[task] = 0
 
-        irt_records.append({
+        record = {
             "subject_id": subject_id,
-            "responses": binary_responses
-        })
+            "responses": binary_responses,
+        }
+        if not args.irt_only:
+            record.update({
+                "rank": result.get("rank", ""),
+                "agent": result.get("agent", ""),
+                "model": result.get("model", ""),
+                "agent_org": result.get("agent_org", ""),
+                "model_org": result.get("model_org", ""),
+                "date": result.get("date", ""),
+                "accuracy": result.get("accuracy", ""),
+                "detail_url": result.get("detail_url", ""),
+            })
+
+        irt_records.append(record)
 
     # Write JSONL
     with open(output_path, "w") as f:
