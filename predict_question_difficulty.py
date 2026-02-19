@@ -416,7 +416,6 @@ def train_irt_1pl(
     trainer = IrtModelTrainer(data_path=str(responses_jsonl), config=cfg, verbose=False)
     trainer.train(device=str(device))
 
-    trainer.save(os.path.join(out_dir, "parameters.json"))
     best = trainer.best_params or {}
     with open(os.path.join(out_dir, "best_parameters.json"), "w", encoding="utf-8") as f:
         json.dump(best, f, indent=2, sort_keys=True)
@@ -452,6 +451,74 @@ def train_irt_1pl(
             w.writerow({"item_id": tid, "b": float(b)})
 
     return theta_by_subject, diff_by_item
+
+
+def train_oracle_irt_1pl_and_save(
+    *,
+    args: argparse.Namespace,
+    all_responses: List[Tuple[str, Dict[str, int]]],
+    item_ids: Sequence[str],
+) -> Tuple[Dict[str, Any], Dict[str, float], Dict[str, float]]:
+    """
+    Train a single "oracle" 1PL IRT model on the full provided `item_ids` pool and
+    save artifacts under:
+
+      <out_dir>/oracle_irt_1pl/
+        - train_responses.jsonl
+        - best_parameters.json
+        - abilities.csv   (subject_id, theta)
+        - items.csv       (item_id, b)
+
+    This is analysis-only (it can leak across CV folds if `item_ids` includes the full
+    eligible set), and is NOT used for CV scoring or regression fitting.
+    """
+    oracle_dir = os.path.join(str(args.out_dir), "oracle_irt_1pl")
+    if os.path.exists(oracle_dir):
+        shutil.rmtree(oracle_dir, ignore_errors=True)
+    ensure_dir(oracle_dir)
+
+    items = [normalize_swebench_item_id(str(x)) for x in list(item_ids)]
+    items = [x for x in items if x]
+    if not items:
+        raise RuntimeError("Oracle IRT: item_ids was empty after normalization.")
+
+    train_jsonl = os.path.join(oracle_dir, "train_responses.jsonl")
+    n_subj_written, n_items_written = write_filtered_responses_jsonl(
+        all_responses=all_responses, item_ids=items, out_path=train_jsonl
+    )
+    if n_subj_written == 0 or n_items_written == 0:
+        raise RuntimeError(f"Oracle IRT: wrote 0 subjects/items to {train_jsonl} (check filtering).")
+
+    irt_device = str(getattr(args, "irt_device", "cpu") or "cpu").strip() or "cpu"
+    if irt_device.startswith("cuda") and not torch.cuda.is_available():
+        print("WARNING: --irt_device=cuda requested but CUDA is unavailable; falling back to cpu for oracle IRT.")
+        irt_device = "cpu"
+
+    # Fixed IRT policy: seeded RNG, but torch determinism OFF for IRT only.
+    set_torch_determinism(False)
+    seed_everything(int(args.seed), deterministic=False)
+    theta_by_subject, diff_by_item = train_irt_1pl(
+        responses_jsonl=train_jsonl,
+        epochs=int(getattr(args, "irt_epochs", 5000)),
+        device=str(irt_device),
+        seed=int(args.seed),
+        out_dir=str(oracle_dir),
+    )
+    set_torch_determinism(True)
+    seed_everything(int(args.seed), deterministic=True)
+
+    meta: Dict[str, Any] = {
+        "oracle_irt_dir": str(oracle_dir),
+        "oracle_irt_train_responses_jsonl": str(train_jsonl),
+        "oracle_irt_best_parameters_json": str(os.path.join(oracle_dir, "best_parameters.json")),
+        "oracle_irt_abilities_csv": str(os.path.join(oracle_dir, "abilities.csv")),
+        "oracle_irt_items_csv": str(os.path.join(oracle_dir, "items.csv")),
+        "oracle_irt_n_subjects": int(n_subj_written),
+        "oracle_irt_n_items": int(n_items_written),
+        "oracle_irt_epochs": int(getattr(args, "irt_epochs", 5000)),
+        "oracle_irt_device": str(irt_device),
+    }
+    return meta, theta_by_subject, diff_by_item
 
 
 def prompt_signature(instruction: str) -> str:
@@ -982,12 +1049,19 @@ def embed_items(
         input_ids = input_ids.to(embed_device)
         attention_mask = attention_mask.to(embed_device)
 
-        with torch.no_grad():
+        # Requesting `output_hidden_states=True` makes HF retain *all* layers'
+        # activations, which can explode VRAM for long contexts. If the caller
+        # only wants the last layer (embedding_layer=-1), prefer `last_hidden_state`
+        # and do NOT request hidden_states unless needed.
+        want_hidden_states = int(embedding_layer) != -1
+
+        # inference_mode is a bit faster/lower-overhead than no_grad for pure inference.
+        with torch.inference_mode():
             fwd_kwargs = dict(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 return_dict=True,
-                output_hidden_states=True,
+                output_hidden_states=bool(want_hidden_states),
             )
             # Avoid transformers DynamicCache / past_key_values codepaths unless needed.
             try:
@@ -999,7 +1073,17 @@ def embed_items(
                 fwd_kwargs["use_cache"] = False
 
             out = text_model(**fwd_kwargs)
-            h = _extract_hidden_state(out, embedding_layer=int(embedding_layer))
+            try:
+                h = _extract_hidden_state(out, embedding_layer=int(embedding_layer))
+            except RuntimeError:
+                # Some wrappers don't populate last_hidden_state reliably unless
+                # hidden_states are requested. Fall back to a second forward pass.
+                if not want_hidden_states:
+                    fwd_kwargs["output_hidden_states"] = True
+                    out = text_model(**fwd_kwargs)
+                    h = _extract_hidden_state(out, embedding_layer=int(embedding_layer))
+                else:
+                    raise
             pooled = last_token_pool(h, attention_mask)
             pooled = pooled.detach().float().cpu().numpy()  # [B, H]
 
@@ -1658,11 +1742,22 @@ def _run_with_judge_features(
     if not eligible:
         raise RuntimeError("After filtering, no items remain for CV.")
 
+    oracle_meta, oracle_theta_by_subject, oracle_diff_by_item = train_oracle_irt_1pl_and_save(
+        args=args,
+        all_responses=all_responses,
+        item_ids=list(eligible),
+    )
+    try:
+        print(f"Wrote oracle IRT: {oracle_meta.get('oracle_irt_dir', '')}")
+    except Exception:
+        pass
+
     Xy = np.stack([X[id_to_row[tid]] for tid in eligible], axis=0).astype(np.float32)
 
     feat_dir = str(getattr(args, "judge_features_dir", "")).strip()
     if not feat_dir:
         raise ValueError("--judge_features_dir must be set when --method=combined is used.")
+    schema = "csv" if _looks_like_csv_path(feat_dir) else "dir_json"
     idx = _build_judge_index(feat_dir)
     if _looks_like_csv_path(feat_dir):
         judge_feature_names = _load_judge_csv_feature_names(feat_dir)
@@ -1671,6 +1766,7 @@ def _run_with_judge_features(
 
     outer_cv = KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
     fold_aucs: List[float] = []
+    fold_aucs_oracle_irt: List[float] = []
     fold_n_obs: List[int] = []
     fold_n_items_scored: List[int] = []
     fold_aucs_embedding_only: List[float] = []
@@ -1877,12 +1973,15 @@ def _run_with_judge_features(
         scores_final: List[float] = []
         scores_emb: List[float] = []
         labels: List[int] = []
+        scores_oracle: List[float] = []
+        labels_oracle: List[int] = []
         test_set = set(test_items)
         for sid, resp in all_responses:
             th = theta_by_subject.get(sid, None)
             if th is None:
                 continue
             theta = float(th)
+            th_o = oracle_theta_by_subject.get(sid, None)
             for item_id, y_obs in resp.items():
                 if item_id not in test_set:
                     continue
@@ -1897,6 +1996,11 @@ def _run_with_judge_features(
                 scores_final.append(_sigmoid(theta - float(z)))
                 scores_emb.append(_sigmoid(theta - float(z_emb)))
                 labels.append(int(y_obs))
+                if th_o is not None:
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if b_o is not None:
+                        scores_oracle.append(_sigmoid(float(th_o) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
 
         if len(labels) < 2 or len(set(int(x) for x in labels)) < 2:
             fold_auc = float("nan")
@@ -1905,6 +2009,11 @@ def _run_with_judge_features(
             fold_auc = float(roc_auc_score(labels, scores_final))
             fold_auc_emb = float(roc_auc_score(labels, scores_emb))
         fold_aucs.append(float(fold_auc))
+        if len(labels_oracle) < 2 or len(set(int(x) for x in labels_oracle)) < 2:
+            fold_auc_oracle = float("nan")
+        else:
+            fold_auc_oracle = float(roc_auc_score(labels_oracle, scores_oracle))
+        fold_aucs_oracle_irt.append(float(fold_auc_oracle))
         fold_aucs_embedding_only.append(float(fold_auc_emb))
         fold_n_obs.append(int(len(labels)))
         fold_n_items_scored.append(int(len(final_pred_by_item)))
@@ -1924,13 +2033,17 @@ def _run_with_judge_features(
             except Exception:
                 pass
 
-        print(f"Fold {fold:02d}: auc={fold_auc} missing_judge={n_missing_judge}")
+        print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} missing_judge={n_missing_judge}")
 
     auc_arr = np.asarray(fold_aucs, dtype=np.float64)
     auc_mean = float(np.nanmean(auc_arr)) if auc_arr.size else float("nan")
     auc_std = float(np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
     print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
-    print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in fold_aucs]))
+
+    oracle_auc_arr = np.asarray(fold_aucs_oracle_irt, dtype=np.float64)
+    oracle_auc_mean = float(np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+    oracle_auc_std = float(np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+    print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
 
     if best_joint_state is None or best_fold < 1:
         raise RuntimeError("Failed to select a best CV fold model by ROC-AUC (all folds NaN?).")
@@ -2039,9 +2152,13 @@ def _run_with_judge_features(
             "cv_test_auc_folds": [float(x) for x in fold_aucs],
             "cv_test_auc_mean": float(auc_mean),
             "cv_test_auc_std": float(auc_std),
+            "cv_test_auc_folds_oracle_irt": [float(x) for x in fold_aucs_oracle_irt],
+            "cv_test_auc_mean_oracle_irt": float(oracle_auc_mean),
+            "cv_test_auc_std_oracle_irt": float(oracle_auc_std),
             "cv_test_auc_folds_embedding_only": [float(x) for x in fold_aucs_embedding_only],
             "cv_test_n_obs_folds": [int(x) for x in fold_n_obs],
             "cv_test_n_items_scored_folds": [int(x) for x in fold_n_items_scored],
+            **oracle_meta,
         },
     )
 
@@ -2078,6 +2195,7 @@ def _run_judge_only(
     if not feat_dir:
         raise ValueError("--judge_features_dir must be set when --method=judge is used.")
 
+    schema = "csv" if _looks_like_csv_path(feat_dir) else "dir_json"
     idx = _build_judge_index(feat_dir)
     if _looks_like_csv_path(feat_dir):
         judge_feature_names = _load_judge_csv_feature_names(feat_dir)
@@ -2124,6 +2242,16 @@ def _run_judge_only(
     eligible = eligible_used
     if not eligible:
         raise RuntimeError("After filtering to items with judge features, no items remain for CV/IRT.")
+
+    oracle_meta, oracle_theta_by_subject, oracle_diff_by_item = train_oracle_irt_1pl_and_save(
+        args=args,
+        all_responses=all_responses,
+        item_ids=list(eligible),
+    )
+    try:
+        print(f"Wrote oracle IRT: {oracle_meta.get('oracle_irt_dir', '')}")
+    except Exception:
+        pass
     Xy = np.stack(judge_rows, axis=0).astype(np.float32)
 
     alphas: np.ndarray = np.array([], dtype=np.float64)
@@ -2157,6 +2285,7 @@ def _run_judge_only(
 
     outer_cv = KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
     cv_test_auc_folds: List[float] = []
+    cv_test_auc_folds_oracle_irt: List[float] = []
     cv_test_n_obs_folds: List[int] = []
     yhat_oof = np.full((int(len(eligible)),), np.nan, dtype=np.float64)
     fold_of_item = np.full((int(len(eligible)),), -1, dtype=np.int32)
@@ -2223,12 +2352,15 @@ def _run_judge_only(
         z_by_item = {tid: float(z) for tid, z in zip(test_items, pred.tolist())}
         scores: List[float] = []
         labels: List[int] = []
+        scores_oracle: List[float] = []
+        labels_oracle: List[int] = []
         test_set = set(test_items)
         for sid, resp in all_responses:
             theta = theta_by_subject.get(sid, None)
             if theta is None:
                 continue
             th = float(theta)
+            th_o = oracle_theta_by_subject.get(sid, None)
             for item_id, y_obs in resp.items():
                 if item_id not in test_set:
                     continue
@@ -2237,10 +2369,18 @@ def _run_judge_only(
                     continue
                 scores.append(_sigmoid(th - float(z)))
                 labels.append(int(y_obs))
+                if th_o is not None:
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if b_o is not None:
+                        scores_oracle.append(_sigmoid(float(th_o) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
 
         fold_auc = float(_compute_binary_auroc(scores, labels))
+        fold_auc_oracle = float(_compute_binary_auroc(scores_oracle, labels_oracle))
         cv_test_auc_folds.append(float(fold_auc))
+        cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
         cv_test_n_obs_folds.append(int(len(labels)))
+        print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} n_obs={len(labels)}")
         if fold_auc == fold_auc and fold_auc > best_fold_auc:
             best_fold_auc = float(fold_auc)
             best_fold = int(fold)
@@ -2255,7 +2395,11 @@ def _run_judge_only(
     auc_mean = float(np.nanmean(auc_arr)) if auc_arr.size else float("nan")
     auc_std = float(np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
     print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
-    print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+    oracle_auc_arr = np.asarray(cv_test_auc_folds_oracle_irt, dtype=np.float64)
+    oracle_auc_mean = float(np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+    oracle_auc_std = float(np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+    print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
 
     model = best_model
     ridge_alpha = None
@@ -2343,6 +2487,9 @@ def _run_judge_only(
         "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
         "cv_test_auc_mean": float(auc_mean),
         "cv_test_auc_std": float(auc_std),
+        "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
+        "cv_test_auc_mean_oracle_irt": float(oracle_auc_mean),
+        "cv_test_auc_std_oracle_irt": float(oracle_auc_std),
         "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
         "irt_epochs": int(args.irt_epochs),
         "irt_device": str(args.irt_device),
@@ -2360,6 +2507,7 @@ def _run_judge_only(
         "regression_weights_npz": str(weights_npz),
         "n_items_zero_success_predicted": int(0 if yhat_zero is None else int(np.asarray(yhat_zero).size)),
     }
+    metrics.update(dict(oracle_meta))
     save_json(os.path.join(str(args.out_dir), "metrics.json"), metrics)
 
     pred_path = os.path.join(str(args.out_dir), "predictions.csv")
@@ -2693,6 +2841,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not eligible:
         raise RuntimeError("After filtering, no items remain for CV/IRT.")
 
+    oracle_meta, oracle_theta_by_subject, oracle_diff_by_item = train_oracle_irt_1pl_and_save(
+        args=args,
+        all_responses=all_responses,
+        item_ids=list(eligible),
+    )
+    try:
+        print(f"Wrote oracle IRT: {oracle_meta.get('oracle_irt_dir', '')}")
+    except Exception:
+        pass
+
     Xy = np.stack([X[id_to_row[tid]] for tid in eligible], axis=0).astype(np.float32)
 
     regressor_name = str(args.regressor)
@@ -2735,6 +2893,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # K-fold CV over items. Each fold trains IRT on the K-1 training folds only.
     outer_cv = KFold(n_splits=int(args.cv_folds), shuffle=True, random_state=int(args.seed))
     cv_test_auc_folds: List[float] = []
+    cv_test_auc_folds_oracle_irt: List[float] = []
     cv_test_n_obs_folds: List[int] = []
     yhat_oof = np.full((int(len(eligible)),), np.nan, dtype=np.float64)
     fold_of_item = np.full((int(len(eligible)),), -1, dtype=np.int32)
@@ -2804,12 +2963,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         z_by_item = {tid: float(z) for tid, z in zip(test_items, pred.tolist())}
         scores: List[float] = []
         labels: List[int] = []
+        scores_oracle: List[float] = []
+        labels_oracle: List[int] = []
         test_set = set(test_items)
         for sid, resp in all_responses:
             theta = theta_by_subject.get(sid, None)
             if theta is None:
                 continue
             th = float(theta)
+            th_o = oracle_theta_by_subject.get(sid, None)
             for item_id, y_obs in resp.items():
                 if item_id not in test_set:
                     continue
@@ -2818,10 +2980,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     continue
                 scores.append(1.0 / (1.0 + math.exp(-(th - float(z)))))
                 labels.append(int(y_obs))
+                if th_o is not None:
+                    b_o = oracle_diff_by_item.get(item_id, None)
+                    if b_o is not None:
+                        scores_oracle.append(_sigmoid(float(th_o) - float(b_o)))
+                        labels_oracle.append(int(y_obs))
 
         fold_auc = float(_compute_binary_auroc(scores, labels))
+        fold_auc_oracle = float(_compute_binary_auroc(scores_oracle, labels_oracle))
         cv_test_auc_folds.append(float(fold_auc))
+        cv_test_auc_folds_oracle_irt.append(float(fold_auc_oracle))
         cv_test_n_obs_folds.append(int(len(labels)))
+        print(f"Fold {fold:02d}: auc={fold_auc} oracle_irt_auc={fold_auc_oracle} n_obs={len(labels)}")
         if fold_auc == fold_auc and fold_auc > best_fold_auc:
             best_fold_auc = float(fold_auc)
             best_fold = int(fold)
@@ -2836,7 +3006,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     auc_mean = float(np.nanmean(auc_arr)) if auc_arr.size else float("nan")
     auc_std = float(np.nanstd(auc_arr, ddof=0)) if auc_arr.size else float("nan")
     print(f"{int(args.cv_folds)}-fold CV test ROC-AUC: mean={auc_mean} std={auc_std}")
-    print("Per-fold ROC-AUC: " + ", ".join([str(x) for x in cv_test_auc_folds]))
+
+    oracle_auc_arr = np.asarray(cv_test_auc_folds_oracle_irt, dtype=np.float64)
+    oracle_auc_mean = float(np.nanmean(oracle_auc_arr)) if oracle_auc_arr.size else float("nan")
+    oracle_auc_std = float(np.nanstd(oracle_auc_arr, ddof=0)) if oracle_auc_arr.size else float("nan")
+    print(f"{int(args.cv_folds)}-fold CV oracle IRT ROC-AUC: mean={oracle_auc_mean} std={oracle_auc_std}")
 
     # Use the best-fold model for saving weights + predicting excluded items.
     model = best_model
@@ -2868,6 +3042,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "cv_test_auc_folds": [float(x) for x in cv_test_auc_folds],
         "cv_test_auc_mean": float(auc_mean),
         "cv_test_auc_std": float(auc_std),
+        "cv_test_auc_folds_oracle_irt": [float(x) for x in cv_test_auc_folds_oracle_irt],
+        "cv_test_auc_mean_oracle_irt": float(oracle_auc_mean),
+        "cv_test_auc_std_oracle_irt": float(oracle_auc_std),
         "cv_test_n_obs_folds": [int(x) for x in cv_test_n_obs_folds],
         "irt_epochs": int(args.irt_epochs),
         "irt_device": str(args.irt_device),
@@ -2892,6 +3069,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "attn_implementation": str(args.attn_implementation),
         "embeddings_cache": emb_cache,
     }
+    metrics.update(dict(oracle_meta))
 
     # Save regression weights (coef/intercept + optional StandardScaler stats) for reuse.
     # This is intentionally a minimal representation so it can be applied without sklearn.
