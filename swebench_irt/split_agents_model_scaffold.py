@@ -218,6 +218,14 @@ def _canonical_model(m: str) -> str:
     # Merge Kimi K2 into Kimi K2 Instruct (analysis convention).
     if pretty_low in {"kimi k2", "kimi k2 instruct"}:
         return "Kimi K2 Instruct"
+    # Merge spaced Qwen3 Coder labels into Terminal-Bench canonical.
+    if pretty_low in {"qwen 3 coder 480b", "qwen3 coder 480b"}:
+        return "Qwen3-Coder-480B-A35B-Instruct"
+    # Normalize GLM pretty labels to the canonical "GLM <ver>" format.
+    if pretty_low in {"glm-4.5", "glm 4.5", "glm4-5", "glm4.5", "glm-4-5"}:
+        return "GLM 4.5"
+    if pretty_low in {"glm4-6", "glm 4.6", "glm-4.6", "glm4.6", "glm-4-6"}:
+        return "GLM 4.6"
     # If the source is already using a “pretty” name (e.g. Terminal-Bench columns like
     # "Claude Sonnet 4.5", "Claude Opus 4.6", "GPT-5.3-Codex"), preserve it verbatim.
     # This avoids lossy re-canon (e.g. dropping "5.3" or changing separator style).
@@ -298,14 +306,15 @@ def _canonical_model(m: str) -> str:
         return "Claude Sonnet 4.5"
 
     # Gemini 3 naming variants in some OOD exports
-    if low == "gemini-3-flash":
-        return "gemini-3-flash-preview"
-    if low == "gemini-3-pro":
-        return "gemini-3-pro-preview"
+    # Canonicalize to stable "pretty" labels.
+    if low in {"gemini-3-pro", "gemini-3-pro-preview"}:
+        return "Gemini 3 Pro"
+    if low in {"gemini-3-flash", "gemini-3-flash-preview"}:
+        return "Gemini 3 Flash"
 
     # Gemini 2.5 Pro naming in Terminal-Bench exports
     if re.fullmatch(r"gemini-2(?:-|\.|\s)?5-pro", low) or re.fullmatch(r"gemini-2-5-pro", low):
-        return "Gemini 2.5 Pro Preview"
+        return "Gemini 2.5 Pro"
 
     # Qwen3 coder fp8 suffix variants (keep FP8 distinct for 480B)
     if re.fullmatch(r"qwen3-coder-480b-a35b-instruct-fp8", low):
@@ -322,9 +331,9 @@ def _canonical_model(m: str) -> str:
     # GLM fireworks naming (e.g. "glm-4p6" -> glm4-6)
     # Merge GLM-4.5 variants (human label vs compact token)
     if low in {"glm4-5", "glm-4.5", "glm-4-5"}:
-        return "GLM-4.5"
+        return "GLM 4.5"
     if re.fullmatch(r"glm-4p6", low):
-        return "glm4-6"
+        return "GLM 4.6"
     # Normalize legacy Qwen coder tokens used in some agent ids.
     # Example agent id: 20250901_entroPO_R2E_QwenCoder30BA3B
     if low == "qwencoder30ba3b":
@@ -341,6 +350,17 @@ def _canonical_model(m: str) -> str:
         or low == "claude3.5sonnet"
     ):
         return "Claude 3.5 Sonnet"
+    # Normalize Claude 3.5 Haiku variants (dated / underscore)
+    # Examples:
+    # - claude-3-5-haiku
+    # - claude-3-5-haiku-20241022
+    # - claude-3.5-haiku
+    if (
+        re.fullmatch(r"claude-3-5-haiku(?:-\d{8})?(?:-updated)?", low)
+        or re.fullmatch(r"claude-3\.5-haiku(?:-\d{8})?(?:-updated)?", low)
+        or low in {"claude35haiku", "claude3.5haiku"}
+    ):
+        return "Claude 3.5 Haiku"
     # Normalize Claude 3.7 Sonnet variants (dated / underscore)
     # Examples:
     # - claude-3-7-sonnet
@@ -388,6 +408,8 @@ def _canonical_model(m: str) -> str:
         "claude-3-opus": "Claude 3 Opus",
         "kimi-k2": "Kimi K2 Instruct",
     }
+    if low in {"kimi-k2-instruct"}:
+        return "Kimi K2 Instruct"
     return mapping.get(low, leaf)
 
 
@@ -714,9 +736,10 @@ def canonicalize_pro_model(model_name: str) -> str:
     if low in {"claude sonnet 4"}:
         return "Claude Sonnet 4"
 
-    # Merge Gemini 2.5 Pro Preview variants (paper/debug) -> a single label.
-    if low == "gemini 2.5 pro preview":
-        return "Gemini 2.5 Pro Preview"
+    # Merge Gemini 2.5 Pro (Preview) variants (paper/debug) -> a single label.
+    # Canonical name: "Gemini 2.5 Pro".
+    if low in {"gemini 2.5 pro preview", "gemini 2.5 pro"}:
+        return "Gemini 2.5 Pro"
 
     # Merge GPT-5 (base) with Verified.
     if low == "gpt-5" or low == "gpt 5":
@@ -736,7 +759,7 @@ def canonicalize_pro_model(model_name: str) -> str:
 
     # Merge Kimi (paper) with Verified's "kimi_k2_instruct".
     if low == "kimi":
-        return "kimi_k2_instruct"
+        return "Kimi K2 Instruct"
 
     return base
 
@@ -755,7 +778,7 @@ def _read_pro_agents_results_jsonl(path: Path) -> list[str]:
                 continue
             records.append(json.loads(s))
 
-    prefer_paper_models = {"Claude Sonnet 4", "Gemini 2.5 Pro Preview"}
+    prefer_paper_models = {"Claude Sonnet 4", "Gemini 2.5 Pro"}
     pro_is_paper = {str(r["subject_id"]): ("paper" in str(r["subject_id"]).lower()) for r in records}
     pro_canon = {str(r["subject_id"]): canonicalize_pro_model(str(r["subject_id"])) for r in records}
     have_paper_for_model = {
