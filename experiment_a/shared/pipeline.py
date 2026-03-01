@@ -1,11 +1,11 @@
 """Shared pipeline for running Experiment A across different datasets.
 
-This module provides the common evaluation pipeline that both SWE-bench and
-TerminalBench experiments use. The experiments differ only in:
+This module provides the common evaluation pipeline that all datasets use.
+The experiments differ only in:
 - Dataset name
 - Response type (binary vs binomial)
 - IRT cache directory
-- LLM judge features (dataset-specific semantic features)
+- Feature paths (embeddings, LLM judge CSVs)
 - Metadata loading (TerminalBench loads task data from repo)
 """
 
@@ -49,20 +49,6 @@ from experiment_a.shared.baselines import (
     OraclePredictor,
     DifficultyPredictorAdapter,
 )
-# Default SWE-bench LLM Judge features (all 9 semantic features)
-SWEBENCH_LLM_JUDGE_FEATURES = [
-    "fix_in_description",
-    "problem_clarity",
-    "error_message_provided",
-    "reproduction_steps",
-    "fix_locality",
-    "domain_knowledge_required",
-    "fix_complexity",
-    "logical_reasoning_required",
-    "atypicality",
-]
-
-
 @dataclass
 class ExperimentSpec:
     """Specification for an experiment.
@@ -71,14 +57,11 @@ class ExperimentSpec:
         name: Human-readable experiment name (e.g., "SWE-bench", "TerminalBench")
         is_binomial: Whether responses are binomial (True) or binary (False)
         irt_cache_dir: Directory for caching fold-specific IRT models
-        llm_judge_features: List of LLM judge feature columns to use.
-            If None, uses the LLMJudgePredictor class defaults.
     """
 
     name: str
     is_binomial: bool
     irt_cache_dir: Path
-    llm_judge_features: Optional[List[str]] = None
 
 
 # Import CVPredictor protocol for type hints
@@ -100,29 +83,54 @@ class CVPredictorConfig:
     display_name: str
 
 
+def _default_predictor_factory(source_name: str, source: Any, config: Any) -> CVPredictor:
+    """Default predictor factory: Ridge regression with DifficultyPredictorAdapter.
+
+    Args:
+        source_name: One of "Embedding", "LLM Judge", or "Grouped".
+        source: Feature source object.
+        config: Experiment config (used for ridge_alphas).
+
+    Returns:
+        CVPredictor wrapping Ridge regression.
+    """
+    if source_name == "Grouped":
+        return DifficultyPredictorAdapter(GroupedRidgePredictor(source))
+    return DifficultyPredictorAdapter(
+        FeatureBasedPredictor(source, alphas=list(config.ridge_alphas))
+    )
+
+
 def build_cv_predictors(
     config: Any,
     root: Path,
-    llm_judge_features: Optional[List[str]] = None,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
+    predictor_factory: Optional[Callable[[str, Any, Any], CVPredictor]] = None,
 ) -> List[CVPredictorConfig]:
     """Build list of CVPredictor configurations for cross-validation.
 
     All predictors implement the CVPredictor protocol (fit/predict_probability).
+    LLM judge feature columns are auto-detected from the CSV.
 
     Args:
         config: Experiment configuration (ExperimentAConfig or TerminalBenchConfig)
         root: Root directory for resolving relative paths
-        llm_judge_features: Optional list of feature columns for LLM Judge.
         extra_embeddings_paths: List of (name, path) tuples for additional embedding
-            sources to compare (ablation study). Each gets its own Ridge predictor.
+            sources to compare (ablation study).
         extra_llm_judge_paths: List of (name, path) tuples for additional LLM judge
-            sources to compare (ablation study). Each gets its own Ridge predictor.
+            sources to compare (ablation study).
+        predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
+            Controls how feature sources are wrapped into predictors. If None, uses
+            Ridge regression (the default). source_name is one of "Embedding",
+            "LLM Judge", or "Grouped". Naming is handled by this function, not the factory.
 
     Returns:
         List of CVPredictorConfig objects with pre-instantiated predictors.
     """
+    if predictor_factory is None:
+        predictor_factory = _default_predictor_factory
+
     configs: List[CVPredictorConfig] = []
 
     # Oracle (upper bound) - uses full IRT model
@@ -148,7 +156,6 @@ def build_cv_predictors(
     feature_source_list = build_feature_sources(
         embeddings_path=embeddings_path,
         llm_judge_path=llm_judge_path,
-        llm_judge_feature_cols=llm_judge_features,
         verbose=False,
     )
 
@@ -159,13 +166,10 @@ def build_cv_predictors(
     if extra_embeddings_paths:
         for name, path in extra_embeddings_paths:
             emb_source = EmbeddingFeatureSource(path)
-            difficulty_predictor = FeatureBasedPredictor(
-                emb_source,
-                alphas=list(config.ridge_alphas),
-            )
+            predictor = predictor_factory("Embedding", emb_source, config)
             configs.append(
                 CVPredictorConfig(
-                    predictor=DifficultyPredictorAdapter(difficulty_predictor),
+                    predictor=predictor,
                     name=f"embedding_{name}",
                     display_name=f"Embedding ({name})",
                 )
@@ -175,60 +179,40 @@ def build_cv_predictors(
     if extra_llm_judge_paths:
         for name, path in extra_llm_judge_paths:
             judge_source = CSVFeatureSource(path, feature_cols=None)  # Auto-detect cols
-            difficulty_predictor = FeatureBasedPredictor(
-                judge_source,
-                alphas=list(config.ridge_alphas),
-            )
+            predictor = predictor_factory("LLM Judge", judge_source, config)
             configs.append(
                 CVPredictorConfig(
-                    predictor=DifficultyPredictorAdapter(difficulty_predictor),
+                    predictor=predictor,
                     name=f"llm_judge_{name}",
                     display_name=f"LLM Judge ({name})",
                 )
             )
 
-    # Embedding predictor (Ridge regression)
+    # Individual feature source predictors
     if "Embedding" in source_by_name:
-        source = source_by_name["Embedding"]
-        difficulty_predictor = FeatureBasedPredictor(
-            source,
-            alphas=list(config.ridge_alphas),
-        )
+        predictor = predictor_factory("Embedding", source_by_name["Embedding"], config)
         configs.append(
-            CVPredictorConfig(
-                predictor=DifficultyPredictorAdapter(difficulty_predictor),
-                name="embedding_predictor",
-                display_name="Embedding",
-            )
+            CVPredictorConfig(predictor=predictor, name="embedding", display_name="Embedding")
         )
 
-    # LLM Judge predictor (Ridge regression)
     if "LLM Judge" in source_by_name:
-        source = source_by_name["LLM Judge"]
-        difficulty_predictor = FeatureBasedPredictor(
-            source,
-            alphas=list(config.ridge_alphas),
-        )
+        predictor = predictor_factory("LLM Judge", source_by_name["LLM Judge"], config)
         configs.append(
-            CVPredictorConfig(
-                predictor=DifficultyPredictorAdapter(difficulty_predictor),
-                name="llm_judge_predictor",
-                display_name="LLM Judge",
-            )
+            CVPredictorConfig(predictor=predictor, name="llm_judge", display_name="LLM Judge")
         )
 
-    # Grouped Ridge predictor (Embedding + LLM Judge with per-source regularization)
+    # Grouped predictor (Embedding + LLM Judge with per-source regularization)
     if "Embedding" in source_by_name and "LLM Judge" in source_by_name:
         grouped_source = GroupedFeatureSource([
             RegularizedFeatureSource(source_by_name["Embedding"]),
             RegularizedFeatureSource(source_by_name["LLM Judge"]),
         ])
-        grouped_predictor = GroupedRidgePredictor(grouped_source)
+        predictor = predictor_factory("Grouped", grouped_source, config)
         configs.append(
             CVPredictorConfig(
-                predictor=DifficultyPredictorAdapter(grouped_predictor),
-                name="grouped_ridge",
-                display_name=f"Grouped Ridge ({grouped_source.name})",
+                predictor=predictor,
+                name="grouped",
+                display_name=f"Grouped ({grouped_source.name})",
             )
         )
 
@@ -286,6 +270,7 @@ def run_cross_validation(
     n_jobs_folds: int = 1,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
+    predictor_factory: Optional[Callable[[str, Any, Any], CVPredictor]] = None,
 ) -> Dict[str, Any]:
     """Run the evaluation pipeline with k-fold cross-validation.
 
@@ -310,6 +295,9 @@ def run_cross_validation(
             sources to compare (ablation study).
         extra_llm_judge_paths: List of (name, path) tuples for additional LLM judge
             sources to compare (ablation study).
+        predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
+            Controls how feature sources become predictors. If None, uses Ridge regression.
+            Passed through to build_cv_predictors().
 
     Returns:
         Dict with CV results for each method
@@ -361,12 +349,12 @@ def run_cross_validation(
             exclude_unsolved=config.exclude_unsolved,
         )
 
-    # Build ALL predictor configs (oracle, feature-based, baselines)
-    # LLM judge features are auto-detected from the CSV
+    # Build predictor configs
     predictor_configs = build_cv_predictors(
-        config, root, llm_judge_features=None,  # Auto-detect from CSV
+        config, root,
         extra_embeddings_paths=extra_embeddings_paths,
         extra_llm_judge_paths=extra_llm_judge_paths,
+        predictor_factory=predictor_factory,
     )
 
     # Determine if we should compute binomial metrics
@@ -577,25 +565,35 @@ def create_main_parser(experiment_name: str, default_output_dir: str) -> argpars
 
 
 def run_experiment_main(
-    config_class: Type,
+    dataset: str,
     spec: ExperimentSpec,
     root: Path,
+    config_class: Optional[Type] = None,
     metadata_loader_factory: Optional[Callable[[Any], Callable[[List[str]], Dict[str, Any]]]] = None,
     spec_factory: Optional[Callable[[bool], ExperimentSpec]] = None,
 ) -> None:
     """Shared main entry point for experiments.
 
     Args:
-        config_class: The config class (ExperimentAConfig or TerminalBenchConfig)
+        dataset: Dataset short name (e.g., "swebench", "gso", "terminalbench").
+            Used to look up default config values via ExperimentAConfig.for_dataset().
         spec: Experiment specification (used if spec_factory is None)
         root: Root directory for the project
+        config_class: Config class to use. If None, uses ExperimentAConfig.
+            TerminalBench passes TerminalBenchConfig for binary mode support.
         metadata_loader_factory: Optional factory that takes config and returns a metadata loader.
             This is used by TerminalBench to create a loader that uses config.repo_path.
         spec_factory: Optional factory that takes use_binary flag and returns ExperimentSpec.
             If provided, this is used instead of the static spec parameter. This allows
             TerminalBench to dynamically choose between binomial and binary modes.
     """
-    parser = create_main_parser(spec.name, str(config_class().output_dir))
+    from experiment_a.shared.config import ExperimentAConfig as _DefaultConfig
+
+    if config_class is None:
+        config_class = _DefaultConfig
+
+    default_config = config_class.for_dataset(dataset)
+    parser = create_main_parser(spec.name, str(default_config.output_dir))
     args = parser.parse_args()
 
     # Build config kwargs from args - only override if CLI arg is provided
@@ -621,7 +619,7 @@ def run_experiment_main(
     if args.abilities_path:
         config_kwargs["abilities_path"] = Path(args.abilities_path)
 
-    config = config_class(**config_kwargs)
+    config = config_class.for_dataset(dataset, **config_kwargs)
 
     # Get the appropriate spec (dynamic if factory provided, static otherwise)
     # Default is binomial (use_binary=False), --binary flag switches to binary mode
@@ -684,7 +682,7 @@ def run_experiment_main(
                 return extract_llm_coefficients(inner)
             return None
 
-        diagnostics_extractors = {"llm_judge_predictor": _extract_llm_coefs}
+        diagnostics_extractors = {"llm_judge": _extract_llm_coefs}
 
     # Run cross-validation
     results = run_cross_validation(
@@ -701,7 +699,7 @@ def run_experiment_main(
             save_coefficient_bar_chart,
         )
         cv_results = results.get("cv_results", {})
-        llm_result = cv_results.get("llm_judge_predictor")
+        llm_result = cv_results.get("llm_judge")
         if llm_result is not None:
             fold_diagnostics = llm_result.get("fold_diagnostics", [])
             coeffs = [d for d in fold_diagnostics if d is not None]

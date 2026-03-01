@@ -7,7 +7,7 @@ a compact table format.
 
 Usage:
     python -m experiment_a.run_all_datasets
-    python -m experiment_a.run_all_datasets --unified_judge  # Use unified judge features
+    python -m experiment_a.run_all_datasets --no-unified_judge  # Use dataset-specific features
     python -m experiment_a.run_all_datasets --output results.csv  # Save to CSV
 """
 
@@ -15,88 +15,42 @@ import argparse
 import json
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-
-@dataclass
-class ExperimentADatasetSpec:
-    """Specification for running experiment_a on a single dataset.
-
-    This is different from experiment_b's ExperimentADatasetSpec which includes
-    frontier-specific settings (cutoff dates, agent dates, etc.).
-    """
-    name: str
-    short_name: str  # For CLI filtering
-    config_module: str  # e.g., "experiment_a.swebench.config"
-    config_class_name: str  # e.g., "ExperimentAConfig"
-    spec_module: str  # e.g., "experiment_a.swebench.train_evaluate"
-    unified_judge_path: Optional[Path]
-    unified_judge_no_solution_path: Optional[Path]  # For ablation study
-    unified_judge_problem_only_path: Optional[Path]  # For ablation study
-    extra_kwargs: Dict[str, Any]  # Additional config kwargs like exclude_unsolved=True
+from experiment_a.shared.config import DATASET_DEFAULTS
 
 
-# Dataset specifications
-DATASETS = [
-    ExperimentADatasetSpec(
-        name="SWE-bench Verified",
-        short_name="swebench",
-        config_module="experiment_a.swebench.config",
-        config_class_name="ExperimentAConfig",  # Note: SWE-bench uses ExperimentAConfig
-        spec_module="experiment_a.swebench.train_evaluate",
-        # 15 features from ablation study (includes auditor features: entry_point_clarity, fix_localization, change_blast_radius)
-        unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/swebench.csv"),
-        # Ablation: no_solution includes auditor (env exploration doesn't need solution)
-        unified_judge_no_solution_path=Path("chris_output/experiment_a/llm_judge_features/llm_judge_no_solution_plus_auditor.csv"),
-        # Ablation: problem_only stays pure (no env access)
-        unified_judge_problem_only_path=Path("chris_output/llm_judge_features/swebench_unified_problem_only/llm_judge_features.csv"),
-        extra_kwargs={},
-    ),
-    ExperimentADatasetSpec(
-        name="GSO",
-        short_name="gso",
-        config_module="experiment_a.gso.config",
-        config_class_name="GSOConfig",
-        spec_module="experiment_a.gso.train_evaluate",
-        # 8 unified LLM features (same across all datasets except SWE-bench Verified)
-        unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/gso.csv"),
-        unified_judge_no_solution_path=Path("chris_output/llm_judge_features/gso_unified_no_solution/llm_judge_features.csv"),
-        unified_judge_problem_only_path=Path("chris_output/llm_judge_features/gso_unified_problem_only/llm_judge_features.csv"),
-        extra_kwargs={"exclude_unsolved": True},  # Match Daria's setup
-    ),
-    ExperimentADatasetSpec(
-        name="TerminalBench",
-        short_name="terminalbench",
-        config_module="experiment_a.terminalbench.config",
-        config_class_name="TerminalBenchConfig",
-        spec_module="experiment_a.terminalbench.train_evaluate",
-        # 8 unified LLM features (same across all datasets except SWE-bench Verified)
-        unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/terminalbench.csv"),
-        unified_judge_no_solution_path=Path("chris_output/llm_judge_features/terminalbench_unified_no_solution/llm_judge_features.csv"),
-        unified_judge_problem_only_path=Path("chris_output/llm_judge_features/terminalbench_unified_problem_only/llm_judge_features.csv"),
-        extra_kwargs={},
-    ),
-    ExperimentADatasetSpec(
-        name="SWE-bench Pro",
-        short_name="swebench_pro",
-        config_module="experiment_a.swebench_pro.config",
-        config_class_name="SWEBenchProConfig",
-        spec_module="experiment_a.swebench_pro.train_evaluate",
-        # 8 unified LLM features (same across all datasets except SWE-bench Verified)
-        unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/swebench_pro.csv"),
-        unified_judge_no_solution_path=Path("chris_output/llm_judge_features/swebench_pro_unified_no_solution/llm_judge_features.csv"),
-        unified_judge_problem_only_path=Path("chris_output/llm_judge_features/swebench_pro_unified_problem_only/llm_judge_features.csv"),
-        extra_kwargs={},
-    ),
-]
+ROOT = Path(__file__).resolve().parents[1]
+
+# All datasets in display order
+ALL_DATASETS = ["swebench", "gso", "terminalbench", "swebench_pro"]
+
+# Ablation paths per dataset (only used with --judge_ablation)
+JUDGE_ABLATION_PATHS: Dict[str, Dict[str, Path]] = {
+    "swebench": {
+        "no_solution": Path("chris_output/experiment_a/llm_judge_features/llm_judge_no_solution_plus_auditor.csv"),
+        "problem_only": Path("chris_output/llm_judge_features/swebench_unified_problem_only/llm_judge_features.csv"),
+    },
+    "gso": {
+        "no_solution": Path("chris_output/llm_judge_features/gso_unified_no_solution/llm_judge_features.csv"),
+        "problem_only": Path("chris_output/llm_judge_features/gso_unified_problem_only/llm_judge_features.csv"),
+    },
+    "terminalbench": {
+        "no_solution": Path("chris_output/llm_judge_features/terminalbench_unified_no_solution/llm_judge_features.csv"),
+        "problem_only": Path("chris_output/llm_judge_features/terminalbench_unified_problem_only/llm_judge_features.csv"),
+    },
+    "swebench_pro": {
+        "no_solution": Path("chris_output/llm_judge_features/swebench_pro_unified_no_solution/llm_judge_features.csv"),
+        "problem_only": Path("chris_output/llm_judge_features/swebench_pro_unified_problem_only/llm_judge_features.csv"),
+    },
+}
 
 
 def run_single_dataset(
-    dataset_config: ExperimentADatasetSpec,
+    dataset: str,
     use_unified_judge: bool = False,
     unified_judge_suffix: str = "",
     output_base: Optional[Path] = None,
@@ -107,11 +61,12 @@ def run_single_dataset(
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
     coefficients: bool = False,
+    predictor_factory=None,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_a on a single dataset and return results.
 
     Args:
-        dataset_config: Dataset configuration.
+        dataset: Dataset short name (e.g., "swebench", "gso").
         use_unified_judge: Whether to use unified judge features.
         unified_judge_suffix: Suffix to append to unified judge directory (e.g., '_core').
         output_base: Base directory for outputs.
@@ -122,69 +77,55 @@ def run_single_dataset(
         extra_embeddings_paths: Additional embedding paths for ablation studies.
         extra_llm_judge_paths: Additional LLM judge paths for ablation studies.
         coefficients: Whether to extract LLM Judge Ridge coefficients.
+        predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
 
     Returns:
-        Tuple of (dataset_name, results_dict).
+        Tuple of (dataset_display_name, results_dict).
     """
-    import importlib
+    from experiment_a.shared.config import (
+        DATASET_DEFAULTS, ExperimentAConfig, TerminalBenchConfig, build_spec,
+    )
+    from experiment_a.shared.pipeline import run_cross_validation
 
-    try:
-        # Import config class
-        config_mod = importlib.import_module(dataset_config.config_module)
-        config_class = getattr(config_mod, dataset_config.config_class_name)
+    defaults = DATASET_DEFAULTS[dataset]
+    display_name = defaults["display_name"]
+    spec = build_spec(dataset, ROOT)
 
-        # Import SPEC and ROOT
-        spec_mod = importlib.import_module(dataset_config.spec_module)
-        spec = getattr(spec_mod, "SPEC")
-        root = getattr(spec_mod, "ROOT", Path("."))
+    # Build config overrides
+    config_kwargs: Dict[str, Any] = {}
 
-        # Import pipeline
-        from experiment_a.shared.pipeline import run_cross_validation
+    if not use_unified_judge:
+        config_kwargs["llm_judge_features_path"] = None
+    elif unified_judge_suffix:
+        # Modify the default judge path with the suffix
+        judge_path = defaults["llm_judge_features_path"]
+        parent_with_suffix = judge_path.parent.parent / (judge_path.parent.name + unified_judge_suffix)
+        judge_path = parent_with_suffix / judge_path.name
+        if not judge_path.exists():
+            return display_name, {"error": f"Unified judge features not found: {judge_path}"}
+        config_kwargs["llm_judge_features_path"] = judge_path
 
-    except ImportError as e:
-        return dataset_config.name, {"error": f"Import error: {e}"}
-    except AttributeError as e:
-        return dataset_config.name, {"error": f"Attribute error: {e}"}
+    if output_base:
+        config_kwargs["output_dir"] = output_base / dataset
 
-    # Build config
-    try:
-        config_kwargs = dict(dataset_config.extra_kwargs)
-
-        if use_unified_judge and dataset_config.unified_judge_path:
-            # Apply suffix to the directory name if provided
-            judge_path = dataset_config.unified_judge_path
-            if unified_judge_suffix:
-                # Insert suffix before the filename (e.g., swebench_unified -> swebench_unified_core)
-                parent_with_suffix = judge_path.parent.parent / (judge_path.parent.name + unified_judge_suffix)
-                judge_path = parent_with_suffix / judge_path.name
-
-            if judge_path.exists():
-                config_kwargs["llm_judge_features_path"] = judge_path
+    # Add ablation paths if requested
+    if judge_ablation and dataset in JUDGE_ABLATION_PATHS:
+        ablation_paths = []
+        for variant, path in JUDGE_ABLATION_PATHS[dataset].items():
+            if (ROOT / path).exists():
+                ablation_paths.append((variant, path))
+        if ablation_paths:
+            if extra_llm_judge_paths:
+                extra_llm_judge_paths = list(extra_llm_judge_paths) + ablation_paths
             else:
-                return dataset_config.name, {
-                    "error": f"Unified judge features not found: {judge_path}"
-                }
+                extra_llm_judge_paths = ablation_paths
 
-        if output_base:
-            config_kwargs["output_dir"] = output_base / dataset_config.short_name
-
-        # Add ablation paths if requested
-        if judge_ablation:
-            ablation_paths = []
-            if dataset_config.unified_judge_no_solution_path and dataset_config.unified_judge_no_solution_path.exists():
-                ablation_paths.append(("no_solution", dataset_config.unified_judge_no_solution_path))
-            if dataset_config.unified_judge_problem_only_path and dataset_config.unified_judge_problem_only_path.exists():
-                ablation_paths.append(("problem_only", dataset_config.unified_judge_problem_only_path))
-            if ablation_paths:
-                if extra_llm_judge_paths:
-                    extra_llm_judge_paths = list(extra_llm_judge_paths) + ablation_paths
-                else:
-                    extra_llm_judge_paths = ablation_paths
-
-        config = config_class(**config_kwargs)
-
+    # Use TerminalBenchConfig for terminalbench (supports binary mode), base config otherwise
+    config_class = TerminalBenchConfig if dataset == "terminalbench" else ExperimentAConfig
+    try:
+        config = config_class.for_dataset(dataset, **config_kwargs)
     except Exception as e:
-        return dataset_config.name, {"error": f"Config error: {e}"}
+        return display_name, {"error": f"Config error: {e}"}
 
     # Set up coefficient extraction if requested
     diagnostics_extractors = None
@@ -197,18 +138,19 @@ def run_single_dataset(
                 return extract_llm_coefficients(inner)
             return None
 
-        diagnostics_extractors = {"llm_judge_predictor": _extract_llm_coefs}
+        diagnostics_extractors = {"llm_judge": _extract_llm_coefs}
 
     # Run the experiment
     try:
         results = run_cross_validation(
-            config, spec, root, k_folds,
+            config, spec, ROOT, k_folds,
             metadata_loader=None,
             n_jobs_methods=n_jobs_methods,
             n_jobs_folds=n_jobs_folds,
             extra_embeddings_paths=extra_embeddings_paths,
             extra_llm_judge_paths=extra_llm_judge_paths,
             diagnostics_extractors=diagnostics_extractors,
+            predictor_factory=predictor_factory,
         )
 
         # Print coefficient analysis if requested
@@ -218,30 +160,30 @@ def run_single_dataset(
                 save_coefficient_bar_chart,
             )
             cv_results_dict = results.get("cv_results", {})
-            llm_result = cv_results_dict.get("llm_judge_predictor")
+            llm_result = cv_results_dict.get("llm_judge")
             if llm_result is not None:
                 fold_diagnostics = llm_result.get("fold_diagnostics", [])
                 coeffs = [d for d in fold_diagnostics if d is not None]
                 if coeffs:
                     print(f"\n{'=' * 80}")
-                    print(f"LLM JUDGE COEFFICIENT ANALYSIS — {dataset_config.name}")
+                    print(f"LLM JUDGE COEFFICIENT ANALYSIS — {display_name}")
                     print(f"{'=' * 80}")
                     print_coefficient_table(coeffs)
 
                     if output_base:
-                        chart_dir = output_base / dataset_config.short_name
+                        chart_dir = output_base / dataset
                         chart_dir.mkdir(parents=True, exist_ok=True)
                         save_coefficient_bar_chart(
                             coeffs,
                             chart_dir / "coefficient_bar_chart.png",
-                            title=f"Mean Coefficient Magnitude ({dataset_config.name})",
+                            title=f"Mean Coefficient Magnitude ({display_name})",
                         )
 
-        return dataset_config.name, results
+        return display_name, results
 
     except Exception as e:
         import traceback
-        return dataset_config.name, {"error": f"Execution error: {e}\n{traceback.format_exc()}"}
+        return display_name, {"error": f"Execution error: {e}\n{traceback.format_exc()}"}
 
 
 def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
@@ -261,9 +203,9 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
     # Internal name to display name mappings
     name_mappings = {
         "oracle": "Oracle",
-        "embedding_predictor": "Embedding",
-        "llm_judge_predictor": "LLM Judge",
-        "grouped_ridge": "Grouped Ridge",
+        "embedding": "Embedding",
+        "llm_judge": "LLM Judge",
+        "grouped": "Grouped",
         "constant_baseline": "Baseline",
         # Ablation study predictors
         "llm_judge_no_solution": "LLM (no sol)",
@@ -295,7 +237,7 @@ def format_results_table(
         Formatted markdown table string with proper column alignment.
     """
     if methods is None:
-        methods = ["Oracle", "Grouped Ridge", "Embedding", "LLM Judge",
+        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge",
                    "LLM (no sol)", "LLM (prob only)", "Baseline"]
 
     # Build data rows first to calculate column widths
@@ -351,7 +293,7 @@ def save_results_csv(
     import csv
 
     if methods is None:
-        methods = ["Oracle", "Grouped Ridge", "Embedding", "LLM Judge",
+        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge",
                    "LLM (no sol)", "LLM (prob only)", "Baseline"]
 
     with open(output_path, "w", newline="") as f:
@@ -400,7 +342,7 @@ def main():
     parser.add_argument(
         "--datasets",
         nargs="+",
-        choices=["swebench", "gso", "terminalbench", "swebench_pro"],
+        choices=ALL_DATASETS,
         help="Specific datasets to run (default: all)",
     )
     parser.add_argument(
@@ -454,16 +396,16 @@ def main():
         action="store_true",
         help="Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3).",
     )
+    parser.add_argument(
+        "--feature_irt",
+        action="store_true",
+        help="Use Feature-IRT (joint training) instead of Ridge regression.",
+    )
 
     args = parser.parse_args()
 
     # Filter datasets if specified
-    datasets_to_run = DATASETS
-    if args.datasets:
-        datasets_to_run = [
-            d for d in DATASETS
-            if d.short_name in args.datasets
-        ]
+    datasets_to_run = args.datasets if args.datasets else ALL_DATASETS
 
     # Parse extra feature paths for ablation studies
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None
@@ -492,7 +434,15 @@ def main():
                 name = path.parent.name
                 extra_llm_judge_paths.append((name, path))
 
+    # Resolve predictor factory
+    predictor_factory = None
+    if args.feature_irt:
+        from experiment_a.shared.feature_irt import feature_irt_predictor_factory
+        predictor_factory = feature_irt_predictor_factory
+
+    training_method = "Feature-IRT (joint training)" if args.feature_irt else "Ridge regression"
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
+    print(f"Training method: {training_method}")
     print(f"Unified judge features: {args.unified_judge}")
     print(f"K-folds: {args.k_folds}")
     print(f"Judge ablation: {args.judge_ablation}")
@@ -507,10 +457,11 @@ def main():
 
     if args.sequential:
         # Sequential execution
-        for config in datasets_to_run:
-            print(f"Running {config.name}...")
+        for dataset in datasets_to_run:
+            display_name = DATASET_DEFAULTS[dataset]["display_name"]
+            print(f"Running {display_name}...")
             name, results = run_single_dataset(
-                config,
+                dataset,
                 use_unified_judge=args.unified_judge,
                 unified_judge_suffix=args.unified_judge_suffix,
                 output_base=args.output_dir,
@@ -521,6 +472,7 @@ def main():
                 extra_embeddings_paths=extra_embeddings_paths,
                 extra_llm_judge_paths=extra_llm_judge_paths,
                 coefficients=args.coefficients,
+                predictor_factory=predictor_factory,
             )
             metrics = extract_metrics(results)
             all_results[name] = metrics
@@ -529,29 +481,30 @@ def main():
                 print(f"  ERROR: {str(metrics['error'])[:100]}...")
             else:
                 oracle = metrics.get('Oracle')
-                grouped = metrics.get('Grouped Ridge')
+                grouped = metrics.get('Grouped')
                 oracle_str = f"{oracle:.4f}" if oracle else "N/A"
                 grouped_str = f"{grouped:.4f}" if grouped else "N/A"
-                print(f"  Done: Oracle={oracle_str}, Grouped Ridge={grouped_str}")
+                print(f"  Done: Oracle={oracle_str}, Grouped={grouped_str}")
     else:
         # Parallel execution
         with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
             futures = {
                 executor.submit(
                     run_single_dataset,
-                    config,
-                    args.unified_judge,
-                    args.unified_judge_suffix,
-                    args.output_dir,
-                    args.k_folds,
-                    args.n_jobs_methods,
-                    args.n_jobs_folds,
-                    args.judge_ablation,
-                    extra_embeddings_paths,
-                    extra_llm_judge_paths,
-                    args.coefficients,
-                ): config.name
-                for config in datasets_to_run
+                    dataset,
+                    use_unified_judge=args.unified_judge,
+                    unified_judge_suffix=args.unified_judge_suffix,
+                    output_base=args.output_dir,
+                    k_folds=args.k_folds,
+                    n_jobs_methods=args.n_jobs_methods,
+                    n_jobs_folds=args.n_jobs_folds,
+                    judge_ablation=args.judge_ablation,
+                    extra_embeddings_paths=extra_embeddings_paths,
+                    extra_llm_judge_paths=extra_llm_judge_paths,
+                    coefficients=args.coefficients,
+                    predictor_factory=predictor_factory,
+                ): DATASET_DEFAULTS[dataset]["display_name"]
+                for dataset in datasets_to_run
             }
 
             for future in as_completed(futures):
@@ -565,19 +518,20 @@ def main():
                         print(f"{name}: ERROR - {str(metrics['error'])[:80]}...")
                     else:
                         oracle = metrics.get('Oracle')
-                        grouped = metrics.get('Grouped Ridge')
+                        grouped = metrics.get('Grouped')
                         oracle_str = f"{oracle:.4f}" if oracle else "N/A"
                         grouped_str = f"{grouped:.4f}" if grouped else "N/A"
-                        print(f"{name}: Oracle={oracle_str}, Grouped Ridge={grouped_str}")
+                        print(f"{name}: Oracle={oracle_str}, Grouped={grouped_str}")
                 except Exception as e:
                     all_results[dataset_name] = {"error": str(e)}
                     print(f"{dataset_name}: EXCEPTION - {e}")
 
     # Sort results by original dataset order
     ordered_results: Dict[str, Dict[str, Optional[float]]] = {}
-    for config in datasets_to_run:
-        if config.name in all_results:
-            ordered_results[config.name] = all_results[config.name]
+    for dataset in datasets_to_run:
+        display_name = DATASET_DEFAULTS[dataset]["display_name"]
+        if display_name in all_results:
+            ordered_results[display_name] = all_results[display_name]
 
     print("\n" + "=" * 80)
     print("EXPERIMENT A RESULTS SUMMARY")

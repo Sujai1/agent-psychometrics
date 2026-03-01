@@ -10,7 +10,6 @@ from experiment_a.shared.pipeline import (
     run_cross_validation,
     create_main_parser,
     run_experiment_main,
-    SWEBENCH_LLM_JUDGE_FEATURES,
 )
 from experiment_a.shared.cross_validation import (
     CVPredictor,
@@ -22,7 +21,10 @@ from experiment_a.shared.baselines import (
     ConstantPredictor,
     OraclePredictor,
     DifficultyPredictorAdapter,
+)
+from experiment_a.shared.feature_irt import (
     JointTrainingCVPredictor,
+    feature_irt_predictor_factory,
 )
 
 __all__ = [
@@ -33,7 +35,6 @@ __all__ = [
     "run_cross_validation",
     "create_main_parser",
     "run_experiment_main",
-    "SWEBENCH_LLM_JUDGE_FEATURES",
     # Cross-validation
     "CVPredictor",
     "CrossValidationResult",
@@ -43,5 +44,7 @@ __all__ = [
     "ConstantPredictor",
     "OraclePredictor",
     "DifficultyPredictorAdapter",
+    # Feature-IRT
     "JointTrainingCVPredictor",
+    "feature_irt_predictor_factory",
 ]

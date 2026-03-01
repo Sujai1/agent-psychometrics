@@ -26,19 +26,14 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 
-from experiment_a.swebench.config import ExperimentAConfig
-from experiment_a.shared.pipeline import ExperimentSpec, run_cross_validation
+from experiment_a.shared.config import ExperimentAConfig, build_spec
+from experiment_a.shared.pipeline import run_cross_validation
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Experiment specification for SWE-bench (matches train_evaluate.py)
-SPEC = ExperimentSpec(
-    name="SWE-bench",
-    is_binomial=False,
-    irt_cache_dir=ROOT / "chris_output" / "experiment_a" / "irt_splits",
-    llm_judge_features=[],  # Features come from CSV, not hardcoded list
-)
+# Experiment specification for SWE-bench
+SPEC = build_spec("swebench", ROOT)
 
 
 @dataclass
@@ -226,22 +221,22 @@ def run_experiment(embeddings_path: Path, llm_judge_path: Path, k_folds: int) ->
     results = {}
 
     # LLM Judge
-    if "llm_judge_predictor" in cv_results:
-        r = cv_results["llm_judge_predictor"]
+    if "llm_judge" in cv_results:
+        r = cv_results["llm_judge"]
         if r.get("mean_auc") is not None:
             results["llm_auc"] = r["mean_auc"]
             results["llm_std"] = r["std_auc"]
 
     # Embedding
-    if "embedding_predictor" in cv_results:
-        r = cv_results["embedding_predictor"]
+    if "embedding" in cv_results:
+        r = cv_results["embedding"]
         if r.get("mean_auc") is not None:
             results["emb_auc"] = r["mean_auc"]
             results["emb_std"] = r["std_auc"]
 
-    # Grouped Ridge (Emb + LLM)
-    if "grouped_ridge" in cv_results:
-        r = cv_results["grouped_ridge"]
+    # Grouped (Emb + LLM)
+    if "grouped" in cv_results:
+        r = cv_results["grouped"]
         if r.get("mean_auc") is not None:
             results["grouped_auc"] = r["mean_auc"]
             results["grouped_std"] = r["std_auc"]

@@ -32,18 +32,12 @@ python -m experiment_a.run_all_datasets --no-unified_judge
 python -m experiment_a.run_all_datasets --output results.csv
 
 # Run Feature-IRT variant (joint training instead of Ridge)
-python -m experiment_a.run_feature_irt
-python -m experiment_a.run_feature_irt --datasets swebench gso
-python -m experiment_a.run_feature_irt --sequential
+python -m experiment_a.run_all_datasets --feature_irt
+python -m experiment_a.run_all_datasets --feature_irt --datasets swebench gso
 
-# Run individual datasets
-python -m experiment_a.swebench.train_evaluate
-python -m experiment_a.swebench_pro.train_evaluate
-python -m experiment_a.gso.train_evaluate --exclude_unsolved
+# Run TerminalBench individually (supports --binary flag)
 python -m experiment_a.terminalbench.train_evaluate
-
-# Dry run to check config
-python -m experiment_a.swebench.train_evaluate --dry_run
+python -m experiment_a.terminalbench.train_evaluate --binary
 ```
 
 ## Results (2026-01-30)
@@ -66,7 +60,7 @@ Run with: `python -m experiment_a.run_all_datasets`
 
 ### Feature-IRT Results (Joint Training)
 
-Run with: `python -m experiment_a.run_feature_irt`
+Run with: `python -m experiment_a.run_all_datasets --feature_irt`
 
 | Dataset | Oracle | Feature-IRT (Emb+LLM) | Feature-IRT (LLM) | Feature-IRT (Emb) | Baseline |
 |---------|--------|----------------------|-------------------|-------------------|----------|
@@ -120,7 +114,7 @@ Run with: `python -m experiment_a.run_feature_irt`
 | Embedding | 0.7332 | 0.0603 |
 | Constant (mean b) | 0.7262 | 0.0709 |
 
-**Note**: GSO uses `--exclude_unsolved` to match Daria's setup (excluding 45 zero-solve tasks).
+**Note**: These results were generated with `--exclude_unsolved` to match Daria's setup (excluding 45 zero-solve tasks). This is no longer the default.
 
 ### TerminalBench (5-Fold Cross-Validation)
 
@@ -222,40 +216,25 @@ class CVPredictor(Protocol):
 
 | File | Purpose |
 |------|---------|
-| `pipeline.py` | `ExperimentSpec`, `CVPredictorConfig`, `run_experiment_main()` |
+| `config.py` | `ExperimentAConfig`, `TerminalBenchConfig`, `DATASET_DEFAULTS` registry, `build_spec()` |
+| `pipeline.py` | `ExperimentSpec`, `CVPredictorConfig`, `run_cross_validation()`, `run_experiment_main()` |
 | `cross_validation.py` | `CVPredictor` protocol, `run_cv()`, `k_fold_split_tasks()` |
-| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `DifficultyPredictorAdapter`, `JointTrainingCVPredictor` (with per-source L2 regularization) |
+| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `DifficultyPredictorAdapter` |
+| `feature_irt.py` | `JointTrainingCVPredictor` (with per-source L2 regularization), `feature_irt_predictor_factory()` |
 | `coefficient_analysis.py` | `extract_llm_coefficients()`, `print_coefficient_table()`, `save_coefficient_bar_chart()` |
 
 ### Multi-Dataset Scripts (`experiment_a/`)
 
 | File | Purpose |
 |------|---------|
-| `run_all_datasets.py` | Run Ridge-based predictors on all datasets (default) |
-| `run_feature_irt.py` | Run Feature-IRT (joint training) on all datasets |
+| `run_all_datasets.py` | Run all datasets with Ridge (default) or Feature-IRT (`--feature_irt`) |
+| `run_information_ablation.py` | Run information source ablation study (SWE-bench Verified) |
 
-### SWE-bench Verified (`experiment_a/swebench/`)
-
-| File | Purpose |
-|------|---------|
-| `train_evaluate.py` | Main entry point |
-| `config.py` | `ExperimentAConfig` with default paths |
-| `generate_embeddings.py` | Generate task embeddings |
-| `compute_llm_judge_features.py` | Extract LLM semantic features |
-
-### SWE-bench Pro (`experiment_a/swebench_pro/`)
+### TerminalBench (`experiment_a/terminalbench/`)
 
 | File | Purpose |
 |------|---------|
-| `train_evaluate.py` | Main entry point |
-| `config.py` | `SWEBenchProConfig` with SWE-bench Pro paths |
-
-### TerminalBench Specific (`experiment_a/terminalbench/`)
-
-| File | Purpose |
-|------|---------|
-| `train_evaluate.py` | Main entry with `is_binomial=True` |
-| `config.py` | `TerminalBenchConfig` with TerminalBench paths |
+| `train_evaluate.py` | Single-dataset entry point with binary/binomial mode and repo metadata loading |
 
 ## Methods
 
@@ -438,8 +417,8 @@ python -m experiment_a.run_all_datasets
 # Use core-only features (8 features, identical across datasets)
 python -m experiment_a.run_all_datasets --unified_judge_suffix _core
 
-# For individual dataset scripts, specify the path explicitly
-python -m experiment_a.swebench.train_evaluate --llm_judge_features_path chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv
+# For TerminalBench, specify the path explicitly
+python -m experiment_a.terminalbench.train_evaluate --llm_judge_features_path chris_output/llm_judge_features/terminalbench_unified/llm_judge_features.csv
 ```
 
 #### Unified vs Dataset-Specific Features Comparison
@@ -620,11 +599,14 @@ Results saved to `chris_output/experiment_a/experiment_a_cv5_results.json`:
 ```json
 {
   "config": {...},
-  "data_summary": {"n_agents": 130, "n_tasks_total": 500},
-  "oracle": {"mean_auc": 0.9441, "std": 0.0045},
-  "embedding_predictor": {"mean_auc": 0.8269, "std": 0.0070},
-  "llm_judge_predictor": {"mean_auc": 0.8227, "std": 0.0118},
-  ...
+  "k_folds": 5,
+  "cv_results": {
+    "oracle": {"mean_auc": 0.9441, "std_auc": 0.0085, ...},
+    "grouped": {"mean_auc": 0.8415, "std_auc": 0.0197, ...},
+    "llm_judge": {"mean_auc": 0.8336, "std_auc": 0.0211, ...},
+    "embedding": {"mean_auc": 0.8230, "std_auc": 0.0193, ...},
+    "constant_baseline": {"mean_auc": 0.7146, "std_auc": 0.0083, ...}
+  }
 }
 ```
 
@@ -634,10 +616,7 @@ Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3 in the pap
 
 ```bash
 # Run with coefficient analysis for a specific dataset
-python -m experiment_a.run_all_datasets --datasets swebench --coefficients
-
-# Via individual dataset script
-python -m experiment_a.swebench.train_evaluate --coefficients
+python -m experiment_a.run_all_datasets --datasets swebench --coefficients --sequential
 ```
 
 The `--coefficients` flag extracts per-fold Ridge coefficients from the LLM Judge predictor and prints:

@@ -1,22 +1,20 @@
 # SWE-bench IRT Analysis
 
-Applies Item Response Theory (IRT) to SWE-bench Verified benchmark data to model agent abilities and task difficulties.
+Applies Item Response Theory (IRT) to agentic coding benchmark data to model agent abilities and task difficulties.
 
 ## Research Goal
 
-**Bayesian Inference for Agentic Evaluation of Task Difficulty** — derive calibrated estimates of task difficulty (β) using human-interpretable features.
+Derive calibrated estimates of task difficulty (β) using human-interpretable features.
 
 Two regimes:
-1. **Solvable Regime (Prior)**: Predict difficulty from task features alone, cheaper than running agents
-2. **Frontier Regime (Posterior)**: Refine difficulty estimates using failure trajectories from weak models
-
-See [chris proposal.md](chris%20proposal.md) for full research motivation.
+1. **Solvable Regime**: Predict difficulty from task features alone, cheaper than running agents
+2. **Frontier Regime** (deprioritized): Refine difficulty estimates using failure trajectories from weak models
 
 ## Repository Structure
 
 ```
 model_irt/
-├── experiment_a/           # Prior validation (IRT AUC)
+├── experiment_a/           # Main experiment on the solvable regime 
 ├── experiment_b/           # Frontier task difficulty prediction
 ├── experiment_ab_shared/   # Shared infrastructure for A & B
 ├── swebench_irt/           # IRT model training
@@ -38,8 +36,8 @@ model_irt/
 ```bash
 source .venv/bin/activate
 
-# Run Experiment A (prior validation)
-python -m experiment_a.train_evaluate --dry_run
+# Run Experiment A on all datasets
+python -m experiment_a.run_all_datasets
 
 # Run Experiment B (frontier task difficulty prediction)
 python -m experiment_b.compare_methods
@@ -47,7 +45,6 @@ python -m experiment_b.compare_methods
 # Train IRT model
 python swebench_irt/train.py --dims 1 --model 1pl \
     --data_path clean_data/swebench_verified/swebench_verified_20251115_full.jsonl
-
 ```
 
 ## Current Dataset
@@ -58,7 +55,7 @@ python swebench_irt/train.py --dims 1 --model 1pl \
 
 **Default data files:**
 - Response matrix: `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl`
-- IRT model outputs: `clean_data/swebench_verified_20251120_full/1d/` (abilities.csv, items.csv)
+- IRT model outputs: `clean_data/swebench_verified_20251120_full/1d_1pl/` (abilities.csv, items.csv)
 
 ## Documentation
 
@@ -73,41 +70,15 @@ python swebench_irt/train.py --dims 1 --model 1pl \
 
 ## Key Results
 
-### Model Selection
-
 1D IRT model is best by both AIC and BIC (see [docs/IRT_MODELS.md](docs/IRT_MODELS.md)).
 
-### Experiment A: Prior Validation
-
-| Method | AUC |
-|--------|-----|
-| Oracle | 0.9447 |
-| Embedding | 0.8333 |
-| Baselines | ~0.72 |
-
-### Experiment B: Frontier Task Difficulty Prediction
-
-Predicts difficulty of frontier tasks (tasks only solvable by newer models) using various methods. Evaluation uses ROC-AUC after projecting to oracle IRT scale.
-
-| Method | ROC-AUC |
-|--------|---------|
-| Oracle | Upper bound |
-| Baseline IRT | Pre-frontier only |
-| Grouped Ridge | Combined features with per-source regularization |
-| Embedding + Ridge | Task embeddings |
-| LLM Judge + Ridge | Semantic features |
-
-**Grouped Ridge** combines multiple feature sources (e.g., embeddings + LLM judge) with different regularization per source, allowing high-dim embeddings and low-dim semantic features to be properly regularized.
-
-### Experiment D: Time Horizon
-
-Frontier ability is linear over time (R² = 0.98 for 2PL).
+See [experiment_a/README.md](experiment_a/README.md) and [experiment_b/README.md](experiment_b/README.md) for detailed results tables.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `experiment_a/train_evaluate.py` | Run Experiment A |
+| `experiment_a/run_all_datasets.py` | Run Experiment A |
 | `experiment_b/compare_methods.py` | Run Experiment B |
 | `swebench_irt/train.py` | Train IRT models |
 | `swebench_irt/prep_swebench.py` | Build response matrix |
@@ -116,8 +87,8 @@ Frontier ability is linear over time (R² = 0.98 for 2PL).
 
 ## Development Guidelines
 
-**Current context (January 2026):**
-- Best available models: Claude Opus 4.5, GPT 5.2
+**Current context (March 2026):**
+- Best available models: Claude Opus 4.6, GPT 5.3-Codex
 
 **Keep git status clean:**
 - Always commit changes after completing a group of related modifications
