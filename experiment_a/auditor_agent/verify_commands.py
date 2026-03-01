@@ -25,7 +25,7 @@ _project_root = Path(__file__).parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from experiment_a.env_features.inspect_task import get_swebench_image_name
+from experiment_a.sandbox_utils import get_swebench_image_name
 
 
 def run_command_in_docker(instance_id: str, command: str) -> tuple[bool, str, str]:

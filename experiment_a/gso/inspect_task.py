@@ -23,7 +23,7 @@ from inspect_ai.util import SandboxEnvironmentSpec
 
 from inspect_evals.utils.huggingface import hf_dataset
 
-from experiment_a.env_features.inspect_task import get_sandbox_config
+from experiment_a.sandbox_utils import get_sandbox_config
 from experiment_a.auditor_agent.prompts_v4 import build_auditor_system_prompt_v4
 
 

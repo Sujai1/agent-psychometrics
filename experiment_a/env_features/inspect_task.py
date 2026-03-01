@@ -11,9 +11,7 @@ Usage:
     inspect eval experiment_a/env_features/inspect_task.py --limit 10 --max-connections 10
 """
 
-import platform
 import sys
-import tempfile
 from pathlib import Path
 
 # Add project root to path so we can import experiment_a modules
@@ -28,66 +26,7 @@ from inspect_ai.util import SandboxEnvironmentSpec
 from inspect_evals.utils.huggingface import hf_dataset
 
 from experiment_a.env_features.extractor_solver import env_feature_extractor
-
-
-def get_swebench_image_name(instance_id: str) -> str:
-    """Get Docker image name for a SWE-bench instance.
-
-    Uses the prebuilt 'eval' images which have the repo already at /testbed.
-    NOT the 'env' images which only have dependencies.
-
-    NOTE: Always use x86_64 images because arm64 images don't exist for all
-    instances on DockerHub. On Apple Silicon, Docker will use Rosetta emulation.
-    """
-    # SWE-bench uses _1776_ as a separator in image names (historical quirk)
-    updated_id = instance_id.replace("__", "_1776_")
-
-    # Always use x86_64 - arm64 images are not available for all instances
-    # Docker Desktop on Apple Silicon will use Rosetta emulation automatically
-    arch = "x86_64"
-
-    return f"swebench/sweb.eval.{arch}.{updated_id}:latest"
-
-
-def get_sandbox_config(
-    instance_id: str,
-    image_name: str | None = None,
-    working_dir: str = "/testbed",
-) -> str:
-    """Generate Docker compose config for a task instance.
-
-    Args:
-        instance_id: Unique identifier for this task (used for temp file naming).
-        image_name: Docker image name. If None, derives from instance_id using
-            SWE-bench naming convention.
-        working_dir: Working directory inside the container (default: /testbed).
-
-    Returns:
-        Path to a temporary compose.yaml file that Inspect will use.
-    """
-    if image_name is None:
-        image_name = get_swebench_image_name(instance_id)
-
-    # Create compose config with root user access
-    content = f"""services:
-  default:
-    image: {image_name}
-    command: "sleep infinity"
-    working_dir: {working_dir}
-    user: root
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-"""
-
-    # Write to temp file (Inspect reads from file path)
-    config_dir = Path(tempfile.gettempdir()) / "env_features_configs"
-    config_dir.mkdir(exist_ok=True)
-    config_file = config_dir / f"{instance_id}-compose.yaml"
-    config_file.write_text(content)
-
-    return str(config_file)
+from experiment_a.sandbox_utils import get_sandbox_config
 
 
 @task

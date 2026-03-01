@@ -35,8 +35,7 @@ _project_root = Path(__file__).parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-# Reuse Docker utilities from env_features
-from experiment_a.env_features.run_extraction import run_docker_cleanup
+from experiment_a.sandbox_utils import run_docker_cleanup
 from experiment_a.auditor_agent.parse_outputs import (
     parse_all_logs,
     validate_results,

@@ -36,11 +36,7 @@ from inspect_ai.util import SandboxEnvironmentSpec
 
 from inspect_evals.utils.huggingface import hf_dataset
 
-# Reuse sandbox config functions from env_features
-from experiment_a.env_features.inspect_task import (
-    get_swebench_image_name,
-    get_sandbox_config,
-)
+from experiment_a.sandbox_utils import get_swebench_image_name, get_sandbox_config
 
 from experiment_a.auditor_agent.prompts import (
     build_auditor_system_prompt,
