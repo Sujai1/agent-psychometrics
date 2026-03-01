@@ -55,23 +55,8 @@ class ExperimentAConfig:
     )
     llm_judge_max_features: Optional[int] = None  # None = use all features
 
-    # Trajectory features config (from experiment B)
-    # Default is None (excluded). Use --include_trajectory flag to enable.
-    trajectory_features_path: Optional[Path] = None
-
-    # Environment features config (from env_features extraction)
-    # Default is None. Use --env_features_path to specify.
-    env_features_path: Optional[Path] = None
-
-    # Auditor agent features config (from auditor_agent extraction)
-    # Top 3 features: entry_point_clarity, change_blast_radius, fix_localization
-    auditor_features_path: Optional[Path] = None
-
     # Task filtering
     exclude_unsolved: bool = False  # Exclude tasks no agent solved
-
-    # Alpha selection method for grouped ridge
-    expand_grouped_ridge: bool = False  # If True, use AUC-based alpha selection
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
@@ -87,7 +72,6 @@ class ExperimentAConfig:
         path_fields = {
             "abilities_path", "items_path", "responses_path",
             "output_dir", "embeddings_path", "llm_judge_features_path",
-            "trajectory_features_path", "env_features_path", "auditor_features_path"
         }
         converted = {}
         for k, v in d.items():

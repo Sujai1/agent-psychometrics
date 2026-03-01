@@ -37,7 +37,6 @@ class ExperimentADatasetSpec:
     unified_judge_path: Optional[Path]
     unified_judge_no_solution_path: Optional[Path]  # For ablation study
     unified_judge_problem_only_path: Optional[Path]  # For ablation study
-    env_features_path: Optional[Path]  # Path to environment features CSV
     extra_kwargs: Dict[str, Any]  # Additional config kwargs like exclude_unsolved=True
 
 
@@ -55,7 +54,6 @@ DATASETS = [
         unified_judge_no_solution_path=Path("chris_output/experiment_a/llm_judge_features/llm_judge_no_solution_plus_auditor.csv"),
         # Ablation: problem_only stays pure (no env access)
         unified_judge_problem_only_path=Path("chris_output/llm_judge_features/swebench_unified_problem_only/llm_judge_features.csv"),
-        env_features_path=None,  # Auditor features already included in the 15-feature unified_judge_path
         extra_kwargs={},
     ),
     ExperimentADatasetSpec(
@@ -68,7 +66,6 @@ DATASETS = [
         unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/gso.csv"),
         unified_judge_no_solution_path=Path("chris_output/llm_judge_features/gso_unified_no_solution/llm_judge_features.csv"),
         unified_judge_problem_only_path=Path("chris_output/llm_judge_features/gso_unified_problem_only/llm_judge_features.csv"),
-        env_features_path=None,  # Not yet extracted for GSO
         extra_kwargs={"exclude_unsolved": True},  # Match Daria's setup
     ),
     ExperimentADatasetSpec(
@@ -81,7 +78,6 @@ DATASETS = [
         unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/terminalbench.csv"),
         unified_judge_no_solution_path=Path("chris_output/llm_judge_features/terminalbench_unified_no_solution/llm_judge_features.csv"),
         unified_judge_problem_only_path=Path("chris_output/llm_judge_features/terminalbench_unified_problem_only/llm_judge_features.csv"),
-        env_features_path=None,  # Not yet extracted for TerminalBench
         extra_kwargs={},
     ),
     ExperimentADatasetSpec(
@@ -94,7 +90,6 @@ DATASETS = [
         unified_judge_path=Path("chris_output/llm_judge_features/experiment_a_defaults/swebench_pro.csv"),
         unified_judge_no_solution_path=Path("chris_output/llm_judge_features/swebench_pro_unified_no_solution/llm_judge_features.csv"),
         unified_judge_problem_only_path=Path("chris_output/llm_judge_features/swebench_pro_unified_problem_only/llm_judge_features.csv"),
-        env_features_path=None,  # Not yet extracted for SWE-bench Pro
         extra_kwargs={},
     ),
 ]
@@ -108,10 +103,10 @@ def run_single_dataset(
     k_folds: int = 5,
     n_jobs_methods: int = 1,
     n_jobs_folds: int = 1,
-    include_trees: bool = False,
     judge_ablation: bool = False,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
+    coefficients: bool = False,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_a on a single dataset and return results.
 
@@ -123,10 +118,10 @@ def run_single_dataset(
         k_folds: Number of CV folds.
         n_jobs_methods: Number of parallel jobs for method execution.
         n_jobs_folds: Number of parallel jobs for fold execution.
-        include_trees: Whether to include tree-based predictors (default False).
         judge_ablation: Whether to include no-solution and problem-only LLM judge ablations.
         extra_embeddings_paths: Additional embedding paths for ablation studies.
         extra_llm_judge_paths: Additional LLM judge paths for ablation studies.
+        coefficients: Whether to extract LLM Judge Ridge coefficients.
 
     Returns:
         Tuple of (dataset_name, results_dict).
@@ -170,10 +165,6 @@ def run_single_dataset(
                     "error": f"Unified judge features not found: {judge_path}"
                 }
 
-        # Add environment features if available
-        if dataset_config.env_features_path and dataset_config.env_features_path.exists():
-            config_kwargs["env_features_path"] = dataset_config.env_features_path
-
         if output_base:
             config_kwargs["output_dir"] = output_base / dataset_config.short_name
 
@@ -195,18 +186,57 @@ def run_single_dataset(
     except Exception as e:
         return dataset_config.name, {"error": f"Config error: {e}"}
 
+    # Set up coefficient extraction if requested
+    diagnostics_extractors = None
+    if coefficients:
+        from experiment_a.shared.coefficient_analysis import extract_llm_coefficients
+
+        def _extract_llm_coefs(predictor, fold_idx):
+            inner = getattr(predictor, "_predictor", None)
+            if inner is not None and hasattr(inner, "_is_fitted") and inner._is_fitted:
+                return extract_llm_coefficients(inner)
+            return None
+
+        diagnostics_extractors = {"llm_judge_predictor": _extract_llm_coefs}
+
     # Run the experiment
     try:
         results = run_cross_validation(
             config, spec, root, k_folds,
             metadata_loader=None,
-            include_feature_irt=False,
-            include_trees=include_trees,
             n_jobs_methods=n_jobs_methods,
             n_jobs_folds=n_jobs_folds,
             extra_embeddings_paths=extra_embeddings_paths,
             extra_llm_judge_paths=extra_llm_judge_paths,
+            diagnostics_extractors=diagnostics_extractors,
         )
+
+        # Print coefficient analysis if requested
+        if coefficients:
+            from experiment_a.shared.coefficient_analysis import (
+                print_coefficient_table,
+                save_coefficient_bar_chart,
+            )
+            cv_results_dict = results.get("cv_results", {})
+            llm_result = cv_results_dict.get("llm_judge_predictor")
+            if llm_result is not None:
+                fold_diagnostics = llm_result.get("fold_diagnostics", [])
+                coeffs = [d for d in fold_diagnostics if d is not None]
+                if coeffs:
+                    print(f"\n{'=' * 80}")
+                    print(f"LLM JUDGE COEFFICIENT ANALYSIS — {dataset_config.name}")
+                    print(f"{'=' * 80}")
+                    print_coefficient_table(coeffs)
+
+                    if output_base:
+                        chart_dir = output_base / dataset_config.short_name
+                        chart_dir.mkdir(parents=True, exist_ok=True)
+                        save_coefficient_bar_chart(
+                            coeffs,
+                            chart_dir / "coefficient_bar_chart.png",
+                            title=f"Mean Coefficient Magnitude ({dataset_config.name})",
+                        )
+
         return dataset_config.name, results
 
     except Exception as e:
@@ -233,14 +263,7 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
         "oracle": "Oracle",
         "embedding_predictor": "Embedding",
         "llm_judge_predictor": "LLM Judge",
-        "env_predictor": "Environment",
-        "llm_judge_tree": "LLM Judge (Tree)",
-        "llm_judge_rf": "LLM Judge (RF)",
         "grouped_ridge": "Grouped Ridge",
-        "grouped_ridge_emb_env": "Emb + Env",
-        "grouped_ridge_llm_env": "LLM + Env",
-        "grouped_ridge_emb_llm": "Emb + LLM",
-        "stacked_residual": "Stacked (Emb → LLM)",
         "constant_baseline": "Baseline",
         # Ablation study predictors
         "llm_judge_no_solution": "LLM (no sol)",
@@ -410,12 +433,6 @@ def main():
         help="Parallel jobs for folds within each method (default: 1 = sequential)",
     )
     parser.add_argument(
-        "--trees",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Include tree-based predictors (default: False). Use --trees to include Decision Tree and Random Forest.",
-    )
-    parser.add_argument(
         "--judge_ablation",
         action="store_true",
         help="Include LLM judge ablation variants (no-solution, problem-only) for each dataset.",
@@ -431,6 +448,11 @@ def main():
         type=str,
         default=None,
         help="Comma-separated list of embedding paths to compare (ablation study)",
+    )
+    parser.add_argument(
+        "--coefficients",
+        action="store_true",
+        help="Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3).",
     )
 
     args = parser.parse_args()
@@ -473,7 +495,7 @@ def main():
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
     print(f"Unified judge features: {args.unified_judge}")
     print(f"K-folds: {args.k_folds}")
-    print(f"Include trees: {args.trees}, Judge ablation: {args.judge_ablation}")
+    print(f"Judge ablation: {args.judge_ablation}")
     print(f"Parallelization: datasets={args.max_workers}, methods={args.n_jobs_methods}, folds={args.n_jobs_folds}")
     if extra_embeddings_paths:
         print(f"Extra embedding paths: {[name for name, _ in extra_embeddings_paths]}")
@@ -495,10 +517,10 @@ def main():
                 k_folds=args.k_folds,
                 n_jobs_methods=args.n_jobs_methods,
                 n_jobs_folds=args.n_jobs_folds,
-                include_trees=args.trees,
                 judge_ablation=args.judge_ablation,
                 extra_embeddings_paths=extra_embeddings_paths,
                 extra_llm_judge_paths=extra_llm_judge_paths,
+                coefficients=args.coefficients,
             )
             metrics = extract_metrics(results)
             all_results[name] = metrics
@@ -524,10 +546,10 @@ def main():
                     args.k_folds,
                     args.n_jobs_methods,
                     args.n_jobs_folds,
-                    args.trees,
                     args.judge_ablation,
                     extra_embeddings_paths,
                     extra_llm_judge_paths,
+                    args.coefficients,
                 ): config.name
                 for config in datasets_to_run
             }

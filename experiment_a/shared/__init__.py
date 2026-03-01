@@ -19,10 +19,10 @@ from experiment_a.shared.cross_validation import (
     run_cv,
 )
 from experiment_a.shared.baselines import (
-    AgentOnlyPredictor,
     ConstantPredictor,
     OraclePredictor,
     DifficultyPredictorAdapter,
+    JointTrainingCVPredictor,
 )
 
 __all__ = [
@@ -40,8 +40,8 @@ __all__ = [
     "k_fold_split_tasks",
     "run_cv",
     # Baseline predictors
-    "AgentOnlyPredictor",
     "ConstantPredictor",
     "OraclePredictor",
     "DifficultyPredictorAdapter",
+    "JointTrainingCVPredictor",
 ]

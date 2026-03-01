@@ -69,13 +69,6 @@ This document describes the class hierarchy and data flow for Experiment A (Prio
 │  │  │  Feature scaling: StandardScaler → per-group 1/sqrt(α) scaling       │    │
 │  │  └──────────────────────────────────────────────────────────────────────┘    │
 │  │                                                                               │
-│  │  ┌──────────────────────────────────────────────────────────────────────┐    │
-│  └─►│ StackedResidualPredictor                                              │    │
-│     │  base_source → RidgeCV → β̂_base                                       │    │
-│     │  residual_source → RidgeCV → β̂_residual (target = β_true - β̂_base)   │    │
-│     │  Final: β̂ = β̂_base + β̂_residual                                       │    │
-│     └──────────────────────────────────────────────────────────────────────┘    │
-│                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                        │
                                        ▼
@@ -99,11 +92,6 @@ This document describes the class hierarchy and data flow for Experiment A (Prio
 │  │  │  Wraps any DifficultyPredictorBase                          │             │
 │  │  │  fit(): extracts β from train_items, calls wrapped.fit()    │             │
 │  │  │  predict_probability(): P = sigmoid(θ - β̂_predicted)        │             │
-│  │  └─────────────────────────────────────────────────────────────┘             │
-│  │                                                                               │
-│  │  ┌─────────────────────────────────────────────────────────────┐             │
-│  ├─►│ AgentOnlyPredictor (baseline)                                │             │
-│  │  │  Returns agent's empirical success rate (ignores task)       │             │
 │  │  └─────────────────────────────────────────────────────────────┘             │
 │  │                                                                               │
 │  │  ┌─────────────────────────────────────────────────────────────┐             │
@@ -176,10 +164,7 @@ This document describes the class hierarchy and data flow for Experiment A (Prio
 │     ├── DifficultyPredictorAdapter(FeatureBasedPredictor(embeddings))           │
 │     ├── DifficultyPredictorAdapter(FeatureBasedPredictor(llm_judge))            │
 │     ├── DifficultyPredictorAdapter(GroupedRidgePredictor(emb + llm))            │
-│     ├── DifficultyPredictorAdapter(StackedResidualPredictor(emb → llm))         │
-│     ├── DifficultyPredictorAdapter(StackedResidualPredictor(llm → emb))         │
-│     ├── ConstantPredictor                                                        │
-│     └── AgentOnlyPredictor                                                       │
+│     └── ConstantPredictor                                                        │
 │                                                                                  │
 │  4. For each predictor: run_cv() ────────────────────────────────────────────►  │
 │                                                                                  │
@@ -207,8 +192,8 @@ This document describes the class hierarchy and data flow for Experiment A (Prio
           ▼
 ┌────────────────────┐
 │  Predictors        │  fit(task_ids, β_true) → predict(task_ids) → β̂
-│  (Ridge, Grouped,  │
-│   Stacked)         │
+│  (Ridge, Grouped   │
+│   Ridge)           │
 └─────────┬──────────┘
           ▼
 ┌────────────────────┐

@@ -88,7 +88,6 @@ Run with: `python -m experiment_a.run_feature_irt`
 |--------|----------|-----|
 | Oracle (true b) | 0.9441 | 0.0085 |
 | Grouped Ridge (Emb + LLM) | 0.8415 | 0.0197 |
-| Stacked (Emb → LLM) | 0.8383 | 0.0188 |
 | LLM Judge (15 features) | 0.8336 | 0.0211 |
 | Embedding | 0.8230 | 0.0193 |
 | Constant (mean b) | 0.7146 | 0.0083 |
@@ -102,9 +101,7 @@ Run with: `python -m experiment_a.run_feature_irt`
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.9183 | 0.0074 |
-| Stacked (Emb → LLM) | 0.7444 | 0.0295 |
 | Grouped Ridge (Emb + LLM) | 0.7443 | 0.0261 |
-| Stacked (LLM → Emb) | 0.7434 | 0.0235 |
 | Embedding | 0.7366 | 0.0281 |
 | LLM Judge | 0.7212 | 0.0224 |
 | Constant (mean b) | 0.6567 | 0.0072 |
@@ -118,14 +115,12 @@ Run with: `python -m experiment_a.run_feature_irt`
 | Method | Mean AUC | Std |
 |--------|----------|-----|
 | Oracle (true b) | 0.8516 | 0.0453 |
-| Stacked (Emb → LLM) | 0.7507 | 0.0677 |
 | Grouped Ridge (Emb + LLM) | 0.7496 | 0.0626 |
-| Stacked (LLM → Emb) | 0.7433 | 0.0706 |
 | LLM Judge | 0.7333 | 0.0783 |
 | Embedding | 0.7332 | 0.0603 |
 | Constant (mean b) | 0.7262 | 0.0709 |
 
-**Note**: GSO uses `--exclude_unsolved` to match Daria's setup (excluding 45 zero-solve tasks). Stacked slightly outperforms Grouped Ridge (+0.1%).
+**Note**: GSO uses `--exclude_unsolved` to match Daria's setup (excluding 45 zero-solve tasks).
 
 ### TerminalBench (5-Fold Cross-Validation)
 
@@ -140,8 +135,6 @@ TerminalBench supports two data modes:
 | Method | Mean AUC | Std | Pass Rate MSE |
 |--------|----------|-----|---------------|
 | Oracle (true b) | 0.8995 | 0.0224 | 0.0533 |
-| Stacked (Emb → LLM) | 0.8044 | 0.0285 | 0.1121 |
-| Stacked (LLM → Emb) | 0.8043 | 0.0239 | 0.1144 |
 | Grouped Ridge (Emb + LLM) | 0.8006 | 0.0210 | 0.1143 |
 | Embedding | 0.7905 | 0.0172 | 0.1188 |
 | LLM Judge | 0.7700 | 0.0165 | 0.1307 |
@@ -157,7 +150,6 @@ TerminalBench supports two data modes:
 | Embedding | 0.7779 | 0.0505 |
 | LLM Judge | 0.7734 | 0.0311 |
 | Constant (mean b) | 0.6904 | 0.0163 |
-| Agent-only | 0.6904 | 0.0167 |
 
 **Summary**: Binomial mode (default) preserves more information about task difficulty gradations and shows slightly better predictor AUCs when evaluated fairly. See "Fair Comparison" below for details.
 
@@ -167,17 +159,17 @@ To fairly compare binomial vs binary training, we hold the evaluation method con
 
 **Multi-attempt AUC Evaluation** (expand to 5 observations per pair):
 
-| Training Method | Oracle | Embedding | LLM Judge | Constant | Agent-only |
-|-----------------|--------|-----------|-----------|----------|------------|
-| Binomial (k/n)  | 0.9040 | 0.7817    | 0.7738    | 0.7036   | 0.7039     |
-| Binary (any success) | 0.8981 | 0.7761 | 0.7712    | 0.6904   | 0.6904     |
+| Training Method | Oracle | Embedding | LLM Judge | Constant |
+|-----------------|--------|-----------|-----------|----------|
+| Binomial (k/n)  | 0.9040 | 0.7817    | 0.7738    | 0.7036   |
+| Binary (any success) | 0.8981 | 0.7761 | 0.7712    | 0.6904   |
 
 **Binary AUC Evaluation** (any_success = k > 0):
 
-| Training Method | Oracle | Embedding | LLM Judge | Constant | Agent-only |
-|-----------------|--------|-----------|-----------|----------|------------|
-| Binomial (k/n)  | 0.9253 | 0.7800    | 0.7714    | 0.7153   | 0.7153     |
-| Binary (any success) | 0.9319 | 0.7779 | 0.7734    | 0.6904   | 0.6904     |
+| Training Method | Oracle | Embedding | LLM Judge | Constant |
+|-----------------|--------|-----------|-----------|----------|
+| Binomial (k/n)  | 0.9253 | 0.7800    | 0.7714    | 0.7153   |
+| Binary (any success) | 0.9319 | 0.7779 | 0.7734    | 0.6904   |
 
 **Key findings**:
 - When evaluated with the **same metric**, binomial and binary training yield very similar predictor AUCs
@@ -222,7 +214,7 @@ class CVPredictor(Protocol):
 |------|---------|
 | `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData`, `BinomialExperimentData` |
 | `feature_source.py` | `TaskFeatureSource` ABC with `EmbeddingFeatureSource`, `CSVFeatureSource` |
-| `feature_predictor.py` | `FeatureBasedPredictor`, `GroupedRidgePredictor`, `StackedResidualPredictor`, `DecisionTreePredictor`, `RandomForestPredictor` |
+| `feature_predictor.py` | `FeatureBasedPredictor`, `GroupedRidgePredictor` |
 | `predictor_base.py` | `DifficultyPredictorBase` ABC |
 | `evaluator.py` | `compute_auc()`, `compute_irt_probability()` |
 
@@ -232,7 +224,8 @@ class CVPredictor(Protocol):
 |------|---------|
 | `pipeline.py` | `ExperimentSpec`, `CVPredictorConfig`, `run_experiment_main()` |
 | `cross_validation.py` | `CVPredictor` protocol, `run_cv()`, `k_fold_split_tasks()` |
-| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `AgentOnlyPredictor`, `DifficultyPredictorAdapter`, `FeatureIRTCVPredictor` (with per-source L2 regularization) |
+| `baselines.py` | `OraclePredictor`, `ConstantPredictor`, `DifficultyPredictorAdapter`, `JointTrainingCVPredictor` (with per-source L2 regularization) |
+| `coefficient_analysis.py` | `extract_llm_coefficients()`, `print_coefficient_table()`, `save_coefficient_bar_chart()` |
 
 ### Multi-Dataset Scripts (`experiment_a/`)
 
@@ -263,9 +256,6 @@ class CVPredictor(Protocol):
 |------|---------|
 | `train_evaluate.py` | Main entry with `is_binomial=True` |
 | `config.py` | `TerminalBenchConfig` with TerminalBench paths |
-| `data_loader.py` | Load task data from terminal-bench repo |
-| `binomial_metrics.py` | Pass rate MSE for binomial responses |
-| `sampling.py` | Stratified train/test splitting |
 
 ## Methods
 
@@ -303,48 +293,6 @@ Key differences from Ridge:
 - Internal CV selects best (l2_emb, l2_llm) combination
 
 **Note**: In Experiment A (task holdout), Feature-IRT performs similarly to Ridge because it must generalize to unseen test tasks using only feature weights. This is unlike Experiment B (agent holdout) where Feature-IRT can leverage jointly-learned abilities across all tasks.
-
-### Stacked Residual (Emb → LLM)
-
-Two-stage predictor where the second model corrects errors from the first:
-
-```
-Stage 1: β̂_base = Ridge(embeddings)           # Base prediction from embeddings
-Stage 2: β̂_residual = Ridge(llm_features)     # Predict residuals (β_true - β̂_base)
-Final:   β̂ = β̂_base + β̂_residual              # Combined prediction
-```
-
-Key differences from Grouped Ridge:
-- **Sequential, not joint**: LLM features specifically learn to correct embedding errors
-- **No feature space competition**: Each model operates on its own feature space
-- **Works best when sources are complementary**: Shows improvement on GSO (+0.4% over Embedding alone) but not on SWE-bench
-
-**When to use**: Stacked (Emb → LLM) is recommended for smaller datasets (like GSO) where it outperforms Grouped Ridge. For larger datasets (like SWE-bench), Grouped Ridge performs slightly better.
-
-### Decision Tree and Random Forest (Experimental)
-
-Tree-based methods for difficulty prediction. Both train on LLM judge features to predict IRT difficulty.
-
-**Note:** These methods are **off by default** (`--no-trees`) since they don't consistently outperform Ridge regression. Use `--trees` to include them.
-
-**Decision Tree** (`LLM Judge (Tree)`):
-- Uses cross-validated hyperparameter search over `max_depth` values: [3, 5, 7, 10]
-- Simple, interpretable model but prone to overfitting
-
-**Random Forest** (`LLM Judge (RF)`):
-- Ensemble of 50 decision trees with fixed hyperparameters (no grid search for speed)
-- `max_depth=5`, `min_samples_split=5`, `min_samples_leaf=2`
-- More robust than single Decision Tree due to bagging and averaging
-- Uses `oob_score=True` for out-of-bag generalization estimate
-
-**Performance comparison** (SWE-bench Verified):
-| Method | Mean AUC | Std |
-|--------|----------|-----|
-| LLM Judge (Ridge) | 0.8163 | 0.0093 |
-| LLM Judge (RF) | 0.8145 | 0.0089 |
-| LLM Judge (Tree) | 0.7961 | 0.0151 |
-
-Random Forest performs comparably to Ridge regression while being more robust than a single Decision Tree.
 
 ## Feature Sources
 
@@ -662,8 +610,7 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 --output_dir          Output directory
 --dry_run             Show configuration without running
 --exclude_unsolved    Exclude tasks no agent solved
---include_feature_irt Include Feature-IRT joint learning methods (off by default)
---trees / --no-trees  Include/exclude tree-based predictors (default: --no-trees). Use --trees to include Decision Tree and Random Forest.
+--coefficients        Extract and display LLM Judge Ridge coefficients
 ```
 
 ## Output
@@ -681,173 +628,22 @@ Results saved to `chris_output/experiment_a/experiment_a_cv5_results.json`:
 }
 ```
 
-## Stacked Predictor Coefficient Analysis
+## Coefficient Analysis
 
-Analyze LLM judge feature coefficients from the stacked predictor across all datasets:
-
-```bash
-# Run analysis across all 4 datasets
-python -m experiment_a.analyze_stacked_coefficients
-
-# Run for single dataset (faster for testing)
-python -m experiment_a.analyze_stacked_coefficients --dataset swebench
-
-# Custom output path
-python -m experiment_a.analyze_stacked_coefficients --output_path my_results.json
-```
-
-This script:
-1. Runs 5-fold CV with only 6 methods: Oracle, Embedding, LLM Judge, Stacked (Emb→LLM), Constant, Agent-only
-2. Uses **unified LLM judge features** for consistent cross-dataset comparison
-3. Extracts coefficients from the stacked predictor's residual stage (LLM judge)
-4. Computes contribution analysis (embedding % vs LLM judge % of prediction variance)
-
-**Output includes:**
-- Per-dataset AUC tables
-- LLM judge coefficients ranked by magnitude
-- Contribution analysis (train and test sets)
-- Cross-dataset feature importance comparison
-
-Results saved to `chris_output/stacked_coefficient_analysis.json`.
-
-### Example Output
-
-```
-Feature Importance Ranking (by |coefficient|):
-Feature                   SWE  Pro  GSO  Term  Avg
---------------------------------------------------
-verification_difficulty     5    7    1    1   3.5
-problem_clarity             1    6    6    8   5.2
-solution_complexity         8    1    4    9   5.5
-...
-
-Contribution Summary (Test Set):
-                    SWE      Pro      GSO     Term
---------------------------------------------------
-Embedding %       73.1%    69.2%    65.3%    58.8%
-LLM Judge %        4.9%    11.9%    16.4%    17.4%
-```
-
-## Standalone LLM Judge Coefficient Analysis
-
-Compare LLM judge coefficients between **standalone** (direct prediction) and **residual** (error correction) forms:
+Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3 in the paper):
 
 ```bash
-# Run analysis across all 4 datasets
-python -m experiment_a.analyze_llm_standalone_coefficients
+# Run with coefficient analysis for a specific dataset
+python -m experiment_a.run_all_datasets --datasets swebench --coefficients
 
-# Run for single dataset (faster for testing)
-python -m experiment_a.analyze_llm_standalone_coefficients --dataset swebench
-
-# Use custom LLM features (e.g., ablation CSV) with LaTeX and plot output
-python -m experiment_a.analyze_llm_standalone_coefficients --dataset swebench \
-    --llm_path chris_output/llm_judge_features/swebench_ablation_controlled_v3/4_full_15.csv \
-    --latex --plot
+# Via individual dataset script
+python -m experiment_a.swebench.train_evaluate --coefficients
 ```
 
-This script:
-1. Extracts coefficients from standalone LLM Judge Ridge predictor
-2. Compares rankings with residual form (from stacked predictor)
-3. Shows which features matter more for direct prediction vs. error correction
-4. Optionally generates LaTeX tables (`--latex`) and bar graphs (`--plot`) by feature source
-
-**Key differences:**
-- **Standalone**: LLM Judge directly predicts task difficulty (β)
-- **Residual** (stacked): LLM Judge predicts errors from embedding predictions
-
-Results saved to `chris_output/llm_standalone_coefficient_analysis.json`.
-
-### Example Output
-
-```
-Feature Importance Ranking (by |coefficient|):
-                             ---- Standalone ----     ---- Residual ----
-Feature                    SWE  Pro  GSO Term  Avg    SWE  Pro  GSO Term  Avg
------------------------------------------------------------------------------
-verification_difficulty      7    3    1    1   3.0     5    7    1    1   3.5
-solution_complexity          3    2    3    7   3.8     8    1    4    9   5.5
-...
-
-Features with largest ranking changes:
-Higher in Standalone: log_lines_changed (-4.2), solution_complexity (-1.8)
-Higher in Residual:   problem_clarity (+2.8), num_hunks (+2.2)
-```
-
-## Grouped Ridge Coefficient Analysis
-
-Analyze LLM judge feature coefficients from the **Grouped Ridge** predictor (joint embedding + LLM fitting):
-
-```bash
-# Run analysis across all 4 datasets
-python -m experiment_a.analyze_grouped_ridge_coefficients
-
-# Run for single dataset (faster for testing)
-python -m experiment_a.analyze_grouped_ridge_coefficients --dataset swebench
-```
-
-This script:
-1. Uses the existing CV infrastructure with a diagnostics callback
-2. Extracts coefficients from `GroupedRidgePredictor.get_detailed_diagnostics()`
-3. Reports contribution analysis (L2 norm squared) and selected alphas per source
-
-**Contribution is measured by L2 norm squared:**
-```
-Embedding % = ||w_emb||² / (||w_emb||² + ||w_llm||²)
-```
-
-Results saved to `chris_output/grouped_ridge_coefficient_analysis.json`.
-
-### Results (2026-01-25)
-
-**Feature Importance Ranking (by |coefficient|):**
-
-| Feature | SWE | Pro | GSO | Term | Avg Rank |
-|---------|-----|-----|-----|------|----------|
-| verification_difficulty | 5 | 4 | 1 | 1 | **2.8** |
-| solution_complexity | 3 | 1 | 4 | 8 | **4.0** |
-| logical_reasoning_required | 6 | 3 | 2 | 7 | **4.5** |
-| atypicality | 4 | 8 | 6 | 4 | 5.5 |
-| solution_hint | 12 | 5 | 3 | 6 | 6.5 |
-| standard_pattern_available | 8 | 9 | 7 | 2 | 6.5 |
-
-**Contribution Summary (L2 norm squared):**
-
-| Dataset | Embedding % | LLM Judge % | Emb α | LLM α |
-|---------|-------------|-------------|-------|-------|
-| SWE-bench | 86.8% | 13.2% | 10000 | 640 |
-| SWE-bench Pro | 84.4% | 15.6% | 10000 | 1000 |
-| GSO | 76.5% | 23.5% | 6400 | 2260 |
-| TerminalBench | 91.0% | 9.0% | 800 | 44 |
-
-**Key findings:**
-- **verification_difficulty** is the most consistently important LLM feature (avg rank 2.8)
-- LLM Judge contributes 9-24% of coefficient magnitude, with GSO showing highest contribution
-- Selected alphas vary significantly: higher embedding alpha for larger datasets
-
-## Full Feature-IRT (Experimental - Not for Comparison)
-
-The `--include_feature_irt` flag enables Full Feature-IRT predictors that train on ALL tasks (like Oracle). These were added to **sanity check trajectory features** and verify the Feature-IRT implementation, **not** as proper comparison methods.
-
-**Why these shouldn't be used for comparison:**
-
-1. **Trains on test data**: Unlike other predictors, Full Feature-IRT trains on ALL tasks including test tasks, making it an unfair comparison with methods that only see train tasks.
-
-2. **Matches Oracle by design**: With low residual regularization, the per-task difficulty latents can learn task-specific information, effectively recovering Oracle-level predictions (AUC ~0.944).
-
-3. **Different evaluation setup**: These predictors test whether features add value *given full response data*, which is a different question than Experiment A's goal of predicting difficulty *without* running agents.
-
-**When to use:**
-- Verifying feature source implementations work correctly
-- Sanity checking new feature sources (e.g., trajectory features)
-- Understanding variance decomposition between features and difficulty latents
-
-**Analysis script:**
-```bash
-# Analyze Feature-IRT decomposition (feature vs residual contributions)
-python -m experiment_a.analyze_feature_irt
-```
-
-**Do NOT include in results tables or comparison figures.**
+The `--coefficients` flag extracts per-fold Ridge coefficients from the LLM Judge predictor and prints:
+- Feature rankings by |coefficient| magnitude
+- Source-level summary (Problem Statement, Environment, Test Patch, Solution Patch)
+- Bar chart saved to the output directory
 
 ## Caches
 

@@ -22,10 +22,10 @@ from experiment_ab_shared import (
 from experiment_a.shared import (
     CVPredictor,
     CrossValidationResult,
-    AgentOnlyPredictor,
     ConstantPredictor,
     OraclePredictor,
     DifficultyPredictorAdapter,
+    JointTrainingCVPredictor,
     run_cv,
     k_fold_split_tasks,
 )
@@ -42,10 +42,10 @@ __all__ = [
     # From experiment_a.shared
     "CVPredictor",
     "CrossValidationResult",
-    "AgentOnlyPredictor",
     "ConstantPredictor",
     "OraclePredictor",
     "DifficultyPredictorAdapter",
+    "JointTrainingCVPredictor",
     "run_cv",
     "k_fold_split_tasks",
 ]

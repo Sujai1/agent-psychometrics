@@ -64,7 +64,7 @@ def run_feature_irt_single_dataset(
         from experiment_a.shared.baselines import (
             OraclePredictor,
             ConstantPredictor,
-            FeatureIRTCVPredictor,
+            JointTrainingCVPredictor,
         )
         from experiment_ab_shared import load_dataset_for_fold, filter_unsolved_tasks
         from experiment_ab_shared.dataset import _load_binary_responses, _load_binomial_responses
@@ -168,7 +168,7 @@ def run_feature_irt_single_dataset(
             ])
             predictor_configs.append(
                 CVPredictorConfig(
-                    predictor=FeatureIRTCVPredictor(grouped_source, verbose=False),
+                    predictor=JointTrainingCVPredictor(grouped_source, verbose=False),
                     name="feature_irt_grouped",
                     display_name="Feature-IRT (Emb+LLM)",
                 )
@@ -178,7 +178,7 @@ def run_feature_irt_single_dataset(
         if "LLM Judge" in source_by_name:
             predictor_configs.append(
                 CVPredictorConfig(
-                    predictor=FeatureIRTCVPredictor(source_by_name["LLM Judge"], verbose=False),
+                    predictor=JointTrainingCVPredictor(source_by_name["LLM Judge"], verbose=False),
                     name="feature_irt_llm",
                     display_name="Feature-IRT (LLM)",
                 )
@@ -188,7 +188,7 @@ def run_feature_irt_single_dataset(
         if "Embedding" in source_by_name:
             predictor_configs.append(
                 CVPredictorConfig(
-                    predictor=FeatureIRTCVPredictor(source_by_name["Embedding"], verbose=False),
+                    predictor=JointTrainingCVPredictor(source_by_name["Embedding"], verbose=False),
                     name="feature_irt_embedding",
                     display_name="Feature-IRT (Emb)",
                 )
