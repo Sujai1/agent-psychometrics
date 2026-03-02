@@ -7,7 +7,6 @@ a compact table format.
 
 Usage:
     python -m experiment_a.run_all_datasets
-    python -m experiment_a.run_all_datasets --no-unified_judge  # Use dataset-specific features
     python -m experiment_a.run_all_datasets --output results.csv  # Save to CSV
 """
 
@@ -53,8 +52,6 @@ def run_single_dataset(
     dataset: str,
     output_base: Optional[Path] = None,
     k_folds: int = 5,
-    n_jobs_methods: int = 1,
-    n_jobs_folds: int = 1,
     judge_ablation: bool = False,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
@@ -67,8 +64,6 @@ def run_single_dataset(
         dataset: Dataset short name (e.g., "swebench", "gso").
         output_base: Base directory for outputs.
         k_folds: Number of CV folds.
-        n_jobs_methods: Number of parallel jobs for method execution.
-        n_jobs_folds: Number of parallel jobs for fold execution.
         judge_ablation: Whether to include no-solution and problem-only LLM judge ablations.
         extra_embeddings_paths: Additional embedding paths for ablation studies.
         extra_llm_judge_paths: Additional LLM judge paths for ablation studies.
@@ -122,8 +117,6 @@ def run_single_dataset(
     try:
         results = run_cross_validation(
             config, spec, ROOT, k_folds,
-            n_jobs_methods=n_jobs_methods,
-            n_jobs_folds=n_jobs_folds,
             extra_embeddings_paths=extra_embeddings_paths,
             extra_llm_judge_paths=extra_llm_judge_paths,
             diagnostics_extractors=diagnostics_extractors,
@@ -328,18 +321,6 @@ def main():
         help="Maximum parallel workers for datasets (default: 4)",
     )
     parser.add_argument(
-        "--n_jobs_methods",
-        type=int,
-        default=1,
-        help="Parallel jobs for methods within each dataset (default: 1 = sequential)",
-    )
-    parser.add_argument(
-        "--n_jobs_folds",
-        type=int,
-        default=1,
-        help="Parallel jobs for folds within each method (default: 1 = sequential)",
-    )
-    parser.add_argument(
         "--judge_ablation",
         action="store_true",
         help="Include LLM judge ablation variants (no-solution, problem-only) for each dataset.",
@@ -410,7 +391,7 @@ def main():
     print(f"Training method: {training_method}")
     print(f"K-folds: {args.k_folds}")
     print(f"Judge ablation: {args.judge_ablation}")
-    print(f"Parallelization: datasets={args.max_workers}, methods={args.n_jobs_methods}, folds={args.n_jobs_folds}")
+    print(f"Parallelization: datasets={args.max_workers}")
     if extra_embeddings_paths:
         print(f"Extra embedding paths: {[name for name, _ in extra_embeddings_paths]}")
     if extra_llm_judge_paths:
@@ -428,8 +409,6 @@ def main():
                 dataset,
                 output_base=args.output_dir,
                 k_folds=args.k_folds,
-                n_jobs_methods=args.n_jobs_methods,
-                n_jobs_folds=args.n_jobs_folds,
                 judge_ablation=args.judge_ablation,
                 extra_embeddings_paths=extra_embeddings_paths,
                 extra_llm_judge_paths=extra_llm_judge_paths,
@@ -456,8 +435,6 @@ def main():
                     dataset,
                     output_base=args.output_dir,
                     k_folds=args.k_folds,
-                    n_jobs_methods=args.n_jobs_methods,
-                    n_jobs_folds=args.n_jobs_folds,
                     judge_ablation=args.judge_ablation,
                     extra_embeddings_paths=extra_embeddings_paths,
                     extra_llm_judge_paths=extra_llm_judge_paths,

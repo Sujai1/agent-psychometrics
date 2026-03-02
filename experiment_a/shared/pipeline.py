@@ -6,7 +6,6 @@ The experiments differ only in:
 - Response type (binary vs binomial)
 - IRT cache directory
 - Feature paths (embeddings, LLM judge CSVs)
-- Metadata loading (TerminalBench loads task data from repo)
 """
 
 import json
@@ -226,35 +225,6 @@ def build_cv_predictors(
     return configs
 
 
-def _run_single_predictor(
-    pc: CVPredictorConfig,
-    folds: List,
-    load_fold_data: Callable,
-    compute_pass_rate_mse: bool,
-    expansion_mode: Optional[str],
-    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]],
-    diagnostics_extractor: Optional[Callable],
-    n_jobs_folds: int,
-) -> Tuple[str, CrossValidationResult]:
-    """Run CV for a single predictor. Helper for parallel execution."""
-    import copy
-    # Deep copy predictor to avoid state conflicts in parallel execution
-    predictor_copy = copy.deepcopy(pc.predictor)
-
-    result = run_cv(
-        predictor_copy,
-        folds,
-        load_fold_data,
-        verbose=False,  # Disable verbose in parallel mode
-        compute_pass_rate_mse=compute_pass_rate_mse,
-        expansion_mode=expansion_mode,
-        binomial_responses=binomial_responses,
-        diagnostics_extractor=diagnostics_extractor,
-        n_jobs=n_jobs_folds,
-    )
-    return pc.name, result
-
-
 def run_cross_validation(
     config: Any,
     spec: ExperimentSpec,
@@ -263,8 +233,6 @@ def run_cross_validation(
     expansion_mode: Optional[str] = None,
     binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
     diagnostics_extractors: Optional[Dict[str, Callable]] = None,
-    n_jobs_methods: int = 1,
-    n_jobs_folds: int = 1,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
     predictor_factory: Optional[Callable[[str, Any, Any], CVPredictor]] = None,
@@ -272,7 +240,6 @@ def run_cross_validation(
     """Run the evaluation pipeline with k-fold cross-validation.
 
     Uses the unified run_cv function for ALL predictors including baselines.
-    Supports parallelization at two levels: across methods and across folds.
 
     Args:
         config: Experiment configuration
@@ -285,8 +252,6 @@ def run_cross_validation(
         diagnostics_extractors: Optional dict mapping predictor name -> extractor function.
             Each extractor is called as extractor(predictor, fold_idx) after each fold.
             Results are stored in CrossValidationResult.fold_diagnostics.
-        n_jobs_methods: Number of parallel jobs for method execution. 1 = sequential.
-        n_jobs_folds: Number of parallel jobs for fold execution within each method.
         extra_embeddings_paths: List of (name, path) tuples for additional embedding
             sources to compare (ablation study).
         extra_llm_judge_paths: List of (name, path) tuples for additional LLM judge
@@ -359,65 +324,29 @@ def run_cross_validation(
     cv_results: Dict[str, CrossValidationResult] = {}
 
     # Run CV for each predictor using the unified framework
-    if n_jobs_methods == 1:
-        # Sequential execution (original behavior)
-        for i, pc in enumerate(predictor_configs, 1):
-            print(f"\n{i}. {pc.display_name}:")
+    for i, pc in enumerate(predictor_configs, 1):
+        print(f"\n{i}. {pc.display_name}:")
 
-            # Get diagnostics extractor for this predictor if provided
-            extractor = None
-            if diagnostics_extractors and pc.name in diagnostics_extractors:
-                extractor = diagnostics_extractors[pc.name]
+        # Get diagnostics extractor for this predictor if provided
+        extractor = None
+        if diagnostics_extractors and pc.name in diagnostics_extractors:
+            extractor = diagnostics_extractors[pc.name]
 
-            cv_results[pc.name] = run_cv(
-                pc.predictor,
-                folds,
-                load_fold_data,
-                verbose=True,
-                compute_pass_rate_mse=compute_pass_rate_mse,
-                expansion_mode=expansion_mode,
-                binomial_responses=binomial_responses,
-                diagnostics_extractor=extractor,
-                n_jobs=n_jobs_folds,
-            )
-            result = cv_results[pc.name]
-            if result.mean_auc is not None:
-                print(f"   Mean AUC: {result.mean_auc:.4f} ± {result.std_auc:.4f}")
-            else:
-                print("   Mean AUC: N/A")
-    else:
-        # Parallel execution across methods
-        from joblib import Parallel, delayed
-
-        print(f"\nRunning {len(predictor_configs)} predictors in parallel (n_jobs={n_jobs_methods})...")
-
-        # Build list of (config, extractor) tuples for parallel execution
-        predictor_tasks = []
-        for pc in predictor_configs:
-            extractor = None
-            if diagnostics_extractors and pc.name in diagnostics_extractors:
-                extractor = diagnostics_extractors[pc.name]
-            predictor_tasks.append((pc, extractor))
-
-        results = Parallel(n_jobs=n_jobs_methods)(
-            delayed(_run_single_predictor)(
-                pc, folds, load_fold_data, compute_pass_rate_mse,
-                expansion_mode, binomial_responses, extractor, n_jobs_folds
-            )
-            for pc, extractor in predictor_tasks
+        cv_results[pc.name] = run_cv(
+            pc.predictor,
+            folds,
+            load_fold_data,
+            verbose=True,
+            compute_pass_rate_mse=compute_pass_rate_mse,
+            expansion_mode=expansion_mode,
+            binomial_responses=binomial_responses,
+            diagnostics_extractor=extractor,
         )
-
-        # Collect results
-        for name, result in results:
-            cv_results[name] = result
-
-        # Print results after parallel execution
-        for pc in predictor_configs:
-            result = cv_results[pc.name]
-            if result.mean_auc is not None:
-                print(f"   {pc.display_name}: AUC = {result.mean_auc:.4f} ± {result.std_auc:.4f}")
-            else:
-                print(f"   {pc.display_name}: AUC = N/A")
+        result = cv_results[pc.name]
+        if result.mean_auc is not None:
+            print(f"   Mean AUC: {result.mean_auc:.4f} ± {result.std_auc:.4f}")
+        else:
+            print("   Mean AUC: N/A")
 
     # Print summary
     print("\n" + "=" * 75)
