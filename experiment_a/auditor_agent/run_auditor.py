@@ -58,7 +58,7 @@ DATASET_CONFIGS = {
     },
     "terminalbench": {
         "inspect_task": "experiment_a/terminalbench/inspect_task.py@auditor_task_v4_terminalbench",
-        "items_csv": "chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv",
+        "items_csv": "chris_output/terminal_bench_2.0/1d_1pl/items.csv",
         "log_dir_name": "terminalbench_v4",
     },
     "gso": {

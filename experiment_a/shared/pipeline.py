@@ -3,7 +3,6 @@
 This module provides the common evaluation pipeline that all datasets use.
 The experiments differ only in:
 - Dataset name
-- Response type (binary vs binomial)
 - IRT cache directory
 - Feature paths (embeddings, LLM judge CSVs)
 """
@@ -33,7 +32,6 @@ from experiment_ab_shared import (
 )
 from experiment_ab_shared.dataset import (
     _load_binary_responses,
-    _load_binomial_responses,
 )
 
 from experiment_a.shared.cross_validation import (
@@ -213,8 +211,6 @@ def cross_validate_all_predictors(
     config: Any,
     root: Path,
     k: int = 5,
-    expansion_mode: Optional[str] = None,
-    binomial_responses: Optional[Dict[str, Dict[str, Dict[str, int]]]] = None,
     diagnostics_extractors: Optional[Dict[str, Callable]] = None,
     extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
     extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
@@ -226,12 +222,9 @@ def cross_validate_all_predictors(
 
     Args:
         config: Experiment configuration (ExperimentAConfig with display_name,
-            is_binomial, irt_cache_dir, and all data paths)
+            irt_cache_dir, and all data paths)
         root: Root directory for resolving relative paths
         k: Number of folds
-        expansion_mode: Override AUC expansion method ("binary", "expand", or None)
-        binomial_responses: Original binomial responses, required for expansion_mode="expand"
-            when data is binary (trained on sampled data)
         diagnostics_extractors: Optional dict mapping predictor name -> extractor function.
             Each extractor is called as extractor(predictor, fold_idx) after each fold.
             Results are stored in CrossValidationResult.fold_diagnostics.
@@ -261,13 +254,8 @@ def cross_validate_all_predictors(
 
     # Optionally filter unsolved tasks before generating folds
     if config.exclude_unsolved:
-        if config.is_binomial:
-            responses = _load_binomial_responses(responses_path)
-        else:
-            responses = _load_binary_responses(responses_path)
-        all_task_ids, n_excluded = filter_unsolved_tasks(
-            all_task_ids, responses, config.is_binomial
-        )
+        responses = _load_binary_responses(responses_path)
+        all_task_ids, n_excluded = filter_unsolved_tasks(all_task_ids, responses)
         print(f"\nExcluded {n_excluded} unsolved tasks ({len(all_task_ids)} remaining)")
 
     print(f"\nTotal tasks: {len(all_task_ids)}")
@@ -287,7 +275,6 @@ def cross_validate_all_predictors(
             fold_idx=fold_idx,
             k_folds=k,
             split_seed=config.split_seed,
-            is_binomial=config.is_binomial,
             irt_cache_dir=root / config.irt_cache_dir,
             exclude_unsolved=config.exclude_unsolved,
         )
@@ -299,9 +286,6 @@ def cross_validate_all_predictors(
         extra_llm_judge_paths=extra_llm_judge_paths,
         predictor_factory=predictor_factory,
     )
-
-    # Determine if we should compute binomial metrics
-    compute_pass_rate_mse = config.is_binomial
 
     # Results dict
     cv_results: Dict[str, CrossValidationResult] = {}
@@ -320,9 +304,6 @@ def cross_validate_all_predictors(
             folds,
             load_fold_data,
             verbose=True,
-            compute_pass_rate_mse=compute_pass_rate_mse,
-            expansion_mode=expansion_mode,
-            binomial_responses=binomial_responses,
             diagnostics_extractor=extractor,
         )
         result = cv_results[pc.name]
@@ -344,27 +325,15 @@ def cross_validate_all_predictors(
     ]
     display_order.sort(key=lambda x: x[2], reverse=True)
 
-    if compute_pass_rate_mse:
-        print(f"\n{'Method':<55} {'Mean AUC':>10} {'Std':>8} {'Pass Rate MSE':>14}")
-        print("-" * 92)
+    print(f"\n{'Method':<55} {'Mean AUC':>10} {'Std':>8}")
+    print("-" * 75)
 
-        for name, key, _ in display_order:
-            result = cv_results[key]
-            if result.mean_auc is not None:
-                mse_str = f"{result.mean_pass_rate_mse:.4f}" if result.mean_pass_rate_mse is not None else "N/A"
-                print(f"{name:<55} {result.mean_auc:>10.4f} {result.std_auc:>8.4f} {mse_str:>14}")
-            else:
-                print(f"{name:<55} {'N/A':>10} {'N/A':>8} {'N/A':>14}")
-    else:
-        print(f"\n{'Method':<55} {'Mean AUC':>10} {'Std':>8}")
-        print("-" * 75)
-
-        for name, key, _ in display_order:
-            result = cv_results[key]
-            if result.mean_auc is not None:
-                print(f"{name:<55} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
-            else:
-                print(f"{name:<55} {'N/A':>10} {'N/A':>8}")
+    for name, key, _ in display_order:
+        result = cv_results[key]
+        if result.mean_auc is not None:
+            print(f"{name:<55} {result.mean_auc:>10.4f} {result.std_auc:>8.4f}")
+        else:
+            print(f"{name:<55} {'N/A':>10} {'N/A':>8}")
 
     # Return results as dict
     return {
@@ -372,5 +341,3 @@ def cross_validate_all_predictors(
         "k_folds": k,
         "cv_results": {name: asdict(result) for name, result in cv_results.items()},
     }
-
-

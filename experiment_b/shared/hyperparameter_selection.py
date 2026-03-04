@@ -62,10 +62,7 @@ def stratified_pair_split(
         for task in task_ids:
             if task in responses[agent]:
                 resp = responses[agent][task]
-                # Handle binomial responses
-                if isinstance(resp, dict) and "successes" in resp:
-                    resp = 1 if resp["successes"] > 0 else 0
-                all_pairs.append((agent, task, resp))
+                all_pairs.append((agent, task, int(resp)))
 
     if not all_pairs:
         raise ValueError("No response pairs found for the given agents and tasks")

@@ -4,8 +4,7 @@ Implements JointTrainingCVPredictor which jointly learns feature weights and
 agent abilities by maximizing the IRT log-likelihood. This is an alternative
 to the two-stage Ridge approach (train IRT → predict difficulty from features).
 
-Supports both binary (Bernoulli) and binomial data, with per-source L2
-regularization for GroupedFeatureSource.
+Supports per-source L2 regularization for GroupedFeatureSource.
 """
 
 import itertools
@@ -40,9 +39,7 @@ class JointTrainingCVPredictor:
     After training on train tasks, it can predict difficulty for unseen test tasks
     using only the learned feature weights, enabling cross-validation.
 
-    Supports both:
-    - Binary data (Bernoulli likelihood): y_ij ~ Bernoulli(sigmoid(theta_j - b_i))
-    - Binomial data (Binomial likelihood): k_ij ~ Binomial(n_ij, sigmoid(theta_j - b_i))
+    Uses Bernoulli likelihood: y_ij ~ Bernoulli(sigmoid(theta_j - b_i))
 
     Hyperparameter selection:
     - Uses internal k-fold CV (default k=3) to select best L2 weights
@@ -183,46 +180,22 @@ class JointTrainingCVPredictor:
     ) -> dict:
         """Prepare response data for training.
 
-        Returns dict with keys depending on data type:
-        - Binary: 'responses_binary', 'agent_ids_with_responses'
-        - Binomial: 'responses_counts', 'agent_ids_with_responses'
+        Returns dict with 'responses_binary' and 'agent_ids_with_responses'.
         """
-        from experiment_ab_shared.dataset import BinomialExperimentData
-        is_binomial = isinstance(data, BinomialExperimentData)
-
-        if is_binomial:
-            responses_counts: Dict[str, Dict[str, tuple]] = {}
-            for agent_id in agent_ids:
-                if agent_id not in data.responses:
-                    continue
-                agent_responses = {}
-                for task_id in task_ids:
-                    if task_id in data.responses[agent_id]:
-                        resp = data.responses[agent_id][task_id]
-                        agent_responses[task_id] = (resp["successes"], resp["trials"])
-                if agent_responses:
-                    responses_counts[agent_id] = agent_responses
-            return {
-                'is_binomial': True,
-                'responses_counts': responses_counts,
-                'agent_ids_with_responses': list(responses_counts.keys()),
-            }
-        else:
-            responses_binary: Dict[str, Dict[str, int]] = {}
-            for agent_id in agent_ids:
-                if agent_id not in data.responses:
-                    continue
-                agent_responses = {}
-                for task_id in task_ids:
-                    if task_id in data.responses[agent_id]:
-                        agent_responses[task_id] = data.responses[agent_id][task_id]
-                if agent_responses:
-                    responses_binary[agent_id] = agent_responses
-            return {
-                'is_binomial': False,
-                'responses_binary': responses_binary,
-                'agent_ids_with_responses': list(responses_binary.keys()),
-            }
+        responses_binary: Dict[str, Dict[str, int]] = {}
+        for agent_id in agent_ids:
+            if agent_id not in data.responses:
+                continue
+            agent_responses = {}
+            for task_id in task_ids:
+                if task_id in data.responses[agent_id]:
+                    agent_responses[task_id] = data.responses[agent_id][task_id]
+            if agent_responses:
+                responses_binary[agent_id] = agent_responses
+        return {
+            'responses_binary': responses_binary,
+            'agent_ids_with_responses': list(responses_binary.keys()),
+        }
 
     def _fit_single(
         self,
@@ -245,10 +218,10 @@ class JointTrainingCVPredictor:
         """
         import torch
         from torch.optim import LBFGS
-        from torch.distributions import Bernoulli, Binomial
+        from torch.distributions import Bernoulli
 
-        is_binomial = prepared_data['is_binomial']
         agent_ids_with_responses = prepared_data['agent_ids_with_responses']
+        responses_binary = prepared_data['responses_binary']
         n_agents = len(agent_ids_with_responses)
         n_tasks = len(task_ids)
         device = "cpu"
@@ -263,81 +236,37 @@ class JointTrainingCVPredictor:
             group_slices = None
             group_l2_weights = None
 
-        if is_binomial:
-            responses_counts = prepared_data['responses_counts']
-
-            # Build counts and trials matrices
-            counts_matrix = np.full((n_agents, n_tasks), np.nan)
-            trials_matrix = np.full((n_agents, n_tasks), np.nan)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                for j, task_id in enumerate(task_ids):
-                    if task_id in responses_counts.get(agent_id, {}):
-                        k, n = responses_counts[agent_id][task_id]
-                        counts_matrix[i, j] = k
-                        trials_matrix[i, j] = n
-
-            counts_tensor = torch.tensor(counts_matrix, dtype=torch.float32, device=device)
-            trials_tensor = torch.tensor(trials_matrix, dtype=torch.float32, device=device)
-            mask = ~torch.isnan(counts_tensor)
-
-            # Compute empirical task pass rate for initialization
-            eps = 1e-3
-            task_difficulty_init = np.zeros(n_tasks)
+        # Build response matrix
+        response_matrix = np.full((n_agents, n_tasks), np.nan)
+        for i, agent_id in enumerate(agent_ids_with_responses):
             for j, task_id in enumerate(task_ids):
-                total_successes = 0
-                total_trials = 0
-                for agent_id in agent_ids_with_responses:
-                    if task_id in responses_counts.get(agent_id, {}):
-                        k, n = responses_counts[agent_id][task_id]
-                        total_successes += k
-                        total_trials += n
-                if total_trials > 0:
-                    acc = max(eps, min(1 - eps, total_successes / total_trials))
-                    task_difficulty_init[j] = -np.log(acc / (1 - acc))
+                if task_id in responses_binary.get(agent_id, {}):
+                    response_matrix[i, j] = responses_binary[agent_id][task_id]
 
-            # Compute empirical agent ability
-            theta_init = np.zeros(n_agents, dtype=np.float32)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                agent_resp = responses_counts.get(agent_id, {})
-                total_successes = sum(k for k, n in agent_resp.values())
-                total_trials = sum(n for k, n in agent_resp.values())
-                if total_trials > 0:
-                    acc = max(eps, min(1 - eps, total_successes / total_trials))
-                    theta_init[i] = np.log(acc / (1 - acc))
-        else:
-            responses_binary = prepared_data['responses_binary']
+        response_tensor = torch.tensor(response_matrix, dtype=torch.float32, device=device)
+        mask = ~torch.isnan(response_tensor)
 
-            # Binary data
-            response_matrix = np.full((n_agents, n_tasks), np.nan)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                for j, task_id in enumerate(task_ids):
-                    if task_id in responses_binary.get(agent_id, {}):
-                        response_matrix[i, j] = responses_binary[agent_id][task_id]
+        # Compute empirical task pass rate for initialization
+        eps = 1e-3
+        task_difficulty_init = np.zeros(n_tasks)
+        for j, task_id in enumerate(task_ids):
+            successes = sum(
+                1 for r in responses_binary.values() if r.get(task_id, None) == 1
+            )
+            total = sum(1 for r in responses_binary.values() if task_id in r)
+            if total > 0:
+                acc = max(eps, min(1 - eps, successes / total))
+                task_difficulty_init[j] = -np.log(acc / (1 - acc))
 
-            response_tensor = torch.tensor(response_matrix, dtype=torch.float32, device=device)
-            mask = ~torch.isnan(response_tensor)
-
-            # Compute empirical task pass rate for initialization
-            eps = 1e-3
-            task_difficulty_init = np.zeros(n_tasks)
-            for j, task_id in enumerate(task_ids):
-                successes = sum(
-                    1 for r in responses_binary.values() if r.get(task_id, None) == 1
-                )
-                total = sum(1 for r in responses_binary.values() if task_id in r)
-                if total > 0:
-                    acc = max(eps, min(1 - eps, successes / total))
-                    task_difficulty_init[j] = -np.log(acc / (1 - acc))
-
-            # Compute empirical agent ability
-            theta_init = np.zeros(n_agents, dtype=np.float32)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                agent_resp = responses_binary.get(agent_id, {})
-                correct = sum(agent_resp.values())
-                total = len(agent_resp)
-                if total > 0:
-                    acc = max(eps, min(1 - eps, correct / total))
-                    theta_init[i] = np.log(acc / (1 - acc))
+        # Compute empirical agent ability
+        theta_init = np.zeros(n_agents, dtype=np.float32)
+        for i, agent_id in enumerate(agent_ids_with_responses):
+            agent_resp = responses_binary.get(agent_id, {})
+            correct = sum(agent_resp.values())
+            total = len(agent_resp)
+            if total > 0:
+                acc = max(eps, min(1 - eps, correct / total))
+                theta_init[i] = np.log(acc / (1 - acc))
 
         # Warm-start feature weights via Ridge regression
         ridge = Ridge(alpha=1.0)
@@ -381,34 +310,18 @@ class JointTrainingCVPredictor:
             def compute_weight_reg():
                 return l2_w * torch.sum(w ** 2)
 
-        if is_binomial:
-            def closure():
-                nonlocal final_nll
-                optim.zero_grad()
-                diff = torch.matmul(features_tensor, w) + b
-                logits = theta[:, None] - diff[None, :]
-                nll = -Binomial(total_count=trials_tensor[mask], logits=logits[mask]).log_prob(
-                    counts_tensor[mask]
-                ).mean()
-                weight_reg = compute_weight_reg()
-                ability_reg = l2_a * (theta.mean() ** 2)
-                loss = nll + weight_reg + ability_reg
-                loss.backward()
-                final_nll = nll.item()
-                return loss
-        else:
-            def closure():
-                nonlocal final_nll
-                optim.zero_grad()
-                diff = torch.matmul(features_tensor, w) + b
-                probs = torch.sigmoid(theta[:, None] - diff[None, :])
-                nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
-                weight_reg = compute_weight_reg()
-                ability_reg = l2_a * (theta.mean() ** 2)
-                loss = nll + weight_reg + ability_reg
-                loss.backward()
-                final_nll = nll.item()
-                return loss
+        def closure():
+            nonlocal final_nll
+            optim.zero_grad()
+            diff = torch.matmul(features_tensor, w) + b
+            probs = torch.sigmoid(theta[:, None] - diff[None, :])
+            nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
+            weight_reg = compute_weight_reg()
+            ability_reg = l2_a * (theta.mean() ** 2)
+            loss = nll + weight_reg + ability_reg
+            loss.backward()
+            final_nll = nll.item()
+            return loss
 
         # Training loop
         for iteration in range(self.max_iter):
@@ -445,10 +358,10 @@ class JointTrainingCVPredictor:
     ) -> float:
         """Compute negative log-likelihood on held-out data."""
         import torch
-        from torch.distributions import Bernoulli, Binomial
+        from torch.distributions import Bernoulli
 
-        is_binomial = prepared_data['is_binomial']
         agent_ids_with_responses = prepared_data['agent_ids_with_responses']
+        responses_binary = prepared_data['responses_binary']
 
         # Filter to agents we have abilities for
         agent_ids_with_responses = [a for a in agent_ids_with_responses if a in abilities]
@@ -462,54 +375,25 @@ class JointTrainingCVPredictor:
         # Compute difficulties
         diff = features_scaled @ weights + bias
 
-        if is_binomial:
-            responses_counts = prepared_data['responses_counts']
-            counts_matrix = np.full((n_agents, n_tasks), np.nan)
-            trials_matrix = np.full((n_agents, n_tasks), np.nan)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                for j, task_id in enumerate(task_ids):
-                    if task_id in responses_counts.get(agent_id, {}):
-                        k, n = responses_counts[agent_id][task_id]
-                        counts_matrix[i, j] = k
-                        trials_matrix[i, j] = n
+        response_matrix = np.full((n_agents, n_tasks), np.nan)
+        for i, agent_id in enumerate(agent_ids_with_responses):
+            for j, task_id in enumerate(task_ids):
+                if task_id in responses_binary.get(agent_id, {}):
+                    response_matrix[i, j] = responses_binary[agent_id][task_id]
 
-            counts_tensor = torch.tensor(counts_matrix, dtype=torch.float32, device=device)
-            trials_tensor = torch.tensor(trials_matrix, dtype=torch.float32, device=device)
-            mask = ~torch.isnan(counts_tensor)
+        response_tensor = torch.tensor(response_matrix, dtype=torch.float32, device=device)
+        mask = ~torch.isnan(response_tensor)
 
-            if mask.sum() == 0:
-                return float('inf')
+        if mask.sum() == 0:
+            return float('inf')
 
-            theta_arr = np.array([abilities[a] for a in agent_ids_with_responses])
-            theta_tensor = torch.tensor(theta_arr, dtype=torch.float32, device=device)
-            diff_tensor = torch.tensor(diff, dtype=torch.float32, device=device)
+        theta_arr = np.array([abilities[a] for a in agent_ids_with_responses])
+        theta_tensor = torch.tensor(theta_arr, dtype=torch.float32, device=device)
+        diff_tensor = torch.tensor(diff, dtype=torch.float32, device=device)
 
-            logits = theta_tensor[:, None] - diff_tensor[None, :]
-            nll = -Binomial(total_count=trials_tensor[mask], logits=logits[mask]).log_prob(
-                counts_tensor[mask]
-            ).mean()
-            return nll.item()
-        else:
-            responses_binary = prepared_data['responses_binary']
-            response_matrix = np.full((n_agents, n_tasks), np.nan)
-            for i, agent_id in enumerate(agent_ids_with_responses):
-                for j, task_id in enumerate(task_ids):
-                    if task_id in responses_binary.get(agent_id, {}):
-                        response_matrix[i, j] = responses_binary[agent_id][task_id]
-
-            response_tensor = torch.tensor(response_matrix, dtype=torch.float32, device=device)
-            mask = ~torch.isnan(response_tensor)
-
-            if mask.sum() == 0:
-                return float('inf')
-
-            theta_arr = np.array([abilities[a] for a in agent_ids_with_responses])
-            theta_tensor = torch.tensor(theta_arr, dtype=torch.float32, device=device)
-            diff_tensor = torch.tensor(diff, dtype=torch.float32, device=device)
-
-            probs = torch.sigmoid(theta_tensor[:, None] - diff_tensor[None, :])
-            nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
-            return nll.item()
+        probs = torch.sigmoid(theta_tensor[:, None] - diff_tensor[None, :])
+        nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
+        return nll.item()
 
     def fit(self, data: ExperimentData, train_task_ids: List[str]) -> None:
         """Fit by maximizing IRT log-likelihood jointly with abilities.

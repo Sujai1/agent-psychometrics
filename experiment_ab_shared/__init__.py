@@ -9,12 +9,10 @@ This module provides the core abstractions for difficulty prediction:
 from experiment_ab_shared.dataset import (
     ExperimentData,
     BinaryExperimentData,
-    BinomialExperimentData,
     load_dataset,
     load_dataset_for_fold,
     stable_split_tasks,
     filter_unsolved_tasks,
-    expand_response_for_auc,
 )
 from experiment_ab_shared.evaluator import (
     compute_irt_probability,
@@ -42,12 +40,10 @@ __all__ = [
     # Dataset
     "ExperimentData",
     "BinaryExperimentData",
-    "BinomialExperimentData",
     "load_dataset",
     "load_dataset_for_fold",
     "stable_split_tasks",
     "filter_unsolved_tasks",
-    "expand_response_for_auc",
     # Evaluator
     "compute_irt_probability",
     "convert_numpy",

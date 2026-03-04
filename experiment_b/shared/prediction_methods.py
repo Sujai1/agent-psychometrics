@@ -248,10 +248,7 @@ class FeatureIRTPredictor:
             task_ids: Training task IDs (should include ALL tasks for Experiment B).
             ground_truth_b: Baseline IRT difficulties. Used for initialization when
                 init_from_baseline=True, otherwise ignored for API compatibility.
-            responses: Pre-filtered response matrix {agent_id: {task_id: response}}.
-                       Response can be:
-                       - int (0/1) for binary data
-                       - dict {"successes": k, "trials": n} for count data (binomial)
+            responses: Pre-filtered response matrix {agent_id: {task_id: 0|1}}.
                        Must only contain agents that should be used for training.
             baseline_abilities: Baseline IRT abilities (required if init_from_baseline=True).
             baseline_agent_ids: Agent IDs corresponding to baseline_abilities
@@ -260,7 +257,7 @@ class FeatureIRTPredictor:
         try:
             import torch
             from torch.optim import LBFGS
-            from torch.distributions import Bernoulli, Binomial
+            from torch.distributions import Bernoulli
         except ImportError:
             raise ImportError("PyTorch is required for FeatureIRTPredictor")
 
@@ -293,30 +290,14 @@ class FeatureIRTPredictor:
         features_scaled = self._preprocess_features(features, task_ids, fit_scaler=True)
 
         # Build response matrix: (n_agents, n_tasks)
-        # Also build trials matrix for binomial likelihood if count data is present
         response_matrix = np.full((n_agents, n_tasks), np.nan)
-        trials_matrix = np.ones((n_agents, n_tasks))  # Default to 1 trial (binary)
-        has_count_data = False
         for i, agent_id in enumerate(agent_ids):
             for j, task_id in enumerate(task_ids):
                 resp = responses.get(agent_id, {}).get(task_id)
                 if resp is not None:
-                    # Handle both binary (int) and count data (dict with successes/trials)
-                    if isinstance(resp, dict) and "successes" in resp:
-                        response_matrix[i, j] = resp["successes"]
-                        trials_matrix[i, j] = resp["trials"]
-                        has_count_data = True
-                    else:
-                        response_matrix[i, j] = resp
+                    response_matrix[i, j] = resp
 
         # ===== INITIALIZATION =====
-        # Helper to extract successes and trials from a response
-        def get_successes_trials(resp):
-            if resp is None:
-                return None, None
-            if isinstance(resp, dict) and "successes" in resp:
-                return resp["successes"], resp["trials"]
-            return resp, 1  # Binary case
 
         eps = 1e-3
         residual_init = None  # Will be set if init_from_baseline=True
@@ -388,14 +369,10 @@ class FeatureIRTPredictor:
             theta_init = np.zeros(n_agents, dtype=np.float32)
             for i, agent_id in enumerate(agent_ids):
                 agent_resp = responses.get(agent_id, {})
-                total_successes = 0
-                total_trials = 0
-                for task_id, resp in agent_resp.items():
-                    s, t = get_successes_trials(resp)
-                    total_successes += s
-                    total_trials += t
-                if total_trials > 0:
-                    acc = max(eps, min(1 - eps, total_successes / total_trials))
+                correct = sum(agent_resp.values())
+                total = len(agent_resp)
+                if total > 0:
+                    acc = max(eps, min(1 - eps, correct / total))
                     theta_init[i] = np.log(acc / (1 - acc))  # logit(acc)
 
         # Convert to PyTorch tensors
@@ -406,13 +383,6 @@ class FeatureIRTPredictor:
             response_matrix, dtype=torch.float32, device=device
         )
         mask = ~torch.isnan(response_tensor)
-
-        # Build trials tensor if we have count data
-        trials_tensor = None
-        if has_count_data:
-            trials_tensor = torch.tensor(
-                trials_matrix, dtype=torch.float32, device=device
-            )
 
         # Initialize learnable parameters
         w = torch.tensor(w_init, requires_grad=True, device=device)
@@ -474,12 +444,7 @@ class FeatureIRTPredictor:
             probs = torch.sigmoid(theta[:, None] - diff[None, :])
 
             # Negative log-likelihood (only for valid responses)
-            if trials_tensor is not None:
-                # Binomial likelihood: response = successes, trials = total attempts
-                nll = -Binomial(total_count=trials_tensor[mask], probs=probs[mask]).log_prob(response_tensor[mask]).mean()
-            else:
-                # Binary (Bernoulli) likelihood
-                nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
+            nll = -Bernoulli(probs=probs[mask]).log_prob(response_tensor[mask]).mean()
 
             # Regularization components
             weight_reg = l2_w * torch.sum(w**2)
@@ -516,11 +481,6 @@ class FeatureIRTPredictor:
             print(f"   Feature-IRT Training: {n_tasks} tasks, {n_agents} agents")
             print(f"   Feature dim: {feature_dim}, Device: {device}")
             print(f"   Valid response pairs: {mask.sum().item()}")
-            likelihood_type = "Binomial" if trials_tensor is not None else "Bernoulli"
-            print(f"   Likelihood: {likelihood_type}")
-            if trials_tensor is not None:
-                max_trials = int(trials_tensor[mask].max().item())
-                print(f"   Max trials: {max_trials}")
             print(f"   Hyperparams: l2_weight={l2_w}, l2_residual={l2_r}")
             if self._is_grouped_source():
                 alphas = self._get_per_source_alphas()

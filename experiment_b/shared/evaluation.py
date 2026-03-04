@@ -28,15 +28,11 @@ logger = logging.getLogger(__name__)
 def load_responses_dict(responses_path: Path) -> Dict[str, Dict[str, Any]]:
     """Load response matrix as nested dict: agent_id -> task_id -> response.
 
-    The response can be:
-    - int (0/1) for binary data
-    - dict {"successes": k, "trials": n} for count data (binomial)
-
     Args:
-        responses_path: Path to JSONL response matrix
+        responses_path: Path to binary JSONL response matrix
 
     Returns:
-        Nested dict of responses (preserves format from file)
+        Nested dict of responses
     """
     responses = {}
     with open(responses_path) as f:
@@ -332,17 +328,12 @@ def compute_frontier_auc(
 
     For each (agent, task) pair:
         - Compute P(success) = sigmoid(theta_oracle - beta_shifted)
-        - Compare to actual response (expanded for binomial data)
-
-    Handles both binary responses (0/1) and binomial responses ({"successes": k, "trials": n}).
-    For binomial data, each trial is treated as an independent observation for AUC computation,
-    matching the approach used in experiment_a.
+        - Compare to actual binary response (0/1)
 
     Args:
         oracle_abilities: DataFrame with 'theta' column, indexed by agent_id
         shifted_beta: Dict of difficulties aligned to oracle scale
-        responses: Response matrix as nested dict (agent_id -> task_id -> response)
-                   Response can be int (0/1) or dict {"successes": k, "trials": n}
+        responses: Response matrix as nested dict (agent_id -> task_id -> 0|1)
         frontier_task_ids: Tasks to evaluate on
         eval_agents: Agents to evaluate on (typically post-frontier only)
 
@@ -352,8 +343,6 @@ def compute_frontier_auc(
     Raises:
         ValueError: If too many agents or tasks are missing from required data
     """
-    from experiment_ab_shared.dataset import expand_response_for_auc
-
     y_true = []
     y_scores = []
 
@@ -386,10 +375,8 @@ def compute_frontier_auc(
             prob = float(sigmoid(theta - beta))
             response = agent_responses[task_id]
 
-            # Expand response for AUC (handles both binary and binomial)
-            expanded = expand_response_for_auc(response)
-            y_true.extend(expanded)
-            y_scores.extend([prob] * len(expanded))
+            y_true.append(int(response))
+            y_scores.append(prob)
 
     # Check for missing data and raise if too much is missing
     if agents_missing_abilities:
@@ -471,7 +458,7 @@ def compute_mean_per_agent_auc(
 
     Args:
         predicted_beta: Dict mapping task_id -> predicted difficulty (any scale)
-        responses: Response matrix as nested dict (agent_id -> task_id -> response)
+        responses: Response matrix as nested dict (agent_id -> task_id -> 0|1)
         frontier_task_ids: Tasks to evaluate on
         eval_agents: Agents to evaluate on (must have response variance on frontier tasks)
 
@@ -481,8 +468,6 @@ def compute_mean_per_agent_auc(
     Raises:
         ValueError: If any required data is missing or if an agent has no response variance
     """
-    from experiment_ab_shared.dataset import expand_response_for_auc
-
     # Validate all required data is present
     missing_agents = [a for a in eval_agents if a not in responses]
     if missing_agents:
@@ -515,10 +500,8 @@ def compute_mean_per_agent_auc(
             score = -predicted_beta[task_id]
             response = agent_responses[task_id]
 
-            # Expand response for binomial data
-            expanded = expand_response_for_auc(response)
-            y_true.extend(expanded)
-            y_scores.extend([score] * len(expanded))
+            y_true.append(int(response))
+            y_scores.append(score)
 
         # All agents should have variance - if not, they should have been pre-filtered
         if len(set(y_true)) < 2:
@@ -574,8 +557,6 @@ def filter_agents_with_frontier_variance(
     Returns:
         List of agents that have at least one success on frontier tasks
     """
-    from experiment_ab_shared.dataset import expand_response_for_auc
-
     filtered_agents = []
     removed_agents = []
 
@@ -591,8 +572,7 @@ def filter_agents_with_frontier_variance(
                 raise ValueError(
                     f"Agent {agent_id} missing response for frontier task {task_id}"
                 )
-            expanded = expand_response_for_auc(agent_responses[task_id])
-            if any(r == 1 for r in expanded):
+            if int(agent_responses[task_id]) == 1:
                 has_success = True
                 break
 

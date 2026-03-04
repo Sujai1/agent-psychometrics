@@ -222,11 +222,7 @@ def _compute_pass_rates_from_dict(
         for agent_id in agents:
             resp = responses.get(agent_id, {}).get(task_id)
             if resp is not None:
-                # Handle both binary and binomial data
-                if isinstance(resp, dict) and "successes" in resp:
-                    successes += 1 if resp["successes"] > 0 else 0
-                else:
-                    successes += 1 if resp > 0 else 0
+                successes += 1 if resp > 0 else 0
                 total += 1
         pass_rates[task_id] = successes / total if total > 0 else 0.0
     return pass_rates

@@ -135,7 +135,6 @@ def compute_pass_rates(
     """Compute empirical pass rate for each task among specified agents.
 
     Pass rate = fraction of agents that solved the task (at least once).
-    Supports both binary (0/1) and binomial ({successes, trials}) data.
 
     Args:
         responses_path: Path to JSONL response matrix
@@ -154,14 +153,7 @@ def compute_pass_rates(
             if data["subject_id"] not in agent_set:
                 continue
             for task_id, response in data["responses"].items():
-                # Handle both binary and binomial responses
-                # For pass rate, we care about whether agent solved at least once
-                if isinstance(response, dict) and "successes" in response:
-                    # Binomial: 1 if any success, 0 otherwise
-                    task_successes[task_id].append(1 if response["successes"] > 0 else 0)
-                else:
-                    # Binary: 0 or 1
-                    task_successes[task_id].append(int(response))
+                task_successes[task_id].append(int(response))
 
     return {
         task_id: sum(successes) / len(successes) if successes else 0.0
@@ -543,11 +535,7 @@ def filter_eval_agents(
         for task_id in frontier_task_ids:
             if task_id in agent_responses:
                 response = agent_responses[task_id]
-                # Handle binomial responses
-                if isinstance(response, dict) and "successes" in response:
-                    if response["successes"] > 0:
-                        successes += 1
-                elif response == 1:
+                if response == 1:
                     successes += 1
 
         # Success rate = successes / total frontier tasks
@@ -761,10 +749,8 @@ def _train_baseline_irt_on_agents(
 ) -> Dict[str, float]:
     """Train standard IRT on a subset of agents using py_irt.
 
-    Supports both binary (SWE-bench) and binomial (TerminalBench) data formats.
-
     Args:
-        responses_path: Path to response matrix JSONL
+        responses_path: Path to binary response matrix JSONL
         agent_subset: List of agent IDs to include in training
         output_dir: Directory to save IRT outputs
         epochs: Number of training epochs for py_irt
@@ -774,7 +760,6 @@ def _train_baseline_irt_on_agents(
     """
     import pyro
     import torch
-    import tempfile
 
     from py_irt.dataset import Dataset
     from py_irt.models import OneParamLog
@@ -784,44 +769,24 @@ def _train_baseline_irt_on_agents(
     # Load response matrix and filter to subset of agents
     agent_set = set(agent_subset)
     filtered_records = []
-    is_binomial = False
 
     with open(responses_path, 'r') as f:
         for line in f:
             record = json.loads(line)
             if record['subject_id'] in agent_set:
                 filtered_records.append(record)
-                # Check if first response is dict (binomial data)
-                if not is_binomial and record['responses']:
-                    first_response = next(iter(record['responses'].values()))
-                    if isinstance(first_response, dict) and "successes" in first_response:
-                        is_binomial = True
 
     logger.info(f"Loaded {len(filtered_records)} agent responses for baseline IRT")
-    logger.info(f"Data format: {'binomial' if is_binomial else 'binary'}")
 
-    if is_binomial:
-        # Write filtered records to temp file and use from_jsonlines
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as tmp:
-            for record in filtered_records:
-                tmp.write(json.dumps(record) + '\n')
-            tmp_path = tmp.name
+    # Binary data - use pandas approach
+    data_list = []
+    for record in filtered_records:
+        row = {'subject_id': record['subject_id']}
+        row.update(record['responses'])
+        data_list.append(row)
 
-        try:
-            dataset = Dataset.from_jsonlines(tmp_path)
-        finally:
-            import os
-            os.unlink(tmp_path)
-    else:
-        # Binary data - use pandas approach
-        data_list = []
-        for record in filtered_records:
-            row = {'subject_id': record['subject_id']}
-            row.update(record['responses'])
-            data_list.append(row)
-
-        df = pd.DataFrame(data_list)
-        item_columns = [col for col in df.columns if col != 'subject_id']
+    df = pd.DataFrame(data_list)
+    item_columns = [col for col in df.columns if col != 'subject_id']
         dataset = Dataset.from_pandas(df, subject_column="subject_id", item_columns=item_columns)
 
     # Train 1PL IRT with fixed seed for reproducibility
