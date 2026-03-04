@@ -30,7 +30,7 @@ embeddings/
 # Output files
 *.out
 *.jsonl
-!data/swebench/responses.jsonl
+!data/swebench_verified/responses.jsonl
 !data/gso/responses.jsonl
 !data/swebench_pro/responses.jsonl
 !data/terminalbench/responses.jsonl

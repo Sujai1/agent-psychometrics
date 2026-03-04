@@ -4,7 +4,7 @@ It works by running train.py in separate processes to ensure complete isolation 
 
 Call the function using the following syntax:
     python swebench_irt/train_rep.py --dims 1 2 3 --reps 5 --epochs 5000
-    python swebench_irt/train_rep.py --dims 1 2 3 --reps 5 --epochs 5000 --data_path data/swebench/responses.jsonl
+    python swebench_irt/train_rep.py --dims 1 2 3 --reps 5 --epochs 5000 --data_path data/swebench_verified/responses.jsonl
 """
 
 from pathlib import Path
@@ -162,7 +162,7 @@ def main():
         help='Number of repetitions for each model (default: 5)')
     parser.add_argument('--output_dir', type=str, default="clean_data/training_results_rep",
         help="Directory to save results to")
-    parser.add_argument('--data_path', type=str, default="data/swebench/responses.jsonl",
+    parser.add_argument('--data_path', type=str, default="data/swebench_verified/responses.jsonl",
         help="Path to JSONL responses")
     parser.add_argument('--epochs', type=int, default=5000,
         help='Number of training epochs per run (default: 5000)')

@@ -629,7 +629,7 @@ def main() -> None:
     parser.add_argument(
         "--verified_path",
         type=str,
-        default="data/swebench/responses.jsonl",
+        default="data/swebench_verified/responses.jsonl",
         help="Path to Verified agent×task JSONL (subject_id, responses)",
     )
     parser.add_argument(

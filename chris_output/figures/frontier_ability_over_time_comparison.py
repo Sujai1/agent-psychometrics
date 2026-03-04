@@ -259,7 +259,7 @@ def plot_comparison(abilities_1pl_path: Path, abilities_2pl_path: Path):
 def main():
     parser = argparse.ArgumentParser(description="Plot frontier ability over time")
     parser.add_argument("--model_dir", type=str,
-                       default="data/swebench/irt",
+                       default="data/swebench_verified/irt",
                        help="Directory containing 1d/ and 1d_1pl/ subdirectories")
     args = parser.parse_args()
 

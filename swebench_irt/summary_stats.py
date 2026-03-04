@@ -11,7 +11,7 @@ import scipy.stats as stats
 OUTPUT_DIR = Path("chris_output/tables/")
 OUTPUT_VAL = Path("chris_output/values/")
 OUTPUT_FIG = Path("chris_output/figures/")
-DATA_PATH = Path("data/swebench/responses.jsonl")
+DATA_PATH = Path("data/swebench_verified/responses.jsonl")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_VAL.mkdir(parents=True, exist_ok=True)
@@ -293,7 +293,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load response data
-    data, item_columns = load_irt_data("data/swebench/responses.jsonl")
+    data, item_columns = load_irt_data("data/swebench_verified/responses.jsonl")
 
     # Run summary stats if requested or by default
     if args.stat is None or args.stat == 'summary':

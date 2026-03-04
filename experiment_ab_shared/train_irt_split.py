@@ -399,7 +399,7 @@ def main():
     parser.add_argument(
         "--responses_path",
         type=Path,
-        default=Path("data/swebench/responses.jsonl"),
+        default=Path("data/swebench_verified/responses.jsonl"),
         help="Path to full response matrix JSONL",
     )
     parser.add_argument(

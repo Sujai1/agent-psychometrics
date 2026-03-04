@@ -43,7 +43,7 @@ python -m experiment_b.compare_methods
 
 # Train IRT model
 python swebench_irt/train.py --dims 1 --model 1pl \
-    --data_path data/swebench/responses.jsonl
+    --data_path data/swebench_verified/responses.jsonl
 ```
 
 ## Datasets
@@ -52,7 +52,7 @@ All input data lives under `data/{dataset}/`:
 
 | Dataset | Tasks | Agents | Response Matrix | IRT Model |
 |---------|-------|--------|----------------|-----------|
-| SWE-bench Verified | 500 | 134 | `data/swebench/responses.jsonl` | `data/swebench/irt/1d_1pl/` |
+| SWE-bench Verified | 500 | 134 | `data/swebench_verified/responses.jsonl` | `data/swebench_verified/irt/1d_1pl/` |
 | GSO | 102 | 15 | `data/gso/responses.jsonl` | `data/gso/irt/1d_1pl/` |
 | TerminalBench | 89 | 112 | `data/terminalbench/responses.jsonl` | `data/terminalbench/irt/1d_1pl/` |
 | SWE-bench Pro | 730 | 14 | `data/swebench_pro/responses.jsonl` | `data/swebench_pro/irt/1d_1pl/` |

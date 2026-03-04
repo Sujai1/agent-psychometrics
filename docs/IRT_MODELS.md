@@ -44,18 +44,18 @@ source .venv/bin/activate
 
 # Train 1PL model (saves to 1d_1pl/)
 python swebench_irt/train.py \
-    --data_path data/swebench/responses.jsonl \
+    --data_path data/swebench_verified/responses.jsonl \
     --dims 1 \
     --model 1pl \
-    --output_dir data/swebench/irt \
+    --output_dir data/swebench_verified/irt \
     --epochs 5000
 
 # Train 2PL model (saves to 1d/)
 python swebench_irt/train.py \
-    --data_path data/swebench/responses.jsonl \
+    --data_path data/swebench_verified/responses.jsonl \
     --dims 1 \
     --model 2pl \
-    --output_dir data/swebench/irt \
+    --output_dir data/swebench_verified/irt \
     --epochs 5000
 ```
 
@@ -74,7 +74,7 @@ python swebench_irt/train.py \
 ## Output Structure
 
 ```
-data/swebench/irt/
+data/swebench_verified/irt/
 ├── 1d/               # 2PL model
 │   ├── items.csv     # a, b, a_std, b_std (500 tasks)
 │   └── abilities.csv # theta, theta_std (130 agents)

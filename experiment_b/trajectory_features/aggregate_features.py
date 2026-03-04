@@ -161,7 +161,7 @@ def create_high_dim_features(
 
 
 def load_agent_abilities(
-    abilities_path: str = "data/swebench/irt/1d_1pl/abilities.csv",
+    abilities_path: str = "data/swebench_verified/irt/1d_1pl/abilities.csv",
 ) -> Dict[str, float]:
     """Load agent IRT abilities from file."""
     df = pd.read_csv(abilities_path, index_col=0)
@@ -224,7 +224,7 @@ def main():
     parser.add_argument(
         "--abilities_path",
         type=str,
-        default="data/swebench/irt/1d_1pl/abilities.csv",
+        default="data/swebench_verified/irt/1d_1pl/abilities.csv",
         help="Path to agent abilities CSV",
     )
     args = parser.parse_args()

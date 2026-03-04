@@ -13,7 +13,7 @@ python -m experiment_ab_shared.llm_judge deterministic \
 # Evaluate feature quality
 python -m experiment_ab_shared.llm_judge quick_eval \
     --features-csv chris_output/deterministic_features.csv \
-    --irt-items data/swebench/irt/1d/items.csv
+    --irt-items data/swebench_verified/irt/1d/items.csv
 
 # Compare hard vs easy tasks qualitatively
 python -m experiment_ab_shared.llm_judge compare \
@@ -49,7 +49,7 @@ Compute correlations with IRT difficulty, run Lasso feature selection, and detec
 ```bash
 python -m experiment_ab_shared.llm_judge quick_eval \
     --features-csv features.csv \
-    --irt-items data/swebench/irt/1d/items.csv \
+    --irt-items data/swebench_verified/irt/1d/items.csv \
     --output results.json
 ```
 
@@ -157,7 +157,7 @@ Run detailed correlation analysis with IRT difficulty.
 ```bash
 python -m experiment_ab_shared.llm_judge correlations \
     --features-csv features.csv \
-    --irt-items data/swebench/irt/1d/items.csv \
+    --irt-items data/swebench_verified/irt/1d/items.csv \
     --dataset swebench
 ```
 

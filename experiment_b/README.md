@@ -421,8 +421,8 @@ experiment_b/
 
 | File | Purpose |
 |------|---------|
-| `data/swebench/irt/1d_1pl/items.csv` | Oracle IRT difficulties |
-| `data/swebench/responses.jsonl` | Response matrix |
+| `data/swebench_verified/irt/1d_1pl/items.csv` | Oracle IRT difficulties |
+| `data/swebench_verified/responses.jsonl` | Response matrix |
 | `chris_output/experiment_a/embeddings/` | Task embeddings |
 | `chris_output/experiment_a/llm_judge_features/` | LLM judge features |
 

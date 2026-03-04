@@ -154,7 +154,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_name": "princeton-nlp/SWE-bench_Verified",
             "dataset_path": "",
             "split": "test",
-            "agent_results": os.path.join(base, "data/swebench/responses.jsonl"),
+            "agent_results": os.path.join(base, "data/swebench_verified/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/verified.csv"),
             "out_dir": os.path.join(base, "out/swebench_verified"),
         },
@@ -2207,7 +2207,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--agent_results",
         type=str,
-        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/data/swebench/responses.jsonl",
+        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/data/swebench_verified/responses.jsonl",
         help=(
             "Path to a JSONL file with per-subject responses of the form "
             "{'subject_id': ..., 'responses': {'task_id': 0/1, ...}}."

@@ -41,7 +41,7 @@ def load_tasks_and_difficulties(
     # Load IRT difficulties
     if irt_items_path is None:
         if dataset == "swebench":
-            irt_items_path = Path("data/swebench/irt/1d_1pl/items.csv")
+            irt_items_path = Path("data/swebench_verified/irt/1d_1pl/items.csv")
         elif dataset == "swebench_pro":
             irt_items_path = Path("data/swebench_pro/irt/1d_1pl/items.csv")
         elif dataset == "gso":

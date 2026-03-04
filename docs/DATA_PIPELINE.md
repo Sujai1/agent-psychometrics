@@ -9,11 +9,11 @@ experiments/evaluation/verified/<agent>/results/results.json
          ↓
     swebench_irt/prep_swebench.py (--complete_matrix --cutoff_date 20251115)
          ↓
-data/swebench/responses.jsonl
+data/swebench_verified/responses.jsonl
          ↓
     swebench_irt/train.py (--dims 1 --model 1pl/2pl)
          ↓
-data/swebench/irt/{1d,1d_1pl}/
+data/swebench_verified/irt/{1d,1d_1pl}/
     ├── items.csv   (a, b for 2PL; b only for 1PL)
     └── abilities.csv (theta per agent)
          ↓
@@ -33,7 +33,7 @@ data/swebench/irt/{1d,1d_1pl}/
 python swebench_irt/prep_swebench.py \
     --complete_matrix \
     --cutoff_date 20251115 \
-    --output_path data/swebench/responses.jsonl
+    --output_path data/swebench_verified/responses.jsonl
 ```
 
 **Input:** `experiments/evaluation/verified/<agent>/results/results.json`
@@ -53,8 +53,8 @@ See [IRT_MODELS.md](IRT_MODELS.md) for training commands.
 import pandas as pd
 
 # Load IRT parameters
-items = pd.read_csv("data/swebench/irt/1d_1pl/items.csv", index_col=0)
-abilities = pd.read_csv("data/swebench/irt/1d_1pl/abilities.csv", index_col=0)
+items = pd.read_csv("data/swebench_verified/irt/1d_1pl/items.csv", index_col=0)
+abilities = pd.read_csv("data/swebench_verified/irt/1d_1pl/abilities.csv", index_col=0)
 
 # items.index: task IDs like "django__django-12345"
 # items["b"]: difficulty (-2 to +5 range typically)

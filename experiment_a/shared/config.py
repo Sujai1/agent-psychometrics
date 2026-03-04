@@ -14,9 +14,9 @@ from typing import Any, Dict, List, Optional
 DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "swebench": {
         "display_name": "SWE-bench Verified",
-        "abilities_path": Path("data/swebench/irt/1d_1pl/abilities.csv"),
-        "items_path": Path("data/swebench/irt/1d_1pl/items.csv"),
-        "responses_path": Path("data/swebench/responses.jsonl"),
+        "abilities_path": Path("data/swebench_verified/irt/1d_1pl/abilities.csv"),
+        "items_path": Path("data/swebench_verified/irt/1d_1pl/items.csv"),
+        "responses_path": Path("data/swebench_verified/responses.jsonl"),
         "output_dir": Path("chris_output/experiment_a"),
         "embeddings_path": Path(
             "embeddings/"

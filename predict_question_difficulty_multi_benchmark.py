@@ -1427,7 +1427,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--verified_agent_results",
         type=str,
-        default="data/swebench/responses.jsonl",
+        default="data/swebench_verified/responses.jsonl",
         help="Verified response-matrix JSONL: {'subject_id': ..., 'responses': {'item_id': 0/1, ...}}",
     )
     p.add_argument(

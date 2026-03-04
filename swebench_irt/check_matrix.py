@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument(
         "--data_path",
         type=str,
-        default="data/swebench/responses.jsonl",
+        default="data/swebench_verified/responses.jsonl",
         help="Path to JSONL responses",
     )
     args = parser.parse_args()
