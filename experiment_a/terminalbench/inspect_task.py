@@ -7,7 +7,7 @@ Each container provides an Ubuntu/Debian environment with the task
 setup pre-configured. The agent interacts via /app as the working directory.
 
 Task metadata (instruction, category, etc.) is loaded from the local
-terminal-bench repo at terminal-bench/tasks/{task_id}/task.yaml.
+terminal-bench-2 repo at terminal-bench-2/{task_id}/instruction.md and task.toml.
 
 Usage:
     inspect eval experiment_a/terminalbench/inspect_task.py@auditor_task_v4_terminalbench \
@@ -22,7 +22,11 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 import pandas as pd
-import yaml
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef]
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import Sample
@@ -38,8 +42,8 @@ DOCKER_REPO = "xiangyangli"
 DOCKER_TAG = "20260204"
 
 # Default paths
-DEFAULT_ITEMS_PATH = Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv")
-DEFAULT_REPO_PATH = Path("terminal-bench")
+DEFAULT_ITEMS_PATH = Path("chris_output/terminal_bench_2.0/1d_1pl/items.csv")
+DEFAULT_REPO_PATH = Path("terminal-bench-2")
 
 
 def _get_terminalbench_image(task_id: str) -> str:
@@ -54,25 +58,25 @@ def load_terminalbench_samples(
     """Load Terminal Bench tasks as Inspect samples with Docker sandbox configs.
 
     Task IDs come from the IRT items file. Task instructions come from
-    the terminal-bench repo's task.yaml files.
+    the terminal-bench-2 repo's instruction.md files.
 
     Args:
         items_path: Path to IRT items.csv (provides the list of task IDs).
-        repo_path: Path to the cloned terminal-bench repo.
+        repo_path: Path to the cloned terminal-bench-2 repo.
 
     Returns:
         List of Inspect samples with sandbox configs attached.
 
     Raises:
         FileNotFoundError: If items_path or repo_path doesn't exist.
-        ValueError: If a task directory is missing its task.yaml.
+        ValueError: If a task directory is missing required files.
     """
     if not items_path.exists():
         raise FileNotFoundError(f"Items file not found: {items_path}")
     if not repo_path.exists():
         raise FileNotFoundError(
-            f"Terminal-bench repo not found: {repo_path}. "
-            f"Clone it with: git clone https://github.com/laude-institute/terminal-bench"
+            f"terminal-bench-2 repo not found: {repo_path}. "
+            f"Clone it with: git clone https://github.com/harbor-framework/terminal-bench-2"
         )
 
     items_df = pd.read_csv(items_path, index_col=0)
@@ -80,20 +84,26 @@ def load_terminalbench_samples(
 
     samples = []
     for task_id in task_ids:
-        task_dir = repo_path / "tasks" / task_id
-        task_yaml_path = task_dir / "task.yaml"
+        task_dir = repo_path / task_id
+        instruction_md = task_dir / "instruction.md"
+        task_toml_path = task_dir / "task.toml"
 
-        if not task_yaml_path.exists():
+        if not instruction_md.exists():
             raise ValueError(
-                f"task.yaml not found for '{task_id}' at {task_yaml_path}"
+                f"instruction.md not found for '{task_id}' at {instruction_md}"
+            )
+        if not task_toml_path.exists():
+            raise ValueError(
+                f"task.toml not found for '{task_id}' at {task_toml_path}"
             )
 
-        with open(task_yaml_path) as f:
-            task_yaml = yaml.safe_load(f)
-
-        instruction = task_yaml.get("instruction", "")
+        instruction = instruction_md.read_text(encoding="utf-8").strip()
         if not instruction:
-            raise ValueError(f"Empty instruction in task.yaml for '{task_id}'")
+            raise ValueError(f"Empty instruction.md for '{task_id}'")
+
+        with open(task_toml_path, "rb") as f:
+            task_toml = tomllib.load(f)
+        metadata_section = task_toml.get("metadata", {})
 
         image = _get_terminalbench_image(task_id)
 
@@ -101,9 +111,9 @@ def load_terminalbench_samples(
             input=instruction,
             id=task_id,
             metadata={
-                "category": task_yaml.get("category", ""),
-                "tags": task_yaml.get("tags", []),
-                "difficulty": task_yaml.get("difficulty", ""),
+                "category": metadata_section.get("category", ""),
+                "tags": metadata_section.get("tags", []),
+                "difficulty": metadata_section.get("difficulty", ""),
             },
         )
         sample.sandbox = SandboxEnvironmentSpec(

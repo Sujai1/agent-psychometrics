@@ -39,7 +39,7 @@ python -m experiment_a.run_all_datasets --feature_irt --datasets swebench gso
 python -m experiment_a.run_all_datasets --datasets terminalbench
 ```
 
-## Results (2026-03-01)
+## Results (2026-03-04)
 
 ### Summary Table (Default Ridge)
 
@@ -49,7 +49,7 @@ Run with: `python -m experiment_a.run_all_datasets`
 |---------|-------|--------|--------|-------------------------|-----------|-----------|----------|
 | SWE-bench Verified | 500 | 131 | 0.9441 | **0.8436** | 0.8363 | 0.8230 | 0.7146 |
 | GSO | 102 | 14 | 0.9227 | **0.7428** | 0.7410 | 0.7396 | 0.6934 |
-| TerminalBench | 88 | 83 | 0.8995 | **0.8052** | 0.7733 | 0.7989 | 0.7073 |
+| TerminalBench | 89 | 112 | 0.9317 | **0.8083** | 0.7839 | 0.8178 | 0.7338 |
 | SWE-bench Pro | 730 | 14 | 0.9183 | **0.7549** | 0.7089 | 0.7549 | 0.6567 |
 
 **LLM features**: SWE-bench Verified uses 15 features (9 semantic + 3 auditor + 3 test); all other datasets use 9 features (8 core + codebase_scope). See Feature Sources section for details.
@@ -66,27 +66,13 @@ Run with: `python -m experiment_a.run_all_datasets --feature_irt`
 |---------|--------|----------------------|-------------------|-------------------|----------|
 | SWE-bench Verified | 0.9441 | **0.8389** | 0.8370 | 0.8243 | 0.7146 |
 | GSO | 0.9227 | 0.7407 | 0.7149 | **0.7571** | 0.6934 |
-| TerminalBench | 0.8995 | 0.7864 | 0.7735 | **0.7983** | 0.7073 |
+| TerminalBench | 0.9317 | — | — | — | 0.7338 |
 | SWE-bench Pro | 0.9183 | 0.7236 | 0.7112 | **0.7555** | 0.6567 |
 
 **Key findings**:
 - **Feature-IRT performs similarly to Ridge** in Experiment A (task holdout) because it must generalize to unseen test tasks using only feature weights
 - **Embedding alone often outperforms combined** in Feature-IRT (3/4 datasets), suggesting the joint optimization may overfit to LLM features
 - **Per-source regularization**: Feature-IRT uses per-source L2 grids (Emb: [100, 1000, 10000], LLM: [0.01, 0.1, 1, 10]) with internal CV for selection
-
-### TerminalBench Binary Mode
-
-TerminalBench supports two data modes. Binomial (default, shown above) models k successes out of 5 trials per agent-task pair. Binary (`--binary`) collapses to any success = 1.
-
-| Method | Binomial (default) | Binary |
-|--------|-------------------|--------|
-| Oracle (true b) | 0.8995 | 0.9285 |
-| Grouped Ridge (Emb + LLM) | 0.8052 | 0.8021 |
-| Embedding | 0.7989 | 0.7754 |
-| LLM Judge | 0.7733 | 0.7631 |
-| Constant (mean b) | 0.7073 | 0.6925 |
-
-Binomial mode preserves more information about task difficulty gradations. Binary Oracle AUC is higher (0.9285 vs 0.8995) because binary responses are easier to predict, but predictor AUCs are comparable or slightly lower in binary mode.
 
 ## Evaluation Protocol
 
@@ -106,7 +92,7 @@ The IRT model provides ground truth difficulties (β) used as training targets. 
 
 ## Architecture
 
-The experiment uses a unified CVPredictor protocol that all methods implement, enabling consistent k-fold cross-validation across both SWE-bench (binary) and TerminalBench (binomial) datasets.
+The experiment uses a unified CVPredictor protocol that all methods implement, enabling consistent k-fold cross-validation across all datasets.
 
 ### CVPredictor Protocol
 
@@ -124,7 +110,7 @@ class CVPredictor(Protocol):
 
 | File | Purpose |
 |------|---------|
-| `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData`, `BinomialExperimentData` |
+| `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData` |
 | `feature_source.py` | `TaskFeatureSource` ABC with `EmbeddingFeatureSource`, `CSVFeatureSource` |
 | `feature_predictor.py` | `DifficultyPredictorBase` ABC, `FeatureBasedPredictor`, `GroupedRidgePredictor` |
 | `evaluator.py` | `compute_irt_probability()`, `convert_numpy()` |
@@ -173,7 +159,6 @@ where β_i = w^T f_i + bias  (task difficulty from features)
 Key differences from Ridge:
 - Learns from response patterns (IRT likelihood), not frozen IRT difficulties
 - Agent abilities are jointly optimized with feature weights
-- Supports both Bernoulli (binary) and Binomial (multi-trial) likelihoods
 - Uses internal 3-fold CV to select L2 weights (similar to RidgeCV)
 
 **Per-source regularization**: When using `GroupedFeatureSource` (combined embeddings + LLM), applies different L2 penalties per source:
@@ -454,10 +439,10 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 
 | File | Purpose |
 |------|---------|
-| `chris_output/terminal_bench_2.0_binomial_1pl/1d/abilities.csv` | Oracle IRT abilities |
-| `chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv` | Oracle IRT difficulties |
-| `data/terminal_bench/terminal_bench_2.0_raw.jsonl` | Response matrix (binomial) |
-| `terminal-bench/tasks/{task_id}/` | Task instructions and solutions |
+| `chris_output/terminal_bench_2.0/1d_1pl/abilities.csv` | Oracle IRT abilities (112 agents) |
+| `chris_output/terminal_bench_2.0/1d_1pl/items.csv` | Oracle IRT difficulties (89 tasks) |
+| `out/chris_irt/terminal_bench.jsonl` | Response matrix (binary, majority threshold) |
+| `out/chris_irt/terminal_bench_tasks.jsonl` | Task instructions and solutions (from terminal-bench-2) |
 
 ## Command Line Options
 

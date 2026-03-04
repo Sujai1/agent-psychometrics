@@ -65,10 +65,10 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "terminalbench": {
         "display_name": "TerminalBench",
-        "is_binomial": True,
-        "abilities_path": Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/abilities.csv"),
-        "items_path": Path("chris_output/terminal_bench_2.0_binomial_1pl/1d/items.csv"),
-        "responses_path": Path("data/terminal_bench/terminal_bench_2.0_raw.jsonl"),
+        "is_binomial": False,
+        "abilities_path": Path("chris_output/terminal_bench_2.0/1d_1pl/abilities.csv"),
+        "items_path": Path("chris_output/terminal_bench_2.0/1d_1pl/items.csv"),
+        "responses_path": Path("out/chris_irt/terminal_bench.jsonl"),
         "output_dir": Path("chris_output/experiment_a_terminalbench"),
         "embeddings_path": Path(
             "embeddings/"

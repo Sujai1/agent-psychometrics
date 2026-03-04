@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """
-Extract Terminal-Bench 2.0 task statements ("instruction") from the local
-`terminal-bench/tasks/` registry and write a SWE-bench-like JSONL.
+Extract Terminal-Bench 2.0 task statements from the local `terminal-bench-2/`
+repository and write a SWE-bench-like JSONL.
 
 Output JSONL schema per line:
   {"task_id": "...", "problem_statement": "...", "patch": "...", "tests": "..."}
 
 Gold patches:
-  - We store the *entire* contents of `solution.sh` (when present) in the `patch`
-    field. Many tasks don't use a `diff --git` patch; they instead generate files,
-    run commands, etc. Keeping the whole `solution.sh` captures the intended
-    reference solution behavior.
-  - If `solution.sh` does not exist, `patch` is left as an empty string.
+  - We store the *entire* contents of `solution/solve.sh` (when present) in the
+    `patch` field. Many tasks don't use a `diff --git` patch; they instead
+    generate files, run commands, etc. Keeping the whole script captures the
+    intended reference solution behavior.
+
+terminal-bench-2 directory layout per task:
+  terminal-bench-2/{task_id}/
+    ├── task.toml          # metadata (category, difficulty, tags, etc.)
+    ├── instruction.md     # task instruction (problem statement)
+    ├── solution/          # reference solution
+    │   └── solve.sh
+    └── tests/             # test scripts
+        ├── test.sh
+        └── test_outputs.py
 """
 
 from __future__ import annotations
@@ -19,19 +28,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from urllib.error import URLError
-from urllib.request import urlopen
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import List, Optional
 
-
-_TOP_LEVEL_KEY_RE = re.compile(r"^[A-Za-z0-9_]+:\s*")
-_REMOTE_TEST_SOURCES = {
-    "headless-terminal": {
-        "tests/test.sh": "https://raw.githubusercontent.com/harbor-framework/terminal-bench-2/main/headless-terminal/tests/test.sh",
-        "tests/test_outputs.py": "https://raw.githubusercontent.com/harbor-framework/terminal-bench-2/main/headless-terminal/tests/test_outputs.py",
-    }
-}
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef]
 
 
 def normalize_text(s: str) -> str:
@@ -42,96 +45,53 @@ def normalize_text(s: str) -> str:
 
 
 def normalize_newlines_preserve_whitespace(s: str) -> str:
-    # Keep content as close as possible to the source file, while normalizing
-    # line endings to Unix newlines for JSONL portability.
     return s.replace("\r\n", "\n").replace("\r", "\n")
 
 
-def extract_instruction_from_task_yaml(task_yaml_text: str) -> Optional[str]:
-    """
-    Extract the `instruction` block scalar from a Terminal-Bench `task.yaml`.
-
-    We intentionally avoid a full YAML dependency (PyYAML) and parse just the
-    `instruction: |-` style block used in the benchmark tasks.
-    """
-    lines = task_yaml_text.splitlines()
-    start_idx = None
-    for i, line in enumerate(lines):
-        if line.startswith("instruction:"):
-            start_idx = i
-            break
-    if start_idx is None:
+def extract_instruction_from_markdown(instruction_md_path: Path) -> Optional[str]:
+    """Read instruction from an instruction.md file."""
+    if not instruction_md_path.exists():
         return None
-
-    # Some tasks use an inline scalar: `instruction: ...`
-    inline = lines[start_idx][len("instruction:") :].strip()
-    if inline and not inline.startswith("|") and not inline.startswith(">"):
-        return normalize_text(inline)
-
-    # Most tasks use `instruction: |-` followed by 2-space indented content.
-    instr_lines: List[str] = []
-    for j in range(start_idx + 1, len(lines)):
-        line = lines[j]
-        # Stop at the next top-level YAML key.
-        if _TOP_LEVEL_KEY_RE.match(line) and not line.startswith(" "):
-            break
-        if line.startswith("  "):
-            instr_lines.append(line[2:])
-        elif line.strip() == "":
-            instr_lines.append("")
-        else:
-            # Unexpected indentation style; best-effort include.
-            if line.startswith(" "):
-                instr_lines.append(line.lstrip(" "))
-            else:
-                break
-
-    instr = "\n".join(instr_lines)
-    instr = normalize_text(instr)
-    return instr if instr else None
+    text = instruction_md_path.read_text(encoding="utf-8")
+    text = normalize_text(text)
+    return text if text else None
 
 
-_HEREDOC_START_RE = re.compile(r"<<\s*(['\"]?)([A-Za-z0-9_]+)\1")
-
-
-def _iter_heredoc_blocks(sh_text: str) -> Iterable[str]:
+def extract_patch_from_solution_dir(task_id: str, solution_dir: Path) -> str:
     """
-    Yield heredoc bodies from a shell script, for patterns like:
-      cat > file << 'EOF'
-      ... body ...
-      EOF
-    """
-    lines = sh_text.splitlines()
-    i = 0
-    while i < len(lines):
-        m = _HEREDOC_START_RE.search(lines[i])
-        if not m:
-            i += 1
-            continue
-        tag = m.group(2)
-        body: List[str] = []
-        j = i + 1
-        while j < len(lines):
-            if lines[j].strip() == tag:
-                break
-            body.append(lines[j])
-            j += 1
-        if body:
-            yield "\n".join(body).strip("\n")
-        i = j + 1
+    Return the contents of the solution script from the solution/ directory.
 
-
-def extract_patch_from_solution_sh(solution_sh_text: str) -> str:
+    Looks for solve.sh first, then falls back to any .sh file.
+    Raises an error if no solution script is found.
     """
-    Return the entire `solution.sh` contents.
+    if not solution_dir.exists() or not solution_dir.is_dir():
+        raise FileNotFoundError(
+            f"Solution directory not found for task '{task_id}': {solution_dir}"
+        )
 
-    This intentionally does NOT try to infer a unified diff; many Terminal-Bench
-    tasks have reference solutions that are not expressed as diffs.
-    """
-    s = normalize_newlines_preserve_whitespace(solution_sh_text)
-    if not s.endswith("\n"):
-        s += "\n"
-    return s
+    # Prefer solve.sh
+    solve_sh = solution_dir / "solve.sh"
+    if solve_sh.exists():
+        s = normalize_newlines_preserve_whitespace(
+            solve_sh.read_text(encoding="utf-8")
+        )
+        if not s.endswith("\n"):
+            s += "\n"
+        return s
+
+    # Fall back to first .sh file
+    sh_files = sorted(solution_dir.glob("*.sh"))
+    if sh_files:
+        s = normalize_newlines_preserve_whitespace(
+            sh_files[0].read_text(encoding="utf-8")
+        )
+        if not s.endswith("\n"):
+            s += "\n"
+        return s
+
+    raise FileNotFoundError(
+        f"No solution script (.sh) found for task '{task_id}' in {solution_dir}"
+    )
 
 
 def _read_text_truncated(path: Path, *, max_chars: int = 50_000) -> str:
@@ -142,7 +102,6 @@ def _read_text_truncated(path: Path, *, max_chars: int = 50_000) -> str:
     try:
         s = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        # Best-effort: some tasks may contain non-UTF8 bytes in auxiliary files.
         s = path.read_text(encoding="utf-8", errors="replace")
     s = normalize_newlines_preserve_whitespace(s)
     if len(s) > int(max_chars):
@@ -154,19 +113,12 @@ def extract_tests_from_task_dir(task_dir: Path) -> str:
     """
     Extract Terminal-Bench tests in a prompt-friendly form.
 
-    We include:
-      - `run-tests.sh` when present (how evaluation is invoked)
-      - all files under `tests/` (actual test cases)
+    Includes all files under `tests/` (test scripts and expected outputs).
     """
     chunks: List[str] = []
 
-    run_tests = task_dir / "run-tests.sh"
-    if run_tests.exists() and run_tests.is_file():
-        chunks.append(f"### run-tests.sh\n{_read_text_truncated(run_tests)}")
-
     tests_dir = task_dir / "tests"
     if tests_dir.exists() and tests_dir.is_dir():
-        # Stable ordering
         for p in sorted(tests_dir.rglob("*")):
             if not p.is_file():
                 continue
@@ -213,17 +165,21 @@ def load_task_list(meta_json_path: Path) -> List[str]:
     return list(task_list)
 
 
+# Project root: swebench_irt/ is one level below model_irt/
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="Path to write JSONL, e.g. terminal_bench_tasks.jsonl")
     ap.add_argument(
         "--tasks-dir",
-        default=str(Path(__file__).resolve().parent / "terminal-bench" / "tasks"),
-        help="Path to the Terminal-Bench tasks directory",
+        default=str(_PROJECT_ROOT / "terminal-bench-2"),
+        help="Path to the terminal-bench-2 repository root (tasks are top-level dirs)",
     )
     ap.add_argument(
         "--meta",
-        default=str(Path(__file__).resolve().parent / "data" / "terminal_bench" / "terminal_bench_2.0.meta.json"),
+        default=str(_PROJECT_ROOT / "data" / "terminal_bench" / "terminal_bench_2.0.meta.json"),
         help="Path to a meta JSON containing a `task_list` to filter tasks (recommended)",
     )
     ap.add_argument("--limit", type=int, default=0, help="If >0, only process this many tasks (debugging)")
@@ -234,7 +190,14 @@ def main() -> int:
         raise FileNotFoundError(f"tasks dir not found: {tasks_dir}")
 
     meta_path = Path(args.meta)
-    task_ids = load_task_list(meta_path) if meta_path.exists() else sorted(p.name for p in tasks_dir.iterdir() if p.is_dir())
+    if meta_path.exists():
+        task_ids = load_task_list(meta_path)
+    else:
+        # Discover tasks: directories containing task.toml
+        task_ids = sorted(
+            p.name for p in tasks_dir.iterdir()
+            if p.is_dir() and (p / "task.toml").exists()
+        )
     if args.limit and args.limit > 0:
         task_ids = task_ids[: int(args.limit)]
 
@@ -246,32 +209,37 @@ def main() -> int:
 
     for tid in task_ids:
         task_path = tasks_dir / tid
-        if not task_path.exists():
+        if not task_path.exists() or not (task_path / "task.toml").exists():
             missing_task_dir.append(tid)
             continue
 
-        task_yaml = task_path / "task.yaml"
-        if not task_yaml.exists():
-            missing_task_dir.append(tid)
-            continue
-
-        instr = extract_instruction_from_task_yaml(task_yaml.read_text(encoding="utf-8"))
+        instruction_md = task_path / "instruction.md"
+        instr = extract_instruction_from_markdown(instruction_md)
         if not instr:
             missing_instruction.append(tid)
             continue
 
-        patch = ""
-        solution_sh = task_path / "solution.sh"
-        if solution_sh.exists():
-            patch = extract_patch_from_solution_sh(solution_sh.read_text(encoding="utf-8"))
-            if patch:
-                patches_found += 1
+        # Extract metadata from task.toml
+        with open(task_path / "task.toml", "rb") as f:
+            task_toml = tomllib.load(f)
+        metadata_section = task_toml.get("metadata", {})
+
+        patch = extract_patch_from_solution_dir(tid, task_path / "solution")
+        patches_found += 1
 
         tests = extract_tests_with_remote_fallback(tid, task_path)
         if tests:
             tests_found += 1
 
-        records.append({"task_id": tid, "problem_statement": instr, "patch": patch, "tests": tests})
+        records.append({
+            "task_id": tid,
+            "problem_statement": instr,
+            "patch": patch,
+            "tests": tests,
+            "category": metadata_section.get("category", ""),
+            "tags": metadata_section.get("tags", []),
+            "difficulty": metadata_section.get("difficulty", ""),
+        })
 
     with open(args.out, "w", encoding="utf-8") as f:
         for r in records:
@@ -281,7 +249,7 @@ def main() -> int:
     print(f"Found {patches_found} tasks with non-empty patches")
     print(f"Found {tests_found} tasks with non-empty tests")
     if missing_task_dir:
-        print(f"WARNING: missing task.yaml for {len(missing_task_dir)} tasks, e.g. {missing_task_dir[:10]}")
+        print(f"WARNING: missing task dir/toml for {len(missing_task_dir)} tasks, e.g. {missing_task_dir[:10]}")
     if missing_instruction:
         print(f"WARNING: failed to extract instruction for {len(missing_instruction)} tasks, e.g. {missing_instruction[:10]}")
     return 0

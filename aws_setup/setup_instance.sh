@@ -39,12 +39,12 @@ pip install -r requirements.txt 2>/dev/null || pip install \
     pyyaml \
     anthropic
 
-# Clone terminal-bench repo (needed for Terminal Bench task metadata)
-if [ ! -d "terminal-bench" ]; then
-    echo "Cloning terminal-bench repo..."
-    git clone https://github.com/laude-institute/terminal-bench.git
+# Clone terminal-bench-2 repo (needed for Terminal Bench task metadata)
+if [ ! -d "terminal-bench-2" ]; then
+    echo "Cloning terminal-bench-2 repo..."
+    git clone https://github.com/harbor-framework/terminal-bench-2.git
 else
-    echo "terminal-bench repo already exists, skipping clone"
+    echo "terminal-bench-2 repo already exists, skipping clone"
 fi
 
 # Prompt for Anthropic API key
