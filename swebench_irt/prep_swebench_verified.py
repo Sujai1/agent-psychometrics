@@ -1,12 +1,3 @@
-"""
-Prepare SWE-bench Verified results into JSONL for IRT training.
-
-Expected repo layout (experiments repo checked out under this repo):
-  experiments/evaluation/verified/<agent_name>/results/results.json
-  or
-  experiments/evaluation/verified/<agent_name>/logs/<instance_id>/report.json
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -15,14 +6,9 @@ import logging
 from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
+from prep_utils import build_records, print_matrix_stats, resolve_path, write_jsonl_records
+
 logger = logging.getLogger(__name__)
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def resolve_path(path_str: str) -> Path:
-    path = Path(path_str).expanduser()
-    return path if path.is_absolute() else (ROOT / path)
 
 
 def _list_items(value: object) -> Iterable[str]:
@@ -119,20 +105,24 @@ def main() -> None:
     parser.add_argument(
         "--output_path",
         type=str,
-        default="clean_data/swebench_verified/swebench_verified.jsonl",
+        default="out/chris_irt/swebench_verified.jsonl",
         help="Output JSONL path",
     )
     args = parser.parse_args()
 
     experiments_dir = resolve_path(args.experiments_dir)
     output_path = resolve_path(args.output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     all_items: set[str] = set()
-    summary = []
     agents_payload = []
 
+    if not experiments_dir.exists():
+        raise FileNotFoundError(f"experiments_dir not found: {experiments_dir}")
+
     agent_dirs = [d for d in sorted(experiments_dir.iterdir()) if d.is_dir()]
+    if not agent_dirs:
+        raise ValueError(f"No agent directories found under {experiments_dir}")
+
     for agent_dir in agent_dirs:
         responses, items, source = collect_agent(agent_dir)
         if responses:
@@ -150,37 +140,24 @@ def main() -> None:
     if args.max_agents is not None:
         selected = selected[: args.max_agents]
 
-    items_list = sorted(all_items)
-    records = []
-    for agent_dir, responses, source in selected:
-        if not responses and args.no_complete_matrix:
-            summary.append((agent_dir.name, 0, 0, source))
-            continue
-        if not args.no_complete_matrix:
-            responses = {iid: int(responses.get(iid, 0)) for iid in items_list}
-        resolved_ct = sum(responses.values())
-        summary.append((agent_dir.name, len(responses), resolved_ct, source))
-        records.append({"subject_id": agent_dir.name, "responses": responses})
-
-    with output_path.open("w") as f:
-        for record in records:
-            f.write(json.dumps(record))
-            f.write("\n")
-
-    print(f"Wrote {len(records)} agents to {output_path}")
-    print(f"Unique tasks observed: {len(all_items)}")
-    obs_total = sum(len(r["responses"]) for r in records)
-    if records:
-        counts = [len(r["responses"]) for r in records]
-        print(f"Total observations: {obs_total}")
-        print(f"Tasks per agent: min={min(counts)} max={max(counts)} mean={obs_total / len(counts):.2f}")
-        if not args.no_complete_matrix:
-            print("Complete matrix: yes")
-        else:
-            print("Complete matrix: no (sparse)")
-    if summary:
-        empty = sum(1 for _name, count, _res, _src in summary if count == 0)
-        print(f"Agents with no responses: {empty}")
+    subject_responses = {agent_dir.name: responses for agent_dir, responses, _source in selected}
+    selected_subjects = [agent_dir.name for agent_dir, _responses, _source in selected]
+    records, summary = build_records(
+        subject_responses=subject_responses,
+        selected_subjects=selected_subjects,
+        all_items=all_items,
+        no_complete_matrix=args.no_complete_matrix,
+        skip_empty_sparse=True,
+    )
+    write_jsonl_records(output_path, records)
+    print_matrix_stats(
+        records=records,
+        all_items=all_items,
+        no_complete_matrix=args.no_complete_matrix,
+        subject_label="agents",
+        output_path=output_path,
+        summary=summary,
+    )
 
 
 if __name__ == "__main__":
