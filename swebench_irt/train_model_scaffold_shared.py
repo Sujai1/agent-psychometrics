@@ -629,20 +629,20 @@ def main() -> None:
     parser.add_argument(
         "--verified_path",
         type=str,
-        default="out/chris_irt/swebench_verified_20251115_full.jsonl",
+        default="data/swebench/responses.jsonl",
         help="Path to Verified agent×task JSONL (subject_id, responses)",
     )
     parser.add_argument(
         "--pro_path",
         type=str,
-        default="out/chris_irt/swebench_pro.jsonl",
+        default="data/swebench_pro/responses.jsonl",
         help="Path to Pro agent×task JSONL (subject_id, responses)",
     )
     parser.add_argument(
         "--terminal_bench_path",
         type=str,
-        default="out/chris_irt/terminal_bench_2.0.jsonl",
-        help="Path to Terminal-Bench 2.0 agent×task JSONL (subject_id, responses)",
+        default="data/terminalbench/responses.jsonl",
+        help="Path to TerminalBench agent×task JSONL (subject_id, responses)",
     )
     parser.add_argument(
         "--gso_path",

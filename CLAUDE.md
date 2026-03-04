@@ -21,8 +21,7 @@ model_irt/
 ├── trajectory_upload/      # Trajectory conversion and upload
 ├── trajectory_summarization_api/  # Trajectory summarization
 ├── py_irt/                 # IRT library (local fork)
-├── clean_data/             # Trained IRT models
-├── data/                   # Input data
+├── data/                   # Input data + IRT models (data/{dataset}/irt/)
 ├── chris_output/           # Outputs and results
 ├── trajectory_data/        # Downloaded trajectories (76 agents)
 ├── aws_setup/              # AWS cluster setup
@@ -44,18 +43,19 @@ python -m experiment_b.compare_methods
 
 # Train IRT model
 python swebench_irt/train.py --dims 1 --model 1pl \
-    --data_path clean_data/swebench_verified/swebench_verified_20251115_full.jsonl
+    --data_path data/swebench/responses.jsonl
 ```
 
-## Current Dataset
+## Datasets
 
-- **131 agents** (cutoff: 2025-11-20)
-- **500 tasks** (SWE-bench Verified)
-- **76 agents** with unified trajectories
+All input data lives under `data/{dataset}/`:
 
-**Default data files:**
-- Response matrix: `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl`
-- IRT model outputs: `clean_data/swebench_verified_20251120_full/1d_1pl/` (abilities.csv, items.csv)
+| Dataset | Tasks | Agents | Response Matrix | IRT Model |
+|---------|-------|--------|----------------|-----------|
+| SWE-bench Verified | 500 | 134 | `data/swebench/responses.jsonl` | `data/swebench/irt/1d_1pl/` |
+| GSO | 102 | 15 | `data/gso/responses.jsonl` | `data/gso/irt/1d_1pl/` |
+| TerminalBench | 89 | 112 | `data/terminalbench/responses.jsonl` | `data/terminalbench/irt/1d_1pl/` |
+| SWE-bench Pro | 730 | 14 | `data/swebench_pro/responses.jsonl` | `data/swebench_pro/irt/1d_1pl/` |
 
 ## Documentation
 
@@ -113,6 +113,12 @@ See [experiment_a/README.md](experiment_a/README.md) and [experiment_b/README.md
 - **GPUs**: Up to 2 H200 GPUs available (`--gres=gpu:h200:2`)
 - HuggingFace cache is stored on scratch to avoid home quota limits
 - Always set this in SLURM scripts: `export HF_HOME="$HOME/orcd/scratch/.cache/huggingface"`
+
+**Pyro IRT training fragility:**
+- Pyro's hierarchical 1PL priors can hit numerical issues (`Expected parameter concentration ... of distribution Dirichlet`) non-deterministically during SVI optimization, especially with smaller datasets (e.g., TerminalBench with 89 tasks)
+- This is more likely when training multiple IRT models in parallel (e.g., `run_all_datasets` with `ProcessPoolExecutor`), though the processes don't share state — it's just a resource/timing issue
+- Workaround: fold IRT models are cached, so a re-run will skip the failed fold and use the cached result from a successful training
+- If a fresh run fails, re-running or using `--sequential` will usually work
 
 **OpenAI API Usage:**
 - Use the new Responses API (`client.responses.create()`) instead of the older Chat Completions API (`client.chat.completions.create()`)

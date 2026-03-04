@@ -25,7 +25,7 @@ from .config import FEATURE_NAMES, TRAJECTORY_FEATURES
 
 
 def load_oracle_difficulty(
-    items_path: str = "clean_data/swebench_verified_20251120_full/1d/items.csv",
+    items_path: str = "data/swebench/irt/1d_1pl/items.csv",
 ) -> pd.Series:
     """Load oracle IRT difficulty (beta) for tasks."""
     df = pd.read_csv(items_path, index_col=0)
@@ -231,7 +231,7 @@ def main():
     parser.add_argument(
         "--items_path",
         type=str,
-        default="clean_data/swebench_verified_20251120_full/1d/items.csv",
+        default="data/swebench/irt/1d_1pl/items.csv",
         help="Path to IRT items CSV",
     )
     parser.add_argument(

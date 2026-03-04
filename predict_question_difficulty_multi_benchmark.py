@@ -1273,7 +1273,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--terminal_bench_tasks_jsonl",
         type=str,
-        default="out/chris_irt/terminal_bench_tasks.jsonl",
+        default="data/terminalbench/tasks.jsonl",
         help="Terminal-Bench tasks JSONL with fields: task_id, problem_statement, patch.",
     )
 
@@ -1427,25 +1427,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--verified_agent_results",
         type=str,
-        default="out/chris_irt/swebench_verified.jsonl",
+        default="data/swebench/responses.jsonl",
         help="Verified response-matrix JSONL: {'subject_id': ..., 'responses': {'item_id': 0/1, ...}}",
     )
     p.add_argument(
         "--pro_agent_results",
         type=str,
-        default="out/chris_irt/swebench_pro.jsonl",
+        default="data/swebench_pro/responses.jsonl",
         help="Pro response-matrix JSONL: {'subject_id': ..., 'responses': {'item_id': 0/1, ...}}",
     )
     p.add_argument(
         "--terminal_bench_agent_results",
         type=str,
-        default="out/chris_irt/terminal_bench.jsonl",
+        default="data/terminalbench/responses.jsonl",
         help="Terminal-Bench response-matrix JSONL: {'subject_id': ..., 'responses': {'task_id': 0/1, ...}}",
     )
     p.add_argument(
         "--gso_agent_results",
         type=str,
-        default="out/chris_irt/gso.jsonl",
+        default="data/gso/responses.jsonl",
         help="GSO response-matrix JSONL: {'subject_id': ..., 'responses': {'item_id': 0/1, ...}}",
     )
     

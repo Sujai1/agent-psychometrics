@@ -20,7 +20,7 @@ papers/
 trajectory_data/unified_trajs/
 trajectory_data/filtered_unified/
 trajectory_data/swebench_pro/
-terminal_bench/
+terminal-bench-2/
 
 # Embeddings from cluster (large files, don't sync back)
 out/
@@ -30,7 +30,12 @@ embeddings/
 # Output files
 *.out
 *.jsonl
-!clean_data/swebench_verified/swebench_verified_20251120_full.jsonl
+!data/swebench/responses.jsonl
+!data/gso/responses.jsonl
+!data/swebench_pro/responses.jsonl
+!data/terminalbench/responses.jsonl
+!data/terminalbench/responses_raw.jsonl
+!data/terminalbench/tasks.jsonl
 *.jsonlines
 *.npz
 
@@ -172,18 +177,11 @@ chris_output/feature_irt_grid_search.png
 chris_output/figures/*.png
 chris_output/figures/*.pdf
 
-# Binomial IRT outputs for TerminalBench (regenerable)
-chris_output/terminal_bench_2.0_binomial/
-
-# SWE-bench Pro IRT outputs (regenerable)
-chris_output/swebench_pro_irt/
-
 # SWE-bench Pro Experiment B outputs (regenerable)
 chris_output/experiment_b/swebench_pro/
 chris_output/experiment_a/llm_judge_features_v2/
 chris_output/experiment_a/llm_judge_features_v2_pilot/
 chris_output/experiment_a_terminalbench/llm_judge_features_v2/
-chris_output/terminal_bench_2.0_binomial_1pl/
 
 # Trajectory features (regenerable via LLM API)
 chris_output/trajectory_features/

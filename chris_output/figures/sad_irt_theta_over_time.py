@@ -24,7 +24,7 @@ from scipy import stats
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 CHECKPOINT_PATH = PROJECT_ROOT / "chris_output/sad_irt_long/full_20260118_024625_psi_batchnorm_lora_r64/checkpoint_epoch_9_step4248_20260118_044922.pt"
-RESPONSE_MATRIX_PATH = PROJECT_ROOT / "clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"
+RESPONSE_MATRIX_PATH = PROJECT_ROOT / "data/swebench/responses.jsonl"
 TRAJECTORY_DIR = PROJECT_ROOT / "chris_output/trajectory_summaries_api"
 CUTOFF_DATE = "20250807"
 

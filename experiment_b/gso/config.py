@@ -21,13 +21,13 @@ class GSOConfig(DatasetConfig):
 
     # Data paths
     responses_path: Path = field(
-        default_factory=lambda: Path("out/chris_irt/gso.jsonl")
+        default_factory=lambda: Path("data/gso/responses.jsonl")
     )
     oracle_irt_path: Path = field(
-        default_factory=lambda: Path("chris_output/gso_irt/1d_1pl/items.csv")
+        default_factory=lambda: Path("data/gso/irt/1d_1pl/items.csv")
     )
     oracle_abilities_path: Path = field(
-        default_factory=lambda: Path("chris_output/gso_irt/1d_1pl/abilities.csv")
+        default_factory=lambda: Path("data/gso/irt/1d_1pl/abilities.csv")
     )
     # Baseline IRT is trained on-demand with proper cache validation
     baseline_irt_path: Optional[Path] = None
@@ -47,7 +47,7 @@ class GSOConfig(DatasetConfig):
 
     # Agent dates file (release dates from public announcements)
     agent_dates_path: Path = field(
-        default_factory=lambda: Path("data/gso_agent_dates.json")
+        default_factory=lambda: Path("data/gso/agent_dates.json")
     )
 
     # Frontier split settings
@@ -86,7 +86,7 @@ class GSOConfig(DatasetConfig):
         """Get release dates from JSON file.
 
         GSO agent names don't follow the YYYYMMDD_ prefix pattern.
-        Dates are loaded from data/gso_agent_dates.json, which maps
+        Dates are loaded from data/gso/agent_dates.json, which maps
         agent names to their public release dates in YYYYMMDD format.
 
         Args:

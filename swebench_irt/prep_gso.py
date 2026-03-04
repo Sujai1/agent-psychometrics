@@ -86,7 +86,7 @@ def main() -> None:
     p.add_argument(
         "--output_path",
         type=str,
-        default="out/chris_irt/gso.jsonl",
+        default="data/gso/responses.jsonl",
         help="Output JSONL path",
     )
     args = p.parse_args()

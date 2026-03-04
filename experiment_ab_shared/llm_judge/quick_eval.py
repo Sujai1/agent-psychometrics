@@ -15,7 +15,7 @@ Usage:
     python -m experiment_ab_shared.llm_judge.quick_eval \
         --dataset swebench \
         --features-csv path/to/features.csv \
-        --irt-items clean_data/swebench_verified_20251120_full/1d/items.csv
+        --irt-items data/swebench/irt/1d_1pl/items.csv
 """
 
 import argparse

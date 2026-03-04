@@ -45,7 +45,7 @@ class AblationConfig:
     unified_path: Path = Path("chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv")
 
     # IRT ground truth
-    items_path: Path = Path("clean_data/swebench_verified_20251120_full/1d_1pl/items.csv")
+    items_path: Path = Path("data/swebench/irt/1d_1pl/items.csv")
 
     # Embedding paths
     # With solution: uses solcap_nocap (includes solution in embedding prompt)

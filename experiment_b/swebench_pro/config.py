@@ -18,13 +18,13 @@ class SWEBenchProConfig(DatasetConfig):
 
     # Data paths
     responses_path: Path = field(
-        default_factory=lambda: Path("out/chris_irt/swebench_pro.jsonl")
+        default_factory=lambda: Path("data/swebench_pro/responses.jsonl")
     )
     oracle_irt_path: Path = field(
-        default_factory=lambda: Path("chris_output/swebench_pro_irt/1d/items.csv")
+        default_factory=lambda: Path("data/swebench_pro/irt/1d_1pl/items.csv")
     )
     oracle_abilities_path: Path = field(
-        default_factory=lambda: Path("chris_output/swebench_pro_irt/1d/abilities.csv")
+        default_factory=lambda: Path("data/swebench_pro/irt/1d_1pl/abilities.csv")
     )
     # Baseline IRT is trained on-demand with proper cache validation
     baseline_irt_path: Optional[Path] = None
@@ -44,7 +44,7 @@ class SWEBenchProConfig(DatasetConfig):
 
     # Agent dates file (release dates from public announcements)
     agent_dates_path: Path = field(
-        default_factory=lambda: Path("data/swebench_pro_agent_dates.json")
+        default_factory=lambda: Path("data/swebench_pro/agent_dates.json")
     )
 
     # Frontier split settings
@@ -82,7 +82,7 @@ class SWEBenchProConfig(DatasetConfig):
         """Get release dates from JSON file.
 
         SWE-bench Pro agent names don't follow the YYYYMMDD_ prefix pattern.
-        Dates are loaded from data/swebench_pro_agent_dates.json, which maps
+        Dates are loaded from data/swebench_pro/agent_dates.json, which maps
         agent names to their public release dates in YYYYMMDD format.
 
         Args:

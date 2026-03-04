@@ -47,10 +47,10 @@ Run with: `python -m experiment_a.run_all_datasets`
 
 | Dataset | Tasks | Agents | Oracle | Grouped Ridge (Emb+LLM) | LLM Judge | Embedding | Baseline |
 |---------|-------|--------|--------|-------------------------|-----------|-----------|----------|
-| SWE-bench Verified | 500 | 131 | 0.9441 | **0.8436** | 0.8363 | 0.8230 | 0.7146 |
-| GSO | 102 | 14 | 0.9227 | **0.7428** | 0.7410 | 0.7396 | 0.6934 |
-| TerminalBench | 89 | 112 | 0.9317 | **0.8083** | 0.7839 | 0.8178 | 0.7338 |
-| SWE-bench Pro | 730 | 14 | 0.9183 | **0.7549** | 0.7089 | 0.7549 | 0.6567 |
+| SWE-bench Verified | 500 | 134 | 0.9447 | **0.8445** | 0.8372 | 0.8242 | 0.7174 |
+| GSO | 102 | 15 | 0.9139 | **0.7642** | 0.7562 | 0.7581 | 0.7130 |
+| TerminalBench | 89 | 112 | 0.9317 | **0.8065** | 0.7835 | 0.8174 | 0.7338 |
+| SWE-bench Pro | 730 | 14 | 0.9183 | **0.7557** | 0.7089 | 0.7550 | 0.6558 |
 
 **LLM features**: SWE-bench Verified uses 15 features (9 semantic + 3 auditor + 3 test); all other datasets use 9 features (8 core + codebase_scope). See Feature Sources section for details.
 
@@ -64,8 +64,8 @@ Run with: `python -m experiment_a.run_all_datasets --feature_irt`
 
 | Dataset | Oracle | Feature-IRT (Emb+LLM) | Feature-IRT (LLM) | Feature-IRT (Emb) | Baseline |
 |---------|--------|----------------------|-------------------|-------------------|----------|
-| SWE-bench Verified | 0.9441 | **0.8389** | 0.8370 | 0.8243 | 0.7146 |
-| GSO | 0.9227 | 0.7407 | 0.7149 | **0.7571** | 0.6934 |
+| SWE-bench Verified | 0.9447 | **0.8389** | 0.8370 | 0.8243 | 0.7174 |
+| GSO | 0.9139 | 0.7407 | 0.7149 | **0.7571** | 0.7130 |
 | TerminalBench | 0.9317 | — | — | — | 0.7338 |
 | SWE-bench Pro | 0.9183 | 0.7236 | 0.7112 | **0.7555** | 0.6567 |
 
@@ -110,7 +110,7 @@ class CVPredictor(Protocol):
 
 | File | Purpose |
 |------|---------|
-| `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData` |
+| `dataset.py` | `ExperimentData` ABC with `BinaryExperimentData`, `load_dataset()` |
 | `feature_source.py` | `TaskFeatureSource` ABC with `EmbeddingFeatureSource`, `CSVFeatureSource` |
 | `feature_predictor.py` | `DifficultyPredictorBase` ABC, `FeatureBasedPredictor`, `GroupedRidgePredictor` |
 | `evaluator.py` | `compute_irt_probability()`, `convert_numpy()` |
@@ -416,33 +416,20 @@ python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
 
 ## Data Paths
 
-### SWE-bench Verified
+All datasets follow the same layout under `data/{dataset}/`:
 
 | File | Purpose |
 |------|---------|
-| `clean_data/swebench_verified_20251120_full/1d_1pl/abilities.csv` | Oracle IRT abilities |
-| `clean_data/swebench_verified_20251120_full/1d_1pl/items.csv` | Oracle IRT difficulties |
-| `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl` | Response matrix |
-| `chris_output/experiment_a/irt_splits/` | Fold-specific IRT models (cached) |
+| `data/{dataset}/responses.jsonl` | Binary response matrix |
+| `data/{dataset}/irt/1d_1pl/abilities.csv` | Oracle IRT abilities |
+| `data/{dataset}/irt/1d_1pl/items.csv` | Oracle IRT difficulties |
 
-### SWE-bench Pro
+Dataset-specific auxiliary files:
+- **SWE-bench Pro**: `data/swebench_pro/agent_dates.json`, `data/swebench_pro/swe-bench-pro.csv`
+- **GSO**: `data/gso/agent_dates.json`
+- **TerminalBench**: `data/terminalbench/model_release_dates.json`, `data/terminalbench/tasks.jsonl`, `data/terminalbench/meta.json`
 
-| File | Purpose |
-|------|---------|
-| `chris_output/swebench_pro_irt/1d/abilities.csv` | Oracle IRT abilities |
-| `chris_output/swebench_pro_irt/1d/items.csv` | Oracle IRT difficulties |
-| `out/chris_irt/swebench_pro.jsonl` | Response matrix |
-| `chris_output/experiment_a_swebench_pro/irt_splits/` | Fold-specific IRT models (cached) |
-| `chris_output/experiment_a_swebench_pro/llm_judge_features_v5/` | LLM Judge features (v5) |
-
-### TerminalBench
-
-| File | Purpose |
-|------|---------|
-| `chris_output/terminal_bench_2.0/1d_1pl/abilities.csv` | Oracle IRT abilities (112 agents) |
-| `chris_output/terminal_bench_2.0/1d_1pl/items.csv` | Oracle IRT difficulties (89 tasks) |
-| `out/chris_irt/terminal_bench.jsonl` | Response matrix (binary, majority threshold) |
-| `out/chris_irt/terminal_bench_tasks.jsonl` | Task instructions and solutions (from terminal-bench-2) |
+Fold-specific IRT models (cached): `chris_output/experiment_a_{dataset}/irt_splits/`
 
 ## Command Line Options
 
@@ -467,11 +454,11 @@ Results saved to `chris_output/experiment_a/experiment_a_cv5_results.json`:
   "config": {...},
   "k_folds": 5,
   "cv_results": {
-    "oracle": {"mean_auc": 0.9441, "std_auc": 0.0085, ...},
-    "grouped": {"mean_auc": 0.8436, "std_auc": 0.0216, ...},
-    "llm_judge": {"mean_auc": 0.8363, "std_auc": 0.0205, ...},
-    "embedding": {"mean_auc": 0.8230, "std_auc": 0.0193, ...},
-    "constant_baseline": {"mean_auc": 0.7146, "std_auc": 0.0083, ...}
+    "oracle": {"mean_auc": 0.9447, "std_auc": 0.0085, ...},
+    "grouped": {"mean_auc": 0.8445, "std_auc": 0.0208, ...},
+    "llm_judge": {"mean_auc": 0.8372, "std_auc": 0.0204, ...},
+    "embedding": {"mean_auc": 0.8242, "std_auc": 0.0193, ...},
+    "constant_baseline": {"mean_auc": 0.7174, "std_auc": 0.0082, ...}
   }
 }
 ```

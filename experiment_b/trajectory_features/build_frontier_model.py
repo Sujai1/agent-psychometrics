@@ -74,7 +74,7 @@ def load_frontier_tasks(config: SWEBenchConfig) -> Tuple[List[str], pd.DataFrame
     )
 
     oracle_items = pd.read_csv(
-        "clean_data/swebench_verified_20251120_full/1d/items.csv", index_col=0
+        "data/swebench/irt/1d_1pl/items.csv", index_col=0
     )
     oracle_frontier = oracle_items.loc[oracle_items.index.intersection(frontier_tasks)]
 

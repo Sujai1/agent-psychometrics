@@ -92,7 +92,7 @@ def main() -> None:
     p.add_argument(
         "--csv_path",
         type=str,
-        default="out/chris_irt/agent-runs-032fb63d-4992-4bfc-911d-3b7dafcb931f.csv",
+        default="data/swebench_pro/swe-bench-pro.csv",
         help="Path to agent-runs CSV",
     )
     p.add_argument(
@@ -150,7 +150,7 @@ def main() -> None:
     p.add_argument(
         "--output_path",
         type=str,
-        default="out/chris_irt/swebench_pro.jsonl",
+        default="data/swebench_pro/responses.jsonl",
         help="Output JSONL path",
     )
     args = p.parse_args()

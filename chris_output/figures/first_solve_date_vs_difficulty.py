@@ -20,8 +20,8 @@ from scipy import stats
 
 # Paths
 BASE_DIR = Path("/Users/chrisge/Downloads/model_irt")
-RESPONSE_MATRIX = BASE_DIR / "clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"
-ITEMS_CSV = BASE_DIR / "clean_data/swebench_verified_20251120_full/1d/items.csv"
+RESPONSE_MATRIX = BASE_DIR / "data/swebench/responses.jsonl"
+ITEMS_CSV = BASE_DIR / "data/swebench/irt/1d_1pl/items.csv"
 OUTPUT_DIR = BASE_DIR / "chris_output/figures"
 
 

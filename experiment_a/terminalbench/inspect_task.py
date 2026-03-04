@@ -42,7 +42,7 @@ DOCKER_REPO = "xiangyangli"
 DOCKER_TAG = "20260204"
 
 # Default paths
-DEFAULT_ITEMS_PATH = Path("chris_output/terminal_bench_2.0/1d_1pl/items.csv")
+DEFAULT_ITEMS_PATH = Path("data/terminalbench/irt/1d_1pl/items.csv")
 DEFAULT_REPO_PATH = Path("terminal-bench-2")
 
 

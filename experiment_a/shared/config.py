@@ -14,9 +14,9 @@ from typing import Any, Dict, List, Optional
 DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "swebench": {
         "display_name": "SWE-bench Verified",
-        "abilities_path": Path("clean_data/swebench_verified_20251120_full/1d_1pl/abilities.csv"),
-        "items_path": Path("clean_data/swebench_verified_20251120_full/1d_1pl/items.csv"),
-        "responses_path": Path("clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"),
+        "abilities_path": Path("data/swebench/irt/1d_1pl/abilities.csv"),
+        "items_path": Path("data/swebench/irt/1d_1pl/items.csv"),
+        "responses_path": Path("data/swebench/responses.jsonl"),
         "output_dir": Path("chris_output/experiment_a"),
         "embeddings_path": Path(
             "embeddings/"
@@ -30,9 +30,9 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "gso": {
         "display_name": "GSO",
-        "abilities_path": Path("chris_output/gso_irt/1d_1pl/abilities.csv"),
-        "items_path": Path("chris_output/gso_irt/1d_1pl/items.csv"),
-        "responses_path": Path("out/chris_irt/gso.jsonl"),
+        "abilities_path": Path("data/gso/irt/1d_1pl/abilities.csv"),
+        "items_path": Path("data/gso/irt/1d_1pl/items.csv"),
+        "responses_path": Path("data/gso/responses.jsonl"),
         "output_dir": Path("chris_output/experiment_a_gso"),
         "embeddings_path": Path(
             "embeddings/"
@@ -46,9 +46,9 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "swebench_pro": {
         "display_name": "SWE-bench Pro",
-        "abilities_path": Path("chris_output/swebench_pro_irt/1d/abilities.csv"),
-        "items_path": Path("chris_output/swebench_pro_irt/1d/items.csv"),
-        "responses_path": Path("out/chris_irt/swebench_pro.jsonl"),
+        "abilities_path": Path("data/swebench_pro/irt/1d_1pl/abilities.csv"),
+        "items_path": Path("data/swebench_pro/irt/1d_1pl/items.csv"),
+        "responses_path": Path("data/swebench_pro/responses.jsonl"),
         "output_dir": Path("chris_output/experiment_a_swebench_pro"),
         "embeddings_path": Path(
             "embeddings/"
@@ -62,9 +62,9 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "terminalbench": {
         "display_name": "TerminalBench",
-        "abilities_path": Path("chris_output/terminal_bench_2.0/1d_1pl/abilities.csv"),
-        "items_path": Path("chris_output/terminal_bench_2.0/1d_1pl/items.csv"),
-        "responses_path": Path("out/chris_irt/terminal_bench.jsonl"),
+        "abilities_path": Path("data/terminalbench/irt/1d_1pl/abilities.csv"),
+        "items_path": Path("data/terminalbench/irt/1d_1pl/items.csv"),
+        "responses_path": Path("data/terminalbench/responses.jsonl"),
         "output_dir": Path("chris_output/experiment_a_terminalbench"),
         "embeddings_path": Path(
             "embeddings/"

@@ -11,7 +11,7 @@ SWE-bench Pro is a benchmark dataset containing **9,729 agent × problem traject
 
 ## Data Source
 
-- **CSV File:** `data/swe-bench-pro.csv` (1.8 MB, 9,729 rows)
+- **CSV File:** `data/swebench_pro/swe-bench-pro.csv` (1.8 MB, 9,729 rows)
 - **Website:** https://docent.transluce.org/dashboard/032fb63d-4992-4bfc-911d-3b7dafcb931f
 - **Date Range:** Oct 13-22, 2025
 
@@ -134,7 +134,7 @@ To fit IRT models to SWE-bench Pro:
    ```bash
    # Create JSONL format (similar to prep_swebench.py)
    python swebench_irt/prep_swebench_pro.py \
-       --input data/swe-bench-pro.csv \
+       --input data/swebench_pro/swe-bench-pro.csv \
        --output clean_data/swebench_pro/swebench_pro.jsonl
    ```
 

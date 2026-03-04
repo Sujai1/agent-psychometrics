@@ -9,7 +9,7 @@ This module provides functions to:
 Usage:
     python -m experiment_ab_shared.llm_judge.analyze_feature_correlations \
         --features-csv chris_output/experiment_a/llm_judge_features/llm_judge_features.csv \
-        --irt-items clean_data/swebench_verified_20251120_full/1d/items.csv \
+        --irt-items data/swebench/irt/1d_1pl/items.csv \
         --dataset swebench
 """
 

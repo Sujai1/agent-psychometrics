@@ -37,17 +37,17 @@ class SWEBenchConfig(DatasetConfig):
     # Data paths
     responses_path: Path = field(
         default_factory=lambda: Path(
-            "clean_data/swebench_verified/swebench_verified_20251120_full.jsonl"
+            "data/swebench/responses.jsonl"
         )
     )
     oracle_irt_path: Path = field(
         default_factory=lambda: Path(
-            "clean_data/swebench_verified_20251120_full/1d/items.csv"
+            "data/swebench/irt/1d_1pl/items.csv"
         )
     )
     oracle_abilities_path: Path = field(
         default_factory=lambda: Path(
-            "clean_data/swebench_verified_20251120_full/1d/abilities.csv"
+            "data/swebench/irt/1d_1pl/abilities.csv"
         )
     )
     # Baseline IRT is trained on-demand with proper cache validation

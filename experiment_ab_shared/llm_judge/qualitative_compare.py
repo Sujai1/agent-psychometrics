@@ -41,13 +41,13 @@ def load_tasks_and_difficulties(
     # Load IRT difficulties
     if irt_items_path is None:
         if dataset == "swebench":
-            irt_items_path = Path("clean_data/swebench_verified_20251120_full/1d/items.csv")
+            irt_items_path = Path("data/swebench/irt/1d_1pl/items.csv")
         elif dataset == "swebench_pro":
-            irt_items_path = Path("clean_data/swebench_pro/1d/items.csv")
+            irt_items_path = Path("data/swebench_pro/irt/1d_1pl/items.csv")
         elif dataset == "gso":
-            irt_items_path = Path("clean_data/gso/1d/items.csv")
+            irt_items_path = Path("data/gso/irt/1d_1pl/items.csv")
         elif dataset == "terminalbench":
-            irt_items_path = Path("clean_data/terminalbench/1d/items.csv")
+            irt_items_path = Path("data/terminalbench/irt/1d_1pl/items.csv")
         else:
             raise ValueError(f"No default IRT items path for dataset: {dataset}")
 

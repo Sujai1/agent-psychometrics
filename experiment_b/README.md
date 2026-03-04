@@ -421,8 +421,8 @@ experiment_b/
 
 | File | Purpose |
 |------|---------|
-| `clean_data/swebench_verified_20251120_full/1d_1pl/items.csv` | Oracle IRT difficulties |
-| `clean_data/swebench_verified/swebench_verified_20251120_full.jsonl` | Response matrix |
+| `data/swebench/irt/1d_1pl/items.csv` | Oracle IRT difficulties |
+| `data/swebench/responses.jsonl` | Response matrix |
 | `chris_output/experiment_a/embeddings/` | Task embeddings |
 | `chris_output/experiment_a/llm_judge_features/` | LLM judge features |
 
@@ -430,18 +430,18 @@ experiment_b/
 
 | File | Purpose |
 |------|---------|
-| `chris_output/swebench_pro_irt/1d/items.csv` | Oracle IRT difficulties |
-| `out/chris_irt/swebench_pro.jsonl` | Response matrix (730 tasks, 14 agents) |
+| `data/swebench_pro/irt/1d/items.csv` | Oracle IRT difficulties |
+| `data/swebench_pro/responses.jsonl` | Response matrix (730 tasks, 14 agents) |
 | `out/swebench_pro/embeddings__deepseek-ai__...npz` | Task embeddings |
 | `chris_output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv` | LLM judge v5 features (8 features) |
-| `data/swebench_pro_agent_dates.json` | Agent release dates (public announcements) |
+| `data/swebench_pro/agent_dates.json` | Agent release dates (public announcements) |
 
 ### TerminalBench
 
 | File | Purpose |
 |------|---------|
-| `chris_output/terminal_bench_2.0/1d/items.csv` | Oracle IRT difficulties |
-| `data/terminal_bench/terminal_bench_2.0.jsonl` | Response matrix |
+| `data/terminalbench/irt/1d/items.csv` | Oracle IRT difficulties |
+| `data/terminalbench/responses.jsonl` | Response matrix |
 | `chris_output/experiment_a_terminalbench/embeddings/` | Task embeddings |
 | `chris_output/experiment_a_terminalbench/llm_judge_features/` | LLM judge features (4 pre-selected) |
 

@@ -300,28 +300,28 @@ class TerminalBenchConfig(DatasetConfig):
     """Configuration for TerminalBench dataset.
 
     TerminalBench agent dates are derived from the underlying model's release date,
-    loaded from data/terminalbench_model_release_dates.json. For multi-model agents,
+    loaded from data/terminalbench/model_release_dates.json. For multi-model agents,
     the latest (max) release date is used since the agent can't exist before all
     its constituent models are released.
     """
 
     # Data paths
     responses_path: Path = field(
-        default_factory=lambda: Path("data/terminal_bench/terminal_bench_2.0.jsonl")
+        default_factory=lambda: Path("data/terminalbench/responses.jsonl")
     )
     oracle_irt_path: Path = field(
-        default_factory=lambda: Path("chris_output/terminal_bench_2.0/1d_1pl/items.csv")
+        default_factory=lambda: Path("data/terminalbench/irt/1d_1pl/items.csv")
     )
     oracle_abilities_path: Path = field(
-        default_factory=lambda: Path("chris_output/terminal_bench_2.0/1d_1pl/abilities.csv")
+        default_factory=lambda: Path("data/terminalbench/irt/1d_1pl/abilities.csv")
     )
     metadata_path: Path = field(
-        default_factory=lambda: Path("data/terminal_bench/terminal_bench_2.0.meta.json")
+        default_factory=lambda: Path("data/terminalbench/meta.json")
     )
 
     # Model release dates file (maps model names to release dates)
     model_release_dates_path: Path = field(
-        default_factory=lambda: Path("data/terminalbench_model_release_dates.json")
+        default_factory=lambda: Path("data/terminalbench/model_release_dates.json")
     )
 
     # No pre-computed baseline IRT for TerminalBench (will use oracle or skip)

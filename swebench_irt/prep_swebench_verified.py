@@ -105,7 +105,7 @@ def main() -> None:
     parser.add_argument(
         "--output_path",
         type=str,
-        default="out/chris_irt/swebench_verified.jsonl",
+        default="data/swebench/responses.jsonl",
         help="Output JSONL path",
     )
     args = parser.parse_args()

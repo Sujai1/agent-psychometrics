@@ -154,7 +154,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_name": "princeton-nlp/SWE-bench_Verified",
             "dataset_path": "",
             "split": "test",
-            "agent_results": os.path.join(base, "out/chris_irt/swebench_verified.jsonl"),
+            "agent_results": os.path.join(base, "data/swebench/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/verified.csv"),
             "out_dir": os.path.join(base, "out/swebench_verified"),
         },
@@ -162,15 +162,15 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_name": "ScaleAI/SWE-bench_Pro",
             "dataset_path": "",
             "split": "test",
-            "agent_results": os.path.join(base, "out/chris_irt/swebench_pro.jsonl"),
+            "agent_results": os.path.join(base, "data/swebench_pro/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/pro.csv"),
             "out_dir": os.path.join(base, "out/swebench_pro"),
         },
         "terminal_bench": {
             "dataset_name": "",
-            "dataset_path": os.path.join(base, "out/chris_irt/terminal_bench_tasks.jsonl"),
+            "dataset_path": os.path.join(base, "data/terminalbench/tasks.jsonl"),
             "split": "train",
-            "agent_results": os.path.join(base, "out/chris_irt/terminal_bench.jsonl"),
+            "agent_results": os.path.join(base, "data/terminalbench/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/terminal_bench.csv"),
             "out_dir": os.path.join(base, "out/terminal_bench"),
         },
@@ -178,7 +178,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_name": "gso-bench/gso",
             "dataset_path": "",
             "split": "test",
-            "agent_results": os.path.join(base, "out/chris_irt/gso.jsonl"),
+            "agent_results": os.path.join(base, "data/gso/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/gso.csv"),
             "out_dir": os.path.join(base, "out/gso"),
         },
@@ -2207,7 +2207,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--agent_results",
         type=str,
-        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/out/chris_irt/swebench_verified.jsonl",
+        default="/orcd/scratch/orcd/001/daria_k/fulcrum/fellowship/data/swebench/responses.jsonl",
         help=(
             "Path to a JSONL file with per-subject responses of the form "
             "{'subject_id': ..., 'responses': {'task_id': 0/1, ...}}."
