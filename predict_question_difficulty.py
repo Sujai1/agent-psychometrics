@@ -136,7 +136,7 @@ JUDGE_FEATURE_NAMES: List[str] = [
     "standard_pattern_available",
 ]
 
-_V_SUFFIX_RE = re.compile(r"-v.*$")
+_V_SUFFIX_RE = re.compile(r"-v(?:\d+|[0-9a-f]{6,}|nan)$", re.IGNORECASE)
 
 def _canon_benchmark_name(name: str) -> str:
     s = str(name or "").strip().lower().replace("-", "_")
@@ -156,7 +156,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "split": "test",
             "agent_results": os.path.join(base, "data/swebench_verified/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/verified.csv"),
-            "out_dir": os.path.join(base, "out/swebench_verified"),
+            "out_dir": os.path.join(base, "data/swebench_verified"),
         },
         "pro": {
             "dataset_name": "ScaleAI/SWE-bench_Pro",
@@ -164,7 +164,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "split": "test",
             "agent_results": os.path.join(base, "data/swebench_pro/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/pro.csv"),
-            "out_dir": os.path.join(base, "out/swebench_pro"),
+            "out_dir": os.path.join(base, "data/swebench_pro"),
         },
         "terminal_bench": {
             "dataset_name": "",
@@ -172,7 +172,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "split": "train",
             "agent_results": os.path.join(base, "data/terminalbench/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/terminal_bench.csv"),
-            "out_dir": os.path.join(base, "out/terminal_bench"),
+            "out_dir": os.path.join(base, "data/terminalbench"),
         },
         "gso": {
             "dataset_name": "gso-bench/gso",
@@ -180,7 +180,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "split": "test",
             "agent_results": os.path.join(base, "data/gso/responses.jsonl"),
             "judge_features_dir": os.path.join(base, "llm_judge/features/gso.csv"),
-            "out_dir": os.path.join(base, "out/gso"),
+            "out_dir": os.path.join(base, "data/gso"),
         },
     }
     return defaults[b]
@@ -372,7 +372,7 @@ def train_oracle_irt_1pl_and_save(
     all_responses: List[Tuple[str, Dict[str, int]]],
     item_ids: Sequence[str],
 ) -> Tuple[Dict[str, Any], Dict[str, float], Dict[str, float]]:
-    oracle_dir = os.path.join(str(args.out_dir), "oracle_irt_1pl")
+    oracle_dir = os.path.join(str(args.out_dir), "irt_oracle")
     if os.path.exists(oracle_dir):
         shutil.rmtree(oracle_dir, ignore_errors=True)
     ensure_dir(oracle_dir)
@@ -1496,7 +1496,7 @@ def _run_with_judge_features(
         fold_root = os.path.join(str(args.out_dir), "irt_folds", f"fold_{int(fold):02d}")
         ensure_dir(fold_root)
 
-        irt_dir = os.path.join(str(fold_root), "irt_1pl")
+        irt_dir = os.path.join(str(fold_root), "1d_1pl")
         if os.path.exists(irt_dir):
             shutil.rmtree(irt_dir, ignore_errors=True)
 
@@ -1979,7 +1979,7 @@ def _run_judge_only(
             epochs=int(args.irt_epochs),
             device=str(irt_device),
             seed=int(args.seed),
-            out_dir=os.path.join(fold_root, "irt_1pl"),
+            out_dir=os.path.join(fold_root, "1d_1pl"),
         )
         set_torch_determinism(True)
         if not theta_by_subject:
@@ -2611,7 +2611,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             epochs=int(args.irt_epochs),
             device=str(irt_device),
             seed=int(args.seed),
-            out_dir=os.path.join(fold_root, "irt_1pl"),
+            out_dir=os.path.join(fold_root, "1d_1pl"),
         )
 
         set_torch_determinism(True)

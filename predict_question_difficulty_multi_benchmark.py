@@ -724,6 +724,8 @@ def train_standard_irt_1pl_agents(
     keep_agent_keys: Optional[Set[str]] = None,
     keep_obs_fn: Optional[Callable[[str, str, str], bool]] = None,
 ) -> Tuple[Dict[str, float], Dict[str, float]]:
+    import torch
+
     outp = str(out_dir or "").strip()
     if not outp:
         raise ValueError("out_dir was empty")
@@ -771,10 +773,15 @@ def train_standard_irt_1pl_agents(
     if n_subjects_written <= 0:
         raise RuntimeError("After filtering, there were 0 observations to train standard IRT on.")
 
+    dev = str(device or "cpu").strip() or "cpu"
+    if dev.startswith("cuda") and not torch.cuda.is_available():
+        print("WARNING: --irt_device=cuda requested but CUDA is unavailable; falling back to cpu for IRT.")
+        dev = "cpu"
+
     theta_by_subject, diff_by_item = base.train_irt_1pl(
         responses_jsonl=str(train_jsonl),
         epochs=int(epochs),
-        device=str(device),
+        device=str(dev),
         seed=int(seed),
         out_dir=str(outp),
     )
@@ -1489,12 +1496,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     def _irt_out_dir_name(model_name: str) -> str:
         m = str(model_name or "").strip().lower()
-        if m == "1d_1pl":
-
-            return "irt_model_scaffold_1pl"
-        if m == "2d_1pl":
-            return "irt_model_scaffold_2d_1pl"
-        return f"irt_model_scaffold_{m}"
+        return m
 
     irt_model_label = f"model+scaffold {irt_model.replace('_', ' ')} (shared)"
 
@@ -1988,7 +1990,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             epochs=int(args.irt_epochs),
             device=str(args.irt_device),
             seed=int(args.seed),
-            out_dir=os.path.join(str(oracle_root), "agent_1pl"),
+            out_dir=str(oracle_root),
         )
         base.set_torch_determinism(True)
         print(
@@ -2092,7 +2094,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     epochs=int(args.irt_epochs),
                     device=str(args.irt_device),
                     seed=int(args.seed),
-                    out_dir=os.path.join(fold_root, "irt_agent_baseline_1pl"),
+                    out_dir=os.path.join(fold_root, "irt_standard"),
                 )
                 base.set_torch_determinism(True)
 
@@ -2380,7 +2382,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     epochs=int(args.irt_epochs),
                     device=str(args.irt_device),
                     seed=int(args.seed),
-                    out_dir=os.path.join(fold_root, "irt_agent_baseline_1pl"),
+                    out_dir=os.path.join(fold_root, "irt_standard"),
                 )
                 base.set_torch_determinism(True)
 
@@ -2915,7 +2917,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     epochs=int(args.irt_epochs),
                     device=str(args.irt_device),
                     seed=int(args.seed),
-                    out_dir=os.path.join(fold_root, "irt_agent_baseline_1pl"),
+                    out_dir=os.path.join(fold_root, "irt_standard"),
                 )
                 base.set_torch_determinism(True)
 
@@ -3241,7 +3243,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     epochs=int(args.irt_epochs),
                     device=str(args.irt_device),
                     seed=int(args.seed),
-                    out_dir=os.path.join(fold_root, "irt_agent_baseline_1pl"),
+                    out_dir=os.path.join(fold_root, "irt_standard"),
                 )
                 base.set_torch_determinism(True)
             scores: List[float] = []
@@ -4048,7 +4050,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 device=str(args.irt_device),
                 seed=int(args.seed),
                 lr=float(args.irt_lr),
-                out_dir=os.path.join(str(oracle_root), "including_ood", _irt_out_dir_name(irt_model)),
+                out_dir=os.path.join(str(oracle_root), _irt_out_dir_name(irt_model)),
             )
             base.set_torch_determinism(True)
 
