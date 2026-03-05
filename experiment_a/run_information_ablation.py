@@ -42,7 +42,8 @@ class AblationConfig:
     auditor_path: Path = Path("chris_output/auditor_pilot/v3_features_top3.csv")
     test_no_sol_path: Path = Path("chris_output/llm_judge_features/swebench_test_quality_no_solution/llm_judge_features.csv")
     test_with_sol_path: Path = Path("chris_output/llm_judge_features/swebench_test_quality_CONTAMINATED_has_solution/llm_judge_features.csv")
-    unified_path: Path = Path("chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv")
+    # Only SOLUTION_FEATURES (solution_complexity, integration_complexity) are read from this CSV
+    solution_features_path: Path = Path("chris_output/llm_judge_features/swebench_unified/llm_judge_features.csv")
 
     # IRT ground truth
     items_path: Path = Path("data/swebench_verified/irt/1d_1pl/items.csv")
@@ -118,7 +119,7 @@ def build_ablation_csvs(config: AblationConfig) -> None:
     auditor = pd.read_csv(config.auditor_path).rename(columns={"task_id": "instance_id"})
     test_no_sol = pd.read_csv(config.test_no_sol_path).rename(columns={"_task_id": "instance_id"})
     test_with_sol = pd.read_csv(config.test_with_sol_path).rename(columns={"_task_id": "instance_id"})
-    unified = pd.read_csv(config.unified_path).rename(columns={"_task_id": "instance_id"})
+    unified = pd.read_csv(config.solution_features_path).rename(columns={"_task_id": "instance_id"})
 
     # Merge all features
     all_features = items[["instance_id", "b"]].copy()
