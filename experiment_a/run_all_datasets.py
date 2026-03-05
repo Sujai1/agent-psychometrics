@@ -12,7 +12,6 @@ Usage:
 
 import argparse
 import json
-import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,48 +24,22 @@ from experiment_a.shared.config import DATASET_DEFAULTS
 ROOT = Path(__file__).resolve().parents[1]
 
 # All datasets in display order
-ALL_DATASETS = ["swebench", "gso", "terminalbench", "swebench_pro"]
-
-# Ablation paths per dataset (only used with --judge_ablation)
-JUDGE_ABLATION_PATHS: Dict[str, Dict[str, Path]] = {
-    "swebench": {
-        "no_solution": Path("chris_output/experiment_a/llm_judge_features/llm_judge_no_solution_plus_auditor.csv"),
-        "problem_only": Path("chris_output/llm_judge_features/swebench_unified_problem_only/llm_judge_features.csv"),
-    },
-    "gso": {
-        "no_solution": Path("chris_output/llm_judge_features/gso_unified_no_solution/llm_judge_features.csv"),
-        "problem_only": Path("chris_output/llm_judge_features/gso_unified_problem_only/llm_judge_features.csv"),
-    },
-    "terminalbench": {
-        "no_solution": Path("chris_output/llm_judge_features/terminalbench_unified_no_solution/llm_judge_features.csv"),
-        "problem_only": Path("chris_output/llm_judge_features/terminalbench_unified_problem_only/llm_judge_features.csv"),
-    },
-    "swebench_pro": {
-        "no_solution": Path("chris_output/llm_judge_features/swebench_pro_unified_no_solution/llm_judge_features.csv"),
-        "problem_only": Path("chris_output/llm_judge_features/swebench_pro_unified_problem_only/llm_judge_features.csv"),
-    },
-}
+ALL_DATASETS = ["swebench_verified", "gso", "terminalbench", "swebench_pro"]
 
 
 def run_single_dataset(
     dataset: str,
     output_base: Optional[Path] = None,
     k_folds: int = 5,
-    judge_ablation: bool = False,
-    extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
-    extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
     coefficients: bool = False,
     predictor_factory=None,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_a on a single dataset and return results.
 
     Args:
-        dataset: Dataset short name (e.g., "swebench", "gso").
+        dataset: Dataset short name (e.g., "swebench_verified", "gso").
         output_base: Base directory for outputs.
         k_folds: Number of CV folds.
-        judge_ablation: Whether to include no-solution and problem-only LLM judge ablations.
-        extra_embeddings_paths: Additional embedding paths for ablation studies.
-        extra_llm_judge_paths: Additional LLM judge paths for ablation studies.
         coefficients: Whether to extract LLM Judge Ridge coefficients.
         predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
 
@@ -76,23 +49,8 @@ def run_single_dataset(
     from experiment_a.shared.config import ExperimentAConfig
     from experiment_a.shared.pipeline import cross_validate_all_predictors
 
-    # Build config overrides
-    config_kwargs: Dict[str, Any] = {}
-
-    # Add ablation paths if requested
-    if judge_ablation and dataset in JUDGE_ABLATION_PATHS:
-        ablation_paths = []
-        for variant, path in JUDGE_ABLATION_PATHS[dataset].items():
-            if (ROOT / path).exists():
-                ablation_paths.append((variant, path))
-        if ablation_paths:
-            if extra_llm_judge_paths:
-                extra_llm_judge_paths = list(extra_llm_judge_paths) + ablation_paths
-            else:
-                extra_llm_judge_paths = ablation_paths
-
     try:
-        config = ExperimentAConfig.for_dataset(dataset, **config_kwargs)
+        config = ExperimentAConfig.for_dataset(dataset)
     except Exception as e:
         display_name = DATASET_DEFAULTS[dataset]["display_name"]
         return display_name, {"error": f"Config error: {e}"}
@@ -107,8 +65,6 @@ def run_single_dataset(
     try:
         results = cross_validate_all_predictors(
             config, ROOT, k_folds,
-            extra_embeddings_paths=extra_embeddings_paths,
-            extra_llm_judge_paths=extra_llm_judge_paths,
             diagnostics_extractors=diagnostics_extractors,
             predictor_factory=predictor_factory,
         )
@@ -167,9 +123,6 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
         "llm_judge": "LLM Judge",
         "grouped": "Grouped",
         "constant_baseline": "Baseline",
-        # Ablation study predictors
-        "llm_judge_no_solution": "LLM (no sol)",
-        "llm_judge_problem_only": "LLM (prob only)",
     }
 
     cv_results = results.get("cv_results", {})
@@ -197,8 +150,7 @@ def format_results_table(
         Formatted markdown table string with proper column alignment.
     """
     if methods is None:
-        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge",
-                   "LLM (no sol)", "LLM (prob only)", "Baseline"]
+        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge", "Baseline"]
 
     # Build data rows first to calculate column widths
     data_rows = []
@@ -253,8 +205,7 @@ def save_results_csv(
     import csv
 
     if methods is None:
-        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge",
-                   "LLM (no sol)", "LLM (prob only)", "Baseline"]
+        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge", "Baseline"]
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -311,23 +262,6 @@ def main():
         help="Maximum parallel workers for datasets (default: 4)",
     )
     parser.add_argument(
-        "--judge_ablation",
-        action="store_true",
-        help="Include LLM judge ablation variants (no-solution, problem-only) for each dataset.",
-    )
-    parser.add_argument(
-        "--llm_judge_paths",
-        type=str,
-        default=None,
-        help="Comma-separated list of LLM judge paths to compare (ablation study)",
-    )
-    parser.add_argument(
-        "--embeddings_paths",
-        type=str,
-        default=None,
-        help="Comma-separated list of embedding paths to compare (ablation study)",
-    )
-    parser.add_argument(
         "--coefficients",
         action="store_true",
         help="Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3).",
@@ -343,33 +277,6 @@ def main():
     # Filter datasets if specified
     datasets_to_run = args.datasets if args.datasets else ALL_DATASETS
 
-    # Parse extra feature paths for ablation studies
-    extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None
-    extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None
-
-    if args.embeddings_paths:
-        extra_embeddings_paths = []
-        for path_str in args.embeddings_paths.split(","):
-            path_str = path_str.strip()
-            if path_str:
-                path = Path(path_str)
-                # Extract a short name from the path
-                name = path.stem
-                if "__" in name:
-                    parts = name.split("__")
-                    name = parts[-1] if parts[-1] else parts[-2]
-                extra_embeddings_paths.append((name, path))
-
-    if args.llm_judge_paths:
-        extra_llm_judge_paths = []
-        for path_str in args.llm_judge_paths.split(","):
-            path_str = path_str.strip()
-            if path_str:
-                path = Path(path_str)
-                # Use parent directory name as the variant name
-                name = path.parent.name
-                extra_llm_judge_paths.append((name, path))
-
     # Resolve predictor factory
     predictor_factory = None
     if args.feature_irt:
@@ -380,12 +287,7 @@ def main():
     print(f"Running Experiment A on {len(datasets_to_run)} datasets...")
     print(f"Training method: {training_method}")
     print(f"K-folds: {args.k_folds}")
-    print(f"Judge ablation: {args.judge_ablation}")
     print(f"Parallelization: datasets={args.max_workers}")
-    if extra_embeddings_paths:
-        print(f"Extra embedding paths: {[name for name, _ in extra_embeddings_paths]}")
-    if extra_llm_judge_paths:
-        print(f"Extra LLM judge paths: {[name for name, _ in extra_llm_judge_paths]}")
     print()
 
     all_results: Dict[str, Dict[str, Optional[float]]] = {}
@@ -399,9 +301,6 @@ def main():
                 dataset,
                 output_base=args.output_dir,
                 k_folds=args.k_folds,
-                judge_ablation=args.judge_ablation,
-                extra_embeddings_paths=extra_embeddings_paths,
-                extra_llm_judge_paths=extra_llm_judge_paths,
                 coefficients=args.coefficients,
                 predictor_factory=predictor_factory,
             )
@@ -425,9 +324,6 @@ def main():
                     dataset,
                     output_base=args.output_dir,
                     k_folds=args.k_folds,
-                    judge_ablation=args.judge_ablation,
-                    extra_embeddings_paths=extra_embeddings_paths,
-                    extra_llm_judge_paths=extra_llm_judge_paths,
                     coefficients=args.coefficients,
                     predictor_factory=predictor_factory,
                 ): DATASET_DEFAULTS[dataset]["display_name"]

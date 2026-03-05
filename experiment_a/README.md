@@ -33,7 +33,7 @@ python -m experiment_a.run_all_datasets --output results.csv
 
 # Run Feature-IRT variant (joint training instead of Ridge)
 python -m experiment_a.run_all_datasets --feature_irt
-python -m experiment_a.run_all_datasets --feature_irt --datasets swebench gso
+python -m experiment_a.run_all_datasets --feature_irt --datasets swebench_verified gso
 
 # Run a single dataset
 python -m experiment_a.run_all_datasets --datasets terminalbench
@@ -265,7 +265,7 @@ Semantic features extracted via LLM structured output:
 
 **SWE-bench Verified (15 features)**:
 
-Default feature set: `chris_output/llm_judge_features/experiment_a_defaults/swebench.csv`
+Default feature set: `chris_output/llm_judge_features/experiment_a_defaults/swebench_verified.csv`
 
 15 features selected by Ridge coefficient magnitude:
 - **Problem**: problem_clarity, atypicality, logical_reasoning_required, codebase_scope, information_completeness, similar_issue_likelihood, error_specificity, reproduction_clarity
@@ -398,20 +398,20 @@ python -m experiment_a.run_all_datasets --judge_ablation --sequential
 To extract features:
 ```bash
 # SWE-bench features
-python -m experiment_ab_shared.llm_judge extract --dataset swebench --dry-run
-python -m experiment_ab_shared.llm_judge extract --dataset swebench
+python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified --dry-run
+python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified
 
 # TerminalBench features
 python -m experiment_ab_shared.llm_judge extract --dataset terminalbench --dry-run
 python -m experiment_ab_shared.llm_judge extract --dataset terminalbench
 
 # Options
-python -m experiment_ab_shared.llm_judge extract --dataset swebench --limit 50  # Process first 50 tasks
-python -m experiment_ab_shared.llm_judge extract --dataset swebench --provider openai  # Use OpenAI
-python -m experiment_ab_shared.llm_judge extract --dataset swebench --model claude-sonnet-4-20250514  # Use specific model
+python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified --limit 50  # Process first 50 tasks
+python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified --provider openai  # Use OpenAI
+python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified --model claude-sonnet-4-20250514  # Use specific model
 
 # Aggregate existing JSON files to CSV
-python -m experiment_ab_shared.llm_judge aggregate --dataset swebench
+python -m experiment_ab_shared.llm_judge aggregate --dataset swebench_verified
 ```
 
 ## Data Paths
@@ -469,7 +469,7 @@ Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3 in the pap
 
 ```bash
 # Run with coefficient analysis for a specific dataset
-python -m experiment_a.run_all_datasets --datasets swebench --coefficients --sequential
+python -m experiment_a.run_all_datasets --datasets swebench_verified --coefficients --sequential
 ```
 
 The `--coefficients` flag extracts per-fold Ridge coefficients from the LLM Judge predictor and prints:

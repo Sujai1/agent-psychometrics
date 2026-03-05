@@ -10,13 +10,11 @@ The experiments differ only in:
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
 from experiment_ab_shared.feature_source import (
-    EmbeddingFeatureSource,
-    CSVFeatureSource,
     RegularizedFeatureSource,
     GroupedFeatureSource,
     build_feature_sources,
@@ -83,8 +81,6 @@ def _default_predictor_factory(source_name: str, source: Any, config: Any) -> CV
 def build_cv_predictors(
     config: Any,
     root: Path,
-    extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
-    extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
     predictor_factory: Optional[Callable[[str, Any, Any], CVPredictor]] = None,
 ) -> List[CVPredictorConfig]:
     """Build list of CVPredictor configurations for cross-validation.
@@ -95,10 +91,6 @@ def build_cv_predictors(
     Args:
         config: Experiment configuration (ExperimentAConfig)
         root: Root directory for resolving relative paths
-        extra_embeddings_paths: List of (name, path) tuples for additional embedding
-            sources to compare (ablation study).
-        extra_llm_judge_paths: List of (name, path) tuples for additional LLM judge
-            sources to compare (ablation study).
         predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
             Controls how feature sources are wrapped into predictors. If None, uses
             Ridge regression (the default). source_name is one of "Embedding",
@@ -140,32 +132,6 @@ def build_cv_predictors(
 
     # Build a dict for easy lookup by source name
     source_by_name = {name: source for name, source in feature_source_list}
-
-    # Add extra embedding sources (for ablation studies)
-    if extra_embeddings_paths:
-        for name, path in extra_embeddings_paths:
-            emb_source = EmbeddingFeatureSource(path)
-            predictor = predictor_factory("Embedding", emb_source, config)
-            configs.append(
-                CVPredictorConfig(
-                    predictor=predictor,
-                    name=f"embedding_{name}",
-                    display_name=f"Embedding ({name})",
-                )
-            )
-
-    # Add extra LLM judge sources (for ablation studies)
-    if extra_llm_judge_paths:
-        for name, path in extra_llm_judge_paths:
-            judge_source = CSVFeatureSource(path, feature_cols=None)  # Auto-detect cols
-            predictor = predictor_factory("LLM Judge", judge_source, config)
-            configs.append(
-                CVPredictorConfig(
-                    predictor=predictor,
-                    name=f"llm_judge_{name}",
-                    display_name=f"LLM Judge ({name})",
-                )
-            )
 
     # Individual feature source predictors
     if "Embedding" in source_by_name:
@@ -212,8 +178,6 @@ def cross_validate_all_predictors(
     root: Path,
     k: int = 5,
     diagnostics_extractors: Optional[Dict[str, Callable]] = None,
-    extra_embeddings_paths: Optional[List[Tuple[str, Path]]] = None,
-    extra_llm_judge_paths: Optional[List[Tuple[str, Path]]] = None,
     predictor_factory: Optional[Callable[[str, Any, Any], CVPredictor]] = None,
 ) -> Dict[str, Any]:
     """Run the evaluation pipeline with k-fold cross-validation.
@@ -228,10 +192,6 @@ def cross_validate_all_predictors(
         diagnostics_extractors: Optional dict mapping predictor name -> extractor function.
             Each extractor is called as extractor(predictor, fold_idx) after each fold.
             Results are stored in CrossValidationResult.fold_diagnostics.
-        extra_embeddings_paths: List of (name, path) tuples for additional embedding
-            sources to compare (ablation study).
-        extra_llm_judge_paths: List of (name, path) tuples for additional LLM judge
-            sources to compare (ablation study).
         predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
             Controls how feature sources become predictors. If None, uses Ridge regression.
             Passed through to build_cv_predictors().
@@ -282,8 +242,6 @@ def cross_validate_all_predictors(
     # Build predictor configs
     predictor_configs = build_cv_predictors(
         config, root,
-        extra_embeddings_paths=extra_embeddings_paths,
-        extra_llm_judge_paths=extra_llm_judge_paths,
         predictor_factory=predictor_factory,
     )
 

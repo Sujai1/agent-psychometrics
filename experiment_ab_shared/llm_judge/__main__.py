@@ -2,15 +2,15 @@
 
 Usage:
     # Extract features for built-in datasets
-    python -m experiment_ab_shared.llm_judge extract --dataset swebench
+    python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified
     python -m experiment_ab_shared.llm_judge extract --dataset terminalbench
 
     # Dry run to see cost estimate
-    python -m experiment_ab_shared.llm_judge extract --dataset swebench --dry-run
+    python -m experiment_ab_shared.llm_judge extract --dataset swebench_verified --dry-run
 
     # Custom options
     python -m experiment_ab_shared.llm_judge extract \\
-        --dataset swebench \\
+        --dataset swebench_verified \\
         --provider anthropic \\
         --model claude-sonnet-4-20250514 \\
         --limit 50 \\
@@ -18,7 +18,7 @@ Usage:
 
     # Aggregate only (combine existing JSONs to CSV)
     python -m experiment_ab_shared.llm_judge aggregate \\
-        --dataset swebench \\
+        --dataset swebench_verified \\
         --output-dir chris_output/experiment_a/llm_judge_features
 
     # Use custom prompt config file
@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 # Default output directories per dataset
 DEFAULT_OUTPUT_DIRS = {
-    "swebench": Path("chris_output/experiment_a/llm_judge_features"),
+    "swebench_verified": Path("chris_output/experiment_a/llm_judge_features"),
     "swebench_pro": Path("chris_output/experiment_a_swebench_pro/llm_judge_features"),
     "terminalbench": Path("chris_output/experiment_a_terminalbench/llm_judge_features"),
     "gso": Path("chris_output/gso_llm_judge_features"),
@@ -322,7 +322,7 @@ def load_tasks_for_dataset(
     repo_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """Load tasks for a built-in dataset."""
-    if dataset in ("swebench", "swebench_with_test", "swebench_test_quality_with_solution", "swebench_test_quality_no_solution"):
+    if dataset in ("swebench_verified", "swebench_with_test", "swebench_test_quality_with_solution", "swebench_test_quality_no_solution"):
         return load_swebench_tasks()
     elif dataset == "swebench_pro":
         return load_swebench_pro_tasks()
