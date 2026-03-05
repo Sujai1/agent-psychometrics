@@ -9,7 +9,7 @@ from typing import Dict, Iterable, Tuple
 
 from prep_utils import build_records, print_matrix_stats, resolve_path, write_jsonl_records
 
-_V_SUFFIX_RE = re.compile(r"-v.*$")
+_V_SUFFIX_RE = re.compile(r"-v(?:\d+|[0-9a-f]{6,}|nan)$", re.IGNORECASE)
 
 
 def clean_instance_id(
