@@ -258,6 +258,8 @@ def _canonicalize_model_unified(
         and ((" " in leaf) or bool(re.match(r"GPT-\d", leaf)))
     ):
         return leaf
+    if normalized in {"gpt-5-high", "gpt5-high"}:
+        return "GPT-5 High"
     if normalized in {"gpt-5-mini", "gpt-5-nano"}:
         return normalized.replace("gpt-5", "GPT-5")
     gpt5_base = None
