@@ -197,6 +197,7 @@ _MODEL_EXACT: dict[str, str] = {
     "claude-4-5-opus": "Claude Opus 4.5",
     "claude-opus-4-1": "Claude Opus 4.1",
     "claude-opus-4.1": "Claude Opus 4.1",
+    "claude-opus-4.6": "Claude Opus 4.6",
     "claude-sonnet-4.5": "Claude Sonnet 4.5",
     "claude4sonnet": "Claude Sonnet 4",
     "claude3.5sonnet": "Claude 3.5 Sonnet",
@@ -249,9 +250,14 @@ def _canonicalize_model_unified(
         ver, size = m_pretty.group(1), m_pretty.group(2)
         if int(ver.split(".", 1)[0]) >= 4:
             return f"Claude {size.title()} {ver}"
-    if preserve_pretty and any(ch.isupper() for ch in leaf) and ((" " in leaf) or bool(re.match(r"GPT-\d", leaf))):
-        return leaf
     normalized = _normalize_model_key(leaf)
+    if (
+        preserve_pretty
+        and normalized not in _MODEL_EXACT
+        and any(ch.isupper() for ch in leaf)
+        and ((" " in leaf) or bool(re.match(r"GPT-\d", leaf)))
+    ):
+        return leaf
     if normalized in {"gpt-5-mini", "gpt-5-nano"}:
         return normalized.replace("gpt-5", "GPT-5")
     gpt5_base = None
