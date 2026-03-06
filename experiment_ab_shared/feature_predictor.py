@@ -2,39 +2,20 @@
 
 This module provides:
 - DifficultyPredictorBase: Abstract base class for difficulty predictors
-- FeatureBasedPredictor: Source-agnostic Ridge/Lasso regression predictor
+- FeatureBasedPredictor: Source-agnostic RidgeCV predictor
 - GroupedRidgePredictor: Per-group L2 penalties via feature pre-scaling
-
-Example usage:
-    from experiment_ab_shared.feature_source import EmbeddingFeatureSource
-    from experiment_ab_shared.feature_predictor import FeatureBasedPredictor
-
-    # Create feature source
-    source = EmbeddingFeatureSource(Path("embeddings.npz"))
-
-    # Create predictor
-    predictor = FeatureBasedPredictor(source)
-
-    # Fit on training data
-    predictor.fit(train_task_ids, train_difficulties)
-
-    # Predict on test data
-    predictions = predictor.predict(test_task_ids)
 """
 
 import itertools
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from sklearn.linear_model import Ridge, RidgeCV, LassoCV
+from sklearn.linear_model import Ridge, RidgeCV
 from sklearn.preprocessing import StandardScaler
 
 from experiment_ab_shared.feature_source import (
     TaskFeatureSource,
-    EmbeddingFeatureSource,
-    CSVFeatureSource,
     GroupedFeatureSource,
 )
 
@@ -78,23 +59,18 @@ class DifficultyPredictorBase(ABC):
 
 
 class FeatureBasedPredictor:
-    """Difficulty predictor using any TaskFeatureSource + regularized regression.
+    """Difficulty predictor using any TaskFeatureSource + RidgeCV regression.
 
-    Pipeline: features -> StandardScaler -> RidgeCV/LassoCV -> predict
+    Pipeline: features -> StandardScaler -> RidgeCV -> predict
 
     This predictor is source-agnostic: it works identically for embeddings,
     LLM judge features, or any other feature type. The only requirements are:
     1. A TaskFeatureSource that provides features for tasks
     2. Ground truth difficulty values for training
 
-    Supports two regularization methods:
-    - Ridge (L2): Shrinks all coefficients toward zero, good for correlated features
-    - Lasso (L1): Performs feature selection by driving some coefficients to exactly zero
-
     Attributes:
         source: The TaskFeatureSource providing features.
         name: Human-readable name (from source.name).
-        method: Regularization method ("ridge" or "lasso").
         alphas: List of alpha values for cross-validation.
     """
 
@@ -104,53 +80,30 @@ class FeatureBasedPredictor:
     # alpha=0.01 results in rcond~2e-8 which triggers scipy warnings.
     DEFAULT_RIDGE_ALPHAS = [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 
-    # Lasso alphas for feature selection
-    # Lower values = less regularization (more features kept)
-    # Higher values = more regularization (fewer features kept)
-    # Note: Very low alphas (0.0001, 0.001) cause convergence issues with high-dim features
-    DEFAULT_LASSO_ALPHAS = [0.01, 0.1, 1.0, 10.0, 100.0]
-
     def __init__(
         self,
         source: TaskFeatureSource,
         alphas: Optional[List[float]] = None,
-        method: str = "ridge",
     ):
         """Initialize the predictor with a feature source.
 
         Args:
             source: TaskFeatureSource that provides features for tasks.
             alphas: List of alpha values for cross-validation.
-                Defaults depend on method: Ridge uses higher alphas, Lasso uses wider range.
-            method: Regularization method, either "ridge" (default) or "lasso".
-                - ridge: L2 regularization, shrinks all coefficients
-                - lasso: L1 regularization, performs feature selection
         """
-        if method not in ("ridge", "lasso"):
-            raise ValueError(f"method must be 'ridge' or 'lasso', got '{method}'")
-
         self.source = source
-        self.method = method
-
-        # Set default alphas based on method
-        if alphas is not None:
-            self.alphas = alphas
-        elif method == "ridge":
-            self.alphas = self.DEFAULT_RIDGE_ALPHAS
-        else:  # lasso
-            self.alphas = self.DEFAULT_LASSO_ALPHAS
+        self.alphas = alphas if alphas is not None else self.DEFAULT_RIDGE_ALPHAS
 
         # Model state (set after fit())
         self._scaler: Optional[StandardScaler] = None
-        self._model: Optional[Union[RidgeCV, LassoCV]] = None
+        self._model: Optional[RidgeCV] = None
         self._best_alpha: Optional[float] = None
         self._is_fitted: bool = False
 
     @property
     def name(self) -> str:
         """Human-readable predictor name (from feature source)."""
-        suffix = " (Lasso)" if self.method == "lasso" else ""
-        return f"{self.source.name}{suffix}"
+        return self.source.name
 
     def fit(self, task_ids: List[str], ground_truth_b: Union[np.ndarray, List[float]]) -> None:
         """Fit the predictor on training data.
@@ -164,7 +117,6 @@ class FeatureBasedPredictor:
             ValueError: If task_ids and ground_truth_b have different lengths.
             ValueError: If any task is missing from the feature source.
         """
-        # Convert to numpy array if needed
         y = np.asarray(ground_truth_b, dtype=np.float32)
 
         if len(task_ids) != len(y):
@@ -175,17 +127,10 @@ class FeatureBasedPredictor:
         # Get features (will raise if any task is missing)
         X = self.source.get_features(task_ids)
 
-        # Fit scaler
         self._scaler = StandardScaler()
         X_scaled = self._scaler.fit_transform(X)
 
-        # Fit with cross-validation (within training data only)
-        if self.method == "ridge":
-            self._model = RidgeCV(alphas=self.alphas, cv=5)
-        else:  # lasso
-            # max_iter increased for convergence with high-dim features
-            self._model = LassoCV(alphas=self.alphas, cv=5, max_iter=50000)
-
+        self._model = RidgeCV(alphas=self.alphas, cv=5)
         self._model.fit(X_scaled, y)
         self._best_alpha = float(self._model.alpha_)
 
@@ -241,11 +186,8 @@ class FeatureBasedPredictor:
 
         Returns:
             Dictionary with model information including:
-            - method: Regularization method ("ridge" or "lasso")
             - best_alpha: Selected regularization parameter
             - n_features: Number of features
-            - n_nonzero: Number of non-zero coefficients (for Lasso)
-            - sparsity: Fraction of zero coefficients (for Lasso)
             - feature_names: List of feature names (if available)
             - feature_coefficients: Dict of feature -> coefficient (if available)
         """
@@ -257,7 +199,6 @@ class FeatureBasedPredictor:
 
         info = {
             "is_fitted": True,
-            "method": self.method,
             "best_alpha": self._best_alpha,
             "n_features": self.source.feature_dim,
             "n_nonzero": n_nonzero,
@@ -281,34 +222,18 @@ class FeatureBasedPredictor:
             print("Model not fitted yet")
             return
 
-        method_name = info["method"].capitalize()
         print(f"  Feature source: {info['feature_source']}")
-        print(f"  Method: {method_name}")
         print(f"  Number of features: {info['n_features']}")
-        print(f"  Best {method_name} alpha: {info['best_alpha']:.2e}")
-
-        # Show sparsity info for Lasso
-        if info["method"] == "lasso":
-            pct_nonzero = 100 * (1 - info["sparsity"])
-            print(f"  Non-zero features: {info['n_nonzero']} ({pct_nonzero:.1f}%)")
+        print(f"  Best Ridge alpha: {info['best_alpha']:.2e}")
 
         if "feature_coefficients" in info:
-            # For Lasso, only show non-zero coefficients
-            if info["method"] == "lasso":
-                print("  Non-zero feature coefficients:")
-            else:
-                print("  Feature coefficients:")
-
-            # Sort by absolute coefficient value
+            print("  Feature coefficients:")
             sorted_coeffs = sorted(
                 info["feature_coefficients"].items(),
                 key=lambda x: abs(x[1]),
                 reverse=True,
             )
             for name, coef in sorted_coeffs:
-                # For Lasso, skip zero coefficients
-                if info["method"] == "lasso" and abs(coef) < 1e-10:
-                    continue
                 print(f"    {name}: {coef:+.4f}")
 
 
