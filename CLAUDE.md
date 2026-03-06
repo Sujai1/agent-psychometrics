@@ -14,18 +14,18 @@ Two regimes:
 
 ```
 model_irt/
-├── experiment_a/           # Main experiment on the solvable regime 
-├── experiment_b/           # Frontier task difficulty prediction
-├── experiment_ab_shared/   # Shared infrastructure for A & B
-├── swebench_irt/           # IRT model training
-├── trajectory_upload/      # Trajectory conversion and upload
-├── trajectory_summarization_api/  # Trajectory summarization
-├── py_irt/                 # IRT library (local fork)
-├── data/                   # Input data + IRT models (data/{dataset}/irt/)
-├── chris_output/           # Outputs and results
-├── trajectory_data/        # Downloaded trajectories (76 agents)
-├── aws_setup/              # AWS cluster setup
-└── docs/                   # Detailed documentation
+├── experiment_new_tasks/              # Main experiment on the solvable regime (+ shared IRT infrastructure)
+├── experiment_appendix_h_hard_tasks/  # Frontier task difficulty prediction
+├── llm_judge_feature_extraction/      # LLM-based task feature extraction
+├── swebench_irt/                      # IRT model training
+├── trajectory_upload/                 # Trajectory conversion and upload
+├── trajectory_summarization_api/      # Trajectory summarization
+├── py_irt/                            # IRT library (local fork)
+├── data/                              # Input data + IRT models (data/{dataset}/irt/)
+├── chris_output/                      # Outputs and results
+├── trajectory_data/                   # Downloaded trajectories (76 agents)
+├── aws_setup/                         # AWS cluster setup
+└── docs/                              # Detailed documentation
 ```
 
 ## Quick Start
@@ -35,11 +35,11 @@ model_irt/
 ```bash
 source .venv/bin/activate
 
-# Run Experiment A on all datasets
-python -m experiment_a.run_all_datasets
+# Run Experiment New Tasks on all datasets
+python -m experiment_new_tasks.run_all_datasets
 
-# Run Experiment B (frontier task difficulty prediction)
-python -m experiment_b.compare_methods
+# Run Appendix H Hard Tasks (frontier task difficulty prediction)
+python -m experiment_appendix_h_hard_tasks.compare_methods
 
 # Train IRT model
 python swebench_irt/train.py --dims 1 --model 1pl \
@@ -64,26 +64,26 @@ All input data lives under `data/{dataset}/`:
 | [docs/README.md](docs/README.md) | Documentation index |
 | [docs/IRT_MODELS.md](docs/IRT_MODELS.md) | IRT theory, model variants |
 | [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md) | Data flow |
-| [experiment_a/README.md](experiment_a/README.md) | Experiment A details |
-| [experiment_b/README.md](experiment_b/README.md) | Experiment B details |
+| [experiment_new_tasks/README.md](experiment_new_tasks/README.md) | Experiment New Tasks details |
+| [experiment_appendix_h_hard_tasks/README.md](experiment_appendix_h_hard_tasks/README.md) | Appendix H Hard Tasks details |
 | [MIT_ENGAGING_SETUP.md](MIT_ENGAGING_SETUP.md) | Cluster setup |
 
 ## Key Results
 
 1D IRT model is best by both AIC and BIC (see [docs/IRT_MODELS.md](docs/IRT_MODELS.md)).
 
-See [experiment_a/README.md](experiment_a/README.md) and [experiment_b/README.md](experiment_b/README.md) for detailed results tables.
+See [experiment_new_tasks/README.md](experiment_new_tasks/README.md) and [experiment_appendix_h_hard_tasks/README.md](experiment_appendix_h_hard_tasks/README.md) for detailed results tables.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `experiment_a/run_all_datasets.py` | Run Experiment A |
-| `experiment_b/compare_methods.py` | Run Experiment B |
+| `experiment_new_tasks/run_all_datasets.py` | Run Experiment New Tasks |
+| `experiment_appendix_h_hard_tasks/compare_methods.py` | Run Appendix H Hard Tasks |
 | `swebench_irt/train.py` | Train IRT models |
 | `swebench_irt/prep_swebench.py` | Build response matrix |
-| `experiment_ab_shared/feature_source.py` | Feature source abstractions (`GroupedFeatureSource`, `RegularizedFeatureSource`) |
-| `experiment_ab_shared/feature_predictor.py` | Predictors (`FeatureBasedPredictor`, `GroupedRidgePredictor`) |
+| `experiment_new_tasks/feature_source.py` | Feature source abstractions (`GroupedFeatureSource`, `RegularizedFeatureSource`) |
+| `experiment_new_tasks/feature_predictor.py` | Predictors (`FeatureBasedPredictor`, `GroupedRidgePredictor`) |
 
 ## Development Guidelines
 

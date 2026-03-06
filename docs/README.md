@@ -14,8 +14,8 @@ This directory contains detailed documentation for the SWE-bench IRT project.
 
 | Experiment | Location | Purpose |
 |------------|----------|---------|
-| **A: Prior Validation** | [experiment_a/README.md](../experiment_a/README.md) | Predict task difficulty from static features |
-| **B: Frontier Difficulty** | [experiment_b/README.md](../experiment_b/README.md) | Predict difficulty of frontier tasks |
+| **New Tasks** | [experiment_new_tasks/README.md](../experiment_new_tasks/README.md) | Predict task difficulty from static features |
+| **Appendix H: Hard Tasks** | [experiment_appendix_h_hard_tasks/README.md](../experiment_appendix_h_hard_tasks/README.md) | Predict difficulty of frontier tasks |
 | **B (old): Posterior** | [experiment_b_old/README.md](../experiment_b_old/README.md) | [ARCHIVED] Old trajectory correction approach |
 | **SAD-IRT** | [experiment_sad_irt/README.md](../experiment_sad_irt/README.md) | State-aware deep IRT for frontier difficulty |
 | **D: Time Horizon** | [../chris_output/figures/](../chris_output/figures/) | Frontier ability over time (completed) |

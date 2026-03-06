@@ -1,0 +1,15 @@
+"""Auditor agent for task difficulty assessment.
+
+This module provides an LLM-based agent that explores task environments
+via Docker shell access and rates them on difficulty-related axes.
+"""
+
+from llm_judge_feature_extraction.auditor_agent.prompts_v4 import (
+    build_auditor_system_prompt_v4,
+    get_feature_names_v4,
+)
+
+__all__ = [
+    "build_auditor_system_prompt_v4",
+    "get_feature_names_v4",
+]

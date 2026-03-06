@@ -15,20 +15,20 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from experiment_b import get_dataset_config
-from experiment_b.shared.data_splits import (
+from experiment_appendix_h_hard_tasks.shared.data_splits import (
     get_all_agents_from_responses,
     identify_frontier_tasks,
     split_agents_by_dates,
 )
-from experiment_b.shared.evaluate import load_responses_dict
-from experiment_b.shared.date_forecasting import (
+from experiment_appendix_h_hard_tasks.shared.evaluate import load_responses_dict
+from experiment_appendix_h_hard_tasks.shared.date_forecasting import (
     compute_first_capable_dates,
     compute_ground_truth_days,
     DateForecastModel,
 )
-from experiment_b.shared.baseline_irt import get_or_train_baseline_irt
-from experiment_b.shared.feature_irt_predictor import FeatureIRTPredictor
-from experiment_ab_shared.feature_source import EmbeddingFeatureSource
+from experiment_appendix_h_hard_tasks.shared.baseline_irt import get_or_train_baseline_irt
+from experiment_appendix_h_hard_tasks.shared.feature_irt_predictor import FeatureIRTPredictor
+from experiment_new_tasks.feature_source import EmbeddingFeatureSource
 
 
 def main():
