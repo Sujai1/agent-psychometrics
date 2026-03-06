@@ -2,10 +2,9 @@
 
 This module provides:
 - ExperimentData: Dataset with binary outcomes (0/1 per agent-task pair)
-- load_dataset: Factory function to load any dataset type
+- load_dataset_for_fold: Load dataset for a specific k-fold CV split
 """
 
-import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -43,37 +42,6 @@ def filter_unsolved_tasks(
     n_excluded = len(task_ids) - len(solved_tasks)
     return solved_tasks, n_excluded
 
-
-def stable_split_tasks(
-    task_ids: List[str],
-    test_fraction: float,
-    seed: int,
-) -> Tuple[List[str], List[str]]:
-    """Deterministic train/test split on tasks using hash-based splitting.
-
-    Args:
-        task_ids: List of task identifiers
-        test_fraction: Fraction of tasks for test set (0 < x < 1)
-        seed: Random seed for reproducibility
-
-    Returns:
-        Tuple of (train_task_ids, test_task_ids)
-    """
-    if not (0.0 < test_fraction < 1.0):
-        raise ValueError("test_fraction must be between 0 and 1")
-
-    scored: List[Tuple[float, str]] = []
-    for task_id in task_ids:
-        h = hashlib.md5((str(task_id) + f"::{seed}").encode("utf-8")).hexdigest()
-        score = int(h[:8], 16) / float(16**8)
-        scored.append((score, task_id))
-
-    scored.sort()
-    n_test = int(round(len(task_ids) * float(test_fraction)))
-    test_tasks = [task_id for _, task_id in scored[:n_test]]
-    train_tasks = [task_id for _, task_id in scored[n_test:]]
-
-    return train_tasks, test_tasks
 
 
 @dataclass
@@ -156,88 +124,6 @@ def _load_binary_responses(responses_path: Path) -> Dict[str, Dict[str, int]]:
             responses[agent_id] = record["responses"]
     return responses
 
-
-def load_dataset(
-    abilities_path: Path,
-    items_path: Path,
-    responses_path: Path,
-    test_fraction: float,
-    split_seed: int,
-    irt_cache_dir: Optional[Path] = None,
-    force_retrain: bool = False,
-    metadata_loader: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
-    exclude_unsolved: bool = False,
-) -> ExperimentData:
-    """Load a dataset with proper train/test split and IRT models.
-
-    Args:
-        abilities_path: Path to full IRT abilities.csv (for oracle only)
-        items_path: Path to full IRT items.csv (for oracle only)
-        responses_path: Path to response matrix JSONL
-        test_fraction: Fraction of tasks for test set
-        split_seed: Random seed for splits
-        irt_cache_dir: Directory for cached split IRT models
-        force_retrain: If True, retrain IRT even if cached
-        metadata_loader: Optional function to load task metadata (task_ids -> metadata dict)
-        exclude_unsolved: If True, filter out tasks no agent solved before splitting
-
-    Returns:
-        ExperimentData
-    """
-    from experiment_ab_shared.train_irt_split import get_or_train_split_irt
-
-    # Load full IRT parameters (ONLY for oracle baseline)
-    full_abilities = _load_abilities(abilities_path)
-    full_items = _load_items(items_path)
-
-    # Load responses
-    responses = _load_binary_responses(responses_path)
-
-    # Get all task IDs
-    all_task_ids = list(full_items.index)
-
-    # Optionally filter unsolved tasks before splitting
-    n_excluded = 0
-    if exclude_unsolved:
-        all_task_ids, n_excluded = filter_unsolved_tasks(all_task_ids, responses)
-        print(f"   Excluded {n_excluded} unsolved tasks ({len(all_task_ids)} remaining)")
-
-    # Create train/test split
-    train_tasks, test_tasks = stable_split_tasks(all_task_ids, test_fraction, split_seed)
-
-    # Get or train split IRT model
-    if irt_cache_dir is None:
-        raise ValueError("irt_cache_dir must be provided")
-
-    split_irt_dir = get_or_train_split_irt(
-        responses_path=responses_path,
-        output_base=irt_cache_dir,
-        test_fraction=test_fraction,
-        split_seed=split_seed,
-        model_type="1pl",
-        force_retrain=force_retrain,
-        exclude_unsolved=exclude_unsolved,
-    )
-
-    # Load train-only IRT parameters
-    train_abilities = _load_abilities(split_irt_dir / "abilities.csv")
-    train_items = _load_items(split_irt_dir / "items.csv")
-
-    # Load optional metadata
-    metadata = {}
-    if metadata_loader is not None:
-        metadata = metadata_loader(all_task_ids)
-
-    return ExperimentData(
-        responses=responses,
-        train_abilities=train_abilities,
-        train_items=train_items,
-        full_abilities=full_abilities,
-        full_items=full_items,
-        train_tasks=train_tasks,
-        test_tasks=test_tasks,
-        metadata=metadata,
-    )
 
 
 def load_dataset_for_fold(

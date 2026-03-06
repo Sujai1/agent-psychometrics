@@ -34,8 +34,6 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from experiment_ab_shared.dataset import stable_split_tasks
-
 
 def set_torch_determinism(enabled: bool) -> None:
     """Toggle PyTorch deterministic algorithm behavior (best-effort).
@@ -277,18 +275,12 @@ def get_or_train_split_irt(
     print(f"   Found {len(all_tasks)} tasks")
 
     # Determine train/test split
-    if train_tasks is not None:
-        # For k-fold CV: use explicitly provided train tasks
-        print(f"\n2. Using provided train tasks (fold {fold_idx + 1}/{k_folds})...")
-        test_tasks = [t for t in all_tasks if t not in set(train_tasks)]
-        print(f"   Train tasks: {len(train_tasks)}")
-        print(f"   Test tasks: {len(test_tasks)}")
-    else:
-        # Legacy: compute split from test_fraction
-        print(f"\n2. Splitting tasks (test_fraction={test_fraction}, seed={split_seed})...")
-        train_tasks, test_tasks = stable_split_tasks(all_tasks, test_fraction, split_seed)
-        print(f"   Train tasks: {len(train_tasks)}")
-        print(f"   Test tasks: {len(test_tasks)}")
+    if train_tasks is None:
+        raise ValueError("train_tasks must be provided (use load_dataset_for_fold for k-fold CV)")
+    print(f"\n2. Using provided train tasks (fold {fold_idx + 1}/{k_folds})...")
+    test_tasks = [t for t in all_tasks if t not in set(train_tasks)]
+    print(f"   Train tasks: {len(train_tasks)}")
+    print(f"   Test tasks: {len(test_tasks)}")
 
     # Filter responses to train tasks only
     print("\n3. Filtering responses to train tasks...")

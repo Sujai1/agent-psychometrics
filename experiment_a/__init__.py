@@ -13,7 +13,6 @@ from experiment_ab_shared import (
     FeatureBasedPredictor,
     EmbeddingFeatureSource,
     CSVFeatureSource,
-    stable_split_tasks,
 )
 
 from experiment_a.shared import (
@@ -33,7 +32,6 @@ __all__ = [
     "FeatureBasedPredictor",
     "EmbeddingFeatureSource",
     "CSVFeatureSource",
-    "stable_split_tasks",
     # From experiment_a.shared
     "CVPredictor",
     "CrossValidationResult",

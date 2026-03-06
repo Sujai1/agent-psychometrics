@@ -8,9 +8,7 @@ This module provides the core abstractions for difficulty prediction:
 
 from experiment_ab_shared.dataset import (
     ExperimentData,
-    load_dataset,
     load_dataset_for_fold,
-    stable_split_tasks,
     filter_unsolved_tasks,
 )
 from experiment_ab_shared.evaluator import (
@@ -37,9 +35,7 @@ from experiment_ab_shared.train_irt_split import (
 __all__ = [
     # Dataset
     "ExperimentData",
-    "load_dataset",
     "load_dataset_for_fold",
-    "stable_split_tasks",
     "filter_unsolved_tasks",
     # Evaluator
     "compute_irt_probability",
