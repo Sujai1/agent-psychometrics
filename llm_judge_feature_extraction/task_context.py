@@ -52,6 +52,19 @@ def _optional(task: Dict[str, Any], field: str, default: str = "") -> str:
     return value
 
 
+# Maximum chars for fields that can blow up the prompt.
+# Budget: ~400K chars ≈ 100K tokens, well within 90% of 128K context.
+_MAX_PATCH_CHARS = 300_000
+_MAX_PASS_TO_PASS_CHARS = 50_000
+
+
+def _truncate(text: str, max_chars: int, label: str = "field") -> str:
+    """Truncate text to max_chars, appending a notice if truncated."""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + f"\n\n[... {label} truncated from {len(text):,} to {max_chars:,} chars ...]"
+
+
 class _TaskFields:
     """Lazy field accessor that validates required fields on access."""
 
@@ -161,6 +174,8 @@ def _make_swebench_formatters(dataset: str) -> Dict[InfoLevel, Callable]:
         hints_section = f"\n**Hints:**\n{hints}" if hints else ""
         fail_to_pass = task.get("fail_to_pass") or f.require("FAIL_TO_PASS")
         pass_to_pass = task.get("pass_to_pass") or f.optional("PASS_TO_PASS", "[]")
+        patch = _truncate(str(f.require("patch")), _MAX_PATCH_CHARS, "patch")
+        pass_to_pass = _truncate(str(pass_to_pass), _MAX_PASS_TO_PASS_CHARS, "PASS_TO_PASS")
         return f"""## TASK INFORMATION
 
 **Instance ID:** {f.require("instance_id")}
@@ -172,7 +187,7 @@ def _make_swebench_formatters(dataset: str) -> Dict[InfoLevel, Callable]:
 
 **Gold Patch (correct solution):**
 ```diff
-{f.require("patch")}
+{patch}
 ```
 
 **Test Patch (tests that verify the fix):**
@@ -308,7 +323,7 @@ def _make_terminalbench_formatters() -> Dict[InfoLevel, Callable]:
 
 **Reference Solution (solution.sh):**
 ```bash
-{f.require("patch")}
+{_truncate(str(f.require("patch")), _MAX_PATCH_CHARS, "solution patch")}
 ```"""
 
     return {

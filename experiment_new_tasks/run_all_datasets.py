@@ -33,6 +33,7 @@ def run_single_dataset(
     k_folds: int = 5,
     coefficients: bool = False,
     predictor_factory=None,
+    llm_judge_features_path: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
     """Run experiment_new_tasks on a single dataset and return results.
 
@@ -42,6 +43,8 @@ def run_single_dataset(
         k_folds: Number of CV folds.
         coefficients: Whether to extract LLM Judge Ridge coefficients.
         predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
+        llm_judge_features_path: Optional override for LLM judge features CSV path.
+            Supports {dataset} template variable.
 
     Returns:
         Tuple of (dataset_display_name, results_dict).
@@ -50,7 +53,11 @@ def run_single_dataset(
     from experiment_new_tasks.pipeline import cross_validate_all_predictors
 
     try:
-        config = ExperimentAConfig.for_dataset(dataset)
+        overrides = {}
+        if llm_judge_features_path is not None:
+            expanded = llm_judge_features_path.replace("{dataset}", dataset)
+            overrides["llm_judge_features_path"] = Path(expanded)
+        config = ExperimentAConfig.for_dataset(dataset, **overrides)
     except Exception as e:
         display_name = DATASET_DEFAULTS[dataset]["display_name"]
         return display_name, {"error": f"Config error: {e}"}
@@ -271,6 +278,13 @@ def main():
         action="store_true",
         help="Use Feature-IRT (joint training) instead of Ridge regression.",
     )
+    parser.add_argument(
+        "--llm_judge_features_path",
+        type=str,
+        default=None,
+        help="Override LLM judge features CSV path. Supports {dataset} template "
+             "(e.g., 'chris_output/.../v2/{dataset}/features.csv').",
+    )
     args = parser.parse_args()
 
     # Filter datasets if specified
@@ -302,6 +316,7 @@ def main():
                 k_folds=args.k_folds,
                 coefficients=args.coefficients,
                 predictor_factory=predictor_factory,
+                llm_judge_features_path=args.llm_judge_features_path,
             )
             metrics = extract_metrics(results)
             all_results[name] = metrics
@@ -325,6 +340,7 @@ def main():
                     k_folds=args.k_folds,
                     coefficients=args.coefficients,
                     predictor_factory=predictor_factory,
+                    llm_judge_features_path=args.llm_judge_features_path,
                 ): DATASET_DEFAULTS[dataset]["display_name"]
                 for dataset in datasets_to_run
             }

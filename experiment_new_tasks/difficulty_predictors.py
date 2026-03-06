@@ -12,9 +12,9 @@ This module provides:
 from typing import Dict, List
 
 import numpy as np
+from scipy.special import expit as sigmoid
 
 from experiment_new_tasks.dataset import ExperimentData
-from experiment_new_tasks.evaluator import compute_irt_probability
 from experiment_new_tasks.feature_predictor import DifficultyPredictorBase
 
 
@@ -68,7 +68,7 @@ class DifficultyPredictorAdapter:
             raise ValueError(f"Agent {agent_id} not found in abilities")
 
         theta = abilities.loc[agent_id, "ability"]
-        return compute_irt_probability(theta, beta)
+        return float(sigmoid(theta - beta))
 
 
 class ConstantPredictor:
@@ -89,10 +89,8 @@ class ConstantPredictor:
         self, data: ExperimentData, agent_id: str, task_id: str
     ) -> float:
         """Return P(success) using mean difficulty and agent's ability."""
-        from experiment_new_tasks.evaluator import compute_irt_probability
-
         theta = data.train_abilities.loc[agent_id, "ability"]
-        return compute_irt_probability(theta, self._mean_difficulty)
+        return float(sigmoid(theta - self._mean_difficulty))
 
 
 class OraclePredictor:
@@ -113,9 +111,7 @@ class OraclePredictor:
         self, data: ExperimentData, agent_id: str, task_id: str
     ) -> float:
         """Return P(success) using true difficulty and oracle ability."""
-        from experiment_new_tasks.evaluator import compute_irt_probability
-
         # Use full (oracle) abilities and difficulties
         theta = data.full_abilities.loc[agent_id, "ability"]
         beta = data.full_items.loc[task_id, "b"]
-        return compute_irt_probability(theta, beta)
+        return float(sigmoid(theta - beta))

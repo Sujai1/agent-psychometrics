@@ -26,7 +26,7 @@ from experiment_new_tasks.dataset import (
     load_dataset_for_fold,
     filter_unsolved_tasks,
 )
-from experiment_new_tasks.evaluator import convert_numpy
+import numpy as np
 from experiment_new_tasks.dataset import (
     _load_binary_responses,
 )
@@ -42,6 +42,21 @@ from experiment_new_tasks.difficulty_predictors import (
     DifficultyPredictorAdapter,
 )
 from experiment_new_tasks.cross_validation import CVPredictor
+
+
+def convert_numpy(obj: Any) -> Any:
+    """Convert numpy types for JSON serialization."""
+    if isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy(v) for v in obj]
+    return obj
 
 
 @dataclass

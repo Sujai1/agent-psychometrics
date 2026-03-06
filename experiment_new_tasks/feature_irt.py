@@ -14,7 +14,8 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 from experiment_new_tasks.dataset import ExperimentData
-from experiment_new_tasks.evaluator import compute_irt_probability
+from scipy.special import expit as sigmoid
+
 from experiment_new_tasks.feature_source import TaskFeatureSource, GroupedFeatureSource
 
 
@@ -589,4 +590,4 @@ class JointTrainingCVPredictor:
             )
 
         theta = self._learned_abilities[agent_id]
-        return compute_irt_probability(theta, beta)
+        return float(sigmoid(theta - beta))
