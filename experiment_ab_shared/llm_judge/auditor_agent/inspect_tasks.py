@@ -10,19 +10,19 @@ them on difficulty-related axes. Supports:
 Usage:
     # SWE-bench Verified
     inspect eval experiment_ab_shared/llm_judge/auditor_agent/inspect_tasks.py@auditor_task_v4 \
-        --model anthropic/claude-opus-4-5-20251101 --limit 1
+        --model anthropic/claude-opus-4-6 --limit 1
 
     # SWE-bench Pro
     inspect eval experiment_ab_shared/llm_judge/auditor_agent/inspect_tasks.py@auditor_task_v4_swebench_pro \
-        --model anthropic/claude-opus-4-5-20251101 --limit 1
+        --model anthropic/claude-opus-4-6 --limit 1
 
     # Terminal Bench
     inspect eval experiment_ab_shared/llm_judge/auditor_agent/inspect_tasks.py@auditor_task_v4_terminalbench \
-        --model anthropic/claude-opus-4-5-20251101 --limit 1
+        --model anthropic/claude-opus-4-6 --limit 1
 
     # GSO
     inspect eval experiment_ab_shared/llm_judge/auditor_agent/inspect_tasks.py@auditor_task_v4_gso \
-        --model anthropic/claude-opus-4-5-20251101 --limit 1
+        --model anthropic/claude-opus-4-6 --limit 1
 """
 
 import sys

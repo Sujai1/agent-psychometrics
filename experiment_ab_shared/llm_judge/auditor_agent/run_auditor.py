@@ -232,8 +232,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="anthropic/claude-opus-4-5-20251101",
-        help="Model to use (default: anthropic/claude-opus-4-5-20251101)",
+        default="anthropic/claude-opus-4-6",
+        help="Model to use (default: anthropic/claude-opus-4-6)",
     )
     parser.add_argument(
         "--log_dir",

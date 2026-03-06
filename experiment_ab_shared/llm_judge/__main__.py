@@ -12,7 +12,7 @@ Usage:
     python -m experiment_ab_shared.llm_judge extract \\
         --dataset swebench_verified \\
         --provider anthropic \\
-        --model claude-sonnet-4-20250514 \\
+        --model claude-sonnet-4-6 \\
         --limit 50 \\
         --output-dir chris_output/experiment_a/llm_judge_features
 

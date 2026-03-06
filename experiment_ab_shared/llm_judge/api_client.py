@@ -36,20 +36,19 @@ class LLMApiClient:
     """
 
     DEFAULT_MODELS = {
-        "anthropic": "claude-opus-4-5-20251101",
-        "openai": "gpt-5.2",
+        "anthropic": "claude-opus-4-6",
+        "openai": "gpt-5.4-2026-03-05",
     }
 
     # Pricing per 1M tokens (input, output) in USD
     # These are rough estimates and should be updated as pricing changes
     TOKEN_PRICING = {
         "anthropic": {
-            "claude-opus-4-5-20251101": (15.0, 75.0),   # $15/1M input, $75/1M output
-            "claude-sonnet-4-20250514": (3.0, 15.0),   # $3/1M input, $15/1M output
+            "claude-opus-4-6": (5.0, 25.0),       # $5/1M input, $25/1M output
+            "claude-sonnet-4-6": (3.0, 15.0),      # $3/1M input, $15/1M output
         },
         "openai": {
-            "gpt-5.2": (2.5, 10.0),   # Estimated pricing
-            "gpt-4o": (2.5, 10.0),    # $2.50/1M input, $10/1M output
+            "gpt-5.4-2026-03-05": (2.5, 10.0),   # Estimated pricing
         },
     }
 

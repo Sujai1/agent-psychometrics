@@ -97,7 +97,7 @@ def run_manual_verification(instance_id: str) -> dict:
     return results
 
 
-def run_agent_verification(instance_id: str, model: str = "anthropic/claude-opus-4-5-20251101") -> dict | None:
+def run_agent_verification(instance_id: str, model: str = "anthropic/claude-opus-4-6") -> dict | None:
     """Run the auditor verification task and extract results.
 
     Returns dict with agent's reported values, or None if failed.
@@ -266,8 +266,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="anthropic/claude-opus-4-5-20251101",
-        help="Model to use for agent (default: anthropic/claude-opus-4-5-20251101)",
+        default="anthropic/claude-opus-4-6",
+        help="Model to use for agent (default: anthropic/claude-opus-4-6)",
     )
     parser.add_argument(
         "--manual_only",
