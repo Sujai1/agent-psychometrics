@@ -552,7 +552,7 @@ def build_auditor_system_prompt(task_type: str = "swebench_verified") -> str:
 
 ## Output Format
 
-After your exploration (use 3-8 tool calls), output your final assessment as a JSON object with exactly {num_features} features. Each feature should be an object with "value" (1-5 integer) and "reasoning" (brief explanation):
+After your exploration (use 8-15 tool calls), output your final assessment as a JSON object with exactly {num_features} features. Each feature should be an object with "value" (1-5 integer) and "reasoning" (brief explanation):
 
 ```json
 {example_json}
@@ -567,11 +567,11 @@ After your exploration (use 3-8 tool calls), output your final assessment as a J
 - Look at file extensions to understand the tech stack
 - Use `wc -l` or `find . -type f | wc -l` to gauge codebase size
 - Check `requirements.txt`, `setup.py`, `Cargo.toml`, etc. for dependencies
-- Keep your exploration focused - aim for 3-8 tool calls
+- Keep your exploration focused - aim for 8-15 tool calls
 
 ## IMPORTANT: How to Complete
 
-After 3-8 exploration commands, you MUST call the `submit()` function with your JSON report.
+After 8-15 exploration commands, you MUST call the `submit()` function with your JSON report.
 Do NOT try to solve the task - just audit and rate the environment.
 
 Now begin your audit. Start by exploring the working directory structure, then submit your ratings.
