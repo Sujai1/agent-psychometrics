@@ -106,11 +106,13 @@ class BatchedFeatureExtractor:
         provider: str = "openai",
         model: Optional[str] = None,
         batch_size: int = MAX_BATCH_SIZE,
+        info_level_override: Optional[InfoLevel] = None,
     ):
         self.features = get_features(feature_names)
         self.task_context = task_context
         self.client = LLMApiClient(provider, model)
         self.batch_size = batch_size
+        self.info_level_override = info_level_override
 
         # Group and validate
         self.level_groups = _group_by_level(self.features)
@@ -122,13 +124,20 @@ class BatchedFeatureExtractor:
                 f"(they require the auditor agent pipeline): {env_names}"
             )
 
-        for level in self.level_groups:
-            if level not in self.task_context.system_intros:
+        if info_level_override:
+            if info_level_override not in self.task_context.system_intros:
                 raise ValueError(
                     f"TaskContext '{self.task_context.name}' does not support "
-                    f"InfoLevel.{level.name}, needed for features: "
-                    f"{[f.name for f in self.level_groups[level]]}"
+                    f"override InfoLevel.{info_level_override.name}"
                 )
+        else:
+            for level in self.level_groups:
+                if level not in self.task_context.system_intros:
+                    raise ValueError(
+                        f"TaskContext '{self.task_context.name}' does not support "
+                        f"InfoLevel.{level.name}, needed for features: "
+                        f"{[f.name for f in self.level_groups[level]]}"
+                    )
 
     # =========================================================================
     # Core extraction logic (shared by sync and async paths)
@@ -140,16 +149,23 @@ class BatchedFeatureExtractor:
         """Plan all API calls for a task: list of (prefix, suffix, batch_features).
 
         Returns calls ordered by info level, batches sequential within level.
+        When info_level_override is set, all features share a single prefix.
         """
         calls = []
-        for level in (InfoLevel.PROBLEM, InfoLevel.TEST, InfoLevel.SOLUTION):
-            level_features = self.level_groups.get(level)
-            if not level_features:
-                continue
-            prefix = self.task_context.build_prefix(task, level)
-            for batch_features in _batch(level_features, self.batch_size):
+        if self.info_level_override:
+            prefix = self.task_context.build_prefix(task, self.info_level_override)
+            for batch_features in _batch(self.features, self.batch_size):
                 suffix = _build_suffix(batch_features, self.task_context.scale_variant)
                 calls.append((prefix, suffix, batch_features))
+        else:
+            for level in (InfoLevel.PROBLEM, InfoLevel.TEST, InfoLevel.SOLUTION):
+                level_features = self.level_groups.get(level)
+                if not level_features:
+                    continue
+                prefix = self.task_context.build_prefix(task, level)
+                for batch_features in _batch(level_features, self.batch_size):
+                    suffix = _build_suffix(batch_features, self.task_context.scale_variant)
+                    calls.append((prefix, suffix, batch_features))
         return calls
 
     def _merge_batch_result(
@@ -389,15 +405,22 @@ class BatchedFeatureExtractor:
         # Show batch plan
         total_batches_per_task = 0
         print(f"\nFeatures ({len(self.features)} total):")
-        for level in (InfoLevel.PROBLEM, InfoLevel.TEST, InfoLevel.SOLUTION):
-            level_features = self.level_groups.get(level)
-            if not level_features:
-                continue
-            batches = _batch(level_features, self.batch_size)
-            total_batches_per_task += len(batches)
-            print(f"  {level.value}: {len(level_features)} features in {len(batches)} batch(es)")
+        if self.info_level_override:
+            batches = _batch(self.features, self.batch_size)
+            total_batches_per_task = len(batches)
+            print(f"  all (override → {self.info_level_override.value}): {len(self.features)} features in {len(batches)} batch(es)")
             for j, b in enumerate(batches):
                 print(f"    batch {j+1}: {[f.name for f in b]}")
+        else:
+            for level in (InfoLevel.PROBLEM, InfoLevel.TEST, InfoLevel.SOLUTION):
+                level_features = self.level_groups.get(level)
+                if not level_features:
+                    continue
+                batches = _batch(level_features, self.batch_size)
+                total_batches_per_task += len(batches)
+                print(f"  {level.value}: {len(level_features)} features in {len(batches)} batch(es)")
+                for j, b in enumerate(batches):
+                    print(f"    batch {j+1}: {[f.name for f in b]}")
 
         total_api_calls = total_batches_per_task * len(filtered)
         print(f"\nTotal API calls: {total_api_calls} ({len(filtered)} tasks x {total_batches_per_task} batches)")

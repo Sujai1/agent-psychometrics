@@ -265,3 +265,9 @@ chris_output/llm_judge_features/swebench_problem_extended/
 chris_output/llm_judge_features/swebench_test_quality/
 chris_output/llm_judge_features/experiment_a_defaults_backup*/
 chris_output/llm_judge_features/terminalbench_error_specificity_fix.json
+
+# LLM judge feature subsets and versions (regenerable via LLM API)
+chris_output/llm_judge_features/subsets/
+chris_output/llm_judge_features/v2_full_20features/
+chris_output/llm_judge_features/v2_trimmed_17features/
+chris_output/llm_judge_features/v3_solution_level/

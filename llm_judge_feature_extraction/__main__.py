@@ -95,12 +95,17 @@ def cmd_extract(args: argparse.Namespace) -> None:
     else:
         tasks = load_tasks(args.dataset)
 
+    info_level_override = None
+    if args.info_level_override:
+        info_level_override = InfoLevel(args.info_level_override)
+
     extractor = BatchedFeatureExtractor(
         feature_names=feature_names,
         task_context=task_context,
         provider=args.provider,
         model=args.model,
         batch_size=args.batch_size,
+        info_level_override=info_level_override,
     )
 
     task_ids = args.task_ids.split(",") if args.task_ids else None
@@ -218,6 +223,11 @@ def _setup_extract_parser(subparsers) -> None:
     parser.add_argument(
         "--batch-size", type=int, default=7, dest="batch_size",
         help="Max features per API call (default: 7)",
+    )
+    parser.add_argument(
+        "--info-level-override", type=str, dest="info_level_override",
+        choices=["problem", "test", "solution"],
+        help="Override info level for all features (default: use each feature's natural level)",
     )
     parser.add_argument(
         "--limit", type=int,
