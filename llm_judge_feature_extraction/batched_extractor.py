@@ -257,6 +257,7 @@ class BatchedFeatureExtractor:
         return output_dir / f"{safe_id}.json"
 
     def _add_metadata(self, features: Dict[str, Any], task_id: str) -> Dict[str, Any]:
+        features["instance_id"] = task_id
         features["_task_id"] = task_id
         features["_model"] = self.client.model
         features["_provider"] = self.client.provider
@@ -319,7 +320,7 @@ class BatchedFeatureExtractor:
                 features = self._extract_task(task)
             except Exception as e:
                 task_id = self.task_context.get_task_id(task)
-                logger.error(f"Error extracting features for {task_id}: {e}")
+                logger.error(f"Error extracting features for {task_id}: {e}", exc_info=True)
                 features = {}
 
             self._save_task_result(task, features, output_dir, stats, i + 1, len(tasks))
@@ -364,7 +365,7 @@ class BatchedFeatureExtractor:
                     features = await self._extract_task_async(task, semaphore)
                 except Exception as e:
                     task_id = self.task_context.get_task_id(task)
-                    logger.error(f"Error for {task_id}: {e}")
+                    logger.error(f"Error for {task_id}: {e}", exc_info=True)
                     features = {}
                 self._save_task_result(
                     task, features, output_dir, stats, i + 1, len(tasks)
@@ -496,15 +497,19 @@ class BatchedFeatureExtractor:
 
         df = pd.DataFrame(rows)
 
+        # Ensure instance_id column is filled (backfill from _task_id for older JSONs)
+        if "_task_id" in df.columns:
+            if "instance_id" not in df.columns:
+                df["instance_id"] = df["_task_id"]
+            else:
+                df["instance_id"] = df["instance_id"].fillna(df["_task_id"])
+
         feature_cols = [f.name for f in self.features if f.name in df.columns]
         meta_cols = sorted(c for c in df.columns if c.startswith("_"))
-        other_cols = [c for c in df.columns if c not in feature_cols and c not in meta_cols]
+        id_cols = ["instance_id"] if "instance_id" in df.columns else []
+        other_cols = [c for c in df.columns if c not in feature_cols and c not in meta_cols and c not in id_cols]
 
-        if "_task_id" in meta_cols:
-            meta_cols.remove("_task_id")
-            meta_cols = ["_task_id"] + meta_cols
-
-        ordered = [c for c in feature_cols + other_cols + meta_cols if c in df.columns]
+        ordered = [c for c in id_cols + feature_cols + other_cols + meta_cols if c in df.columns]
         df = df[ordered]
 
         csv_path = output_dir / "llm_judge_features.csv"

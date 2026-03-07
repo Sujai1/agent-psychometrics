@@ -271,3 +271,6 @@ chris_output/llm_judge_features/subsets/
 chris_output/llm_judge_features/v2_full_20features/
 chris_output/llm_judge_features/v2_trimmed_17features/
 chris_output/llm_judge_features/v3_solution_level/
+chris_output/llm_judge_features/v4_opt_scale_natural/
+chris_output/llm_judge_features/v4_opt_scale_solution/
+chris_output/llm_judge_features/v5_anthropic_solution/

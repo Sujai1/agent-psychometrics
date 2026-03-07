@@ -55,6 +55,7 @@ def _optional(task: Dict[str, Any], field: str, default: str = "") -> str:
 # Maximum chars for fields that can blow up the prompt.
 # Budget: ~400K chars ≈ 100K tokens, well within 90% of 128K context.
 _MAX_PATCH_CHARS = 300_000
+_MAX_TEST_PATCH_CHARS = 200_000
 _MAX_PASS_TO_PASS_CHARS = 50_000
 
 
@@ -161,7 +162,7 @@ def _make_swebench_formatters(dataset: str) -> Dict[InfoLevel, Callable]:
 
 **Test Patch (tests that verify the fix):**
 ```diff
-{f.require("test_patch")}
+{_truncate(str(f.require("test_patch")), _MAX_TEST_PATCH_CHARS, "test_patch")}
 ```
 
 **Tests that should pass after fix (FAIL_TO_PASS):**
@@ -192,7 +193,7 @@ def _make_swebench_formatters(dataset: str) -> Dict[InfoLevel, Callable]:
 
 **Test Patch (tests that verify the fix):**
 ```diff
-{f.require("test_patch")}
+{_truncate(str(f.require("test_patch")), _MAX_TEST_PATCH_CHARS, "test_patch")}
 ```
 
 **Tests that should pass after fix (FAIL_TO_PASS):**

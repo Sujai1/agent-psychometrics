@@ -311,6 +311,56 @@ The current defaults use dataset-specific feature sets stored in `experiment_a_d
 python -m experiment_new_tasks.run_all_datasets --unified_judge_suffix _core
 ```
 
+### LLM Judge Feature Variants (v2, v3, v5)
+
+We tested whether extracting all 20 non-auditor features (instead of the 9/15 defaults) and overriding info levels would improve results. The variants also test different LLM providers.
+
+| Variant | Features | Info Level | Model | Provider |
+|---------|----------|-----------|-------|----------|
+| Defaults | 9–15 per dataset | Natural | Claude Opus 4.5 | Anthropic |
+| v2 | 20 | Natural | GPT 5.4 | OpenAI |
+| v3 | 20 | SOLUTION override | GPT 5.4 | OpenAI |
+| v5 | 20 | SOLUTION override | Claude Sonnet 4.6 | Anthropic |
+
+Run with:
+```bash
+python -m experiment_new_tasks.run_all_datasets \
+  --llm_judge_features_path "chris_output/llm_judge_features/v2_full_20features/{dataset}/llm_judge_features.csv"
+
+python -m experiment_new_tasks.run_all_datasets \
+  --llm_judge_features_path "chris_output/llm_judge_features/v3_solution_level/{dataset}/llm_judge_features.csv"
+
+python -m experiment_new_tasks.run_all_datasets \
+  --llm_judge_features_path "chris_output/llm_judge_features/v5_anthropic_solution/{dataset}/llm_judge_features.csv"
+```
+
+**Results (Grouped Ridge AUC — Emb+LLM combined)**:
+
+| Dataset | Defaults | v2 (GPT, natural) | v3 (GPT, solution) | v5 (Anthropic, solution) |
+|---------|----------|--------------------|--------------------|-----------------------------|
+| SWE-bench Verified | **0.8445** | 0.8356 | 0.8387 | 0.8414 |
+| GSO | **0.7642** | 0.7501 | 0.7123 | 0.7500 |
+| TerminalBench | 0.8065 | **0.8354** | 0.8348 | 0.8310 |
+| SWE-bench Pro | 0.7557 | **0.7674** | 0.7672 | 0.7658 |
+
+**Results (LLM Judge AUC — LLM features only)**:
+
+| Dataset | Defaults | v2 (GPT, natural) | v3 (GPT, solution) | v5 (Anthropic, solution) |
+|---------|----------|--------------------|--------------------|-----------------------------|
+| SWE-bench Verified | **0.8372** | 0.8292 | 0.8322 | 0.8403 |
+| GSO | **0.7642** | 0.7337 | 0.7356 | 0.7462 |
+| TerminalBench | 0.7978 | **0.8138** | 0.8001 | 0.8108 |
+| SWE-bench Pro | 0.7212 | **0.7370** | 0.7362 | 0.7336 |
+
+**Key findings**:
+- **Model choice matters significantly**: v5 (Anthropic) recovered most of the GSO gap vs defaults (0.7123 → 0.7500 Grouped, 0.7356 → 0.7462 LLM Judge) compared to v3 (GPT) at the same info level
+- **v5 achieves best LLM Judge AUC on SWE-bench Verified** (0.8403), beating even defaults (0.8372)
+- **TerminalBench and SWE-bench Pro** improved with 20 features (v2/v3/v5) vs 9 defaults
+- **Info level override had minimal effect** for non-GSO datasets (v2 ≈ v3), since SWE-bench problem statements already provide sufficient context at PROBLEM level
+- **GSO is structurally different**: no `problem_statement` field exists — the `prob_script` (benchmark) IS the problem. PROBLEM-level extraction for GSO sees only a function name, making 15/20 features essentially meaningless at that level
+- **Scale text changes (optimization-specific rubrics) did not help**: we tested adding GSO-specific wording to 8 features — correlation with v1 defaults was unchanged (n=10 pilot)
+- **Remaining gap on GSO** (0.7500 vs 0.7642 defaults) likely due to the original 8 GSO-specific features being better tailored than the generic 20-feature set
+
 ### Ablation Study: Solution Information Contribution
 
 To measure how much the solution patch contributes to feature quality, we ran ablation experiments removing solution information from both embeddings and LLM judge features.
@@ -409,6 +459,7 @@ python -m llm_judge_feature_extraction extract --dataset terminalbench
 python -m llm_judge_feature_extraction extract --dataset swebench_verified --limit 50  # Process first 50 tasks
 python -m llm_judge_feature_extraction extract --dataset swebench_verified --provider openai  # Use OpenAI
 python -m llm_judge_feature_extraction extract --dataset swebench_verified --model claude-sonnet-4-20250514  # Use specific model
+python -m llm_judge_feature_extraction extract --dataset gso --info-level-override solution --all  # All features at solution level
 
 # Aggregate existing JSON files to CSV
 python -m llm_judge_feature_extraction aggregate --dataset swebench_verified
