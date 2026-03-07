@@ -67,10 +67,8 @@ if [ -z "$SECURITY_GROUP" ]; then
     echo "Security group: $SECURITY_GROUP"
 fi
 
-# Create S3 bucket for results
-S3_BUCKET="auditor-results-$(date +%Y%m%d-%H%M%S)"
-echo "Creating S3 bucket: $S3_BUCKET"
-aws s3 mb "s3://$S3_BUCKET" --region "$REGION"
+S3_BUCKET="fulcrum-auditor-agent-results-2026"
+IAM_ROLE_NAME="AuditorEC2Role"
 
 # Launch spot instance
 echo "Launching spot instance..."
@@ -80,6 +78,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
     --instance-type "$INSTANCE_TYPE" \
     --key-name "$KEY_NAME" \
     --security-group-ids "$SECURITY_GROUP" \
+    --iam-instance-profile "Name=$IAM_ROLE_NAME" \
     --instance-market-options '{"MarketType":"spot","SpotOptions":{"MaxPrice":"'"$SPOT_MAX_PRICE"'","SpotInstanceType":"one-time"}}' \
     --instance-initiated-shutdown-behavior terminate \
     --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":'"$EBS_SIZE_GB"',"VolumeType":"gp3","Iops":3000,"Throughput":125,"DeleteOnTermination":true}}]' \
@@ -113,9 +112,7 @@ echo "  1. SSH into the instance"
 echo "  2. git clone your repo:  git clone https://github.com/<your-org>/model_irt.git"
 echo "  3. cd model_irt && bash aws_setup/setup_instance.sh"
 echo "  4. Log out and back in (for Docker group), then:"
-echo "     cd model_irt && source .venv/bin/activate"
-echo "     export S3_BUCKET=$S3_BUCKET"
-echo "     bash aws_setup/run_all_auditor.sh"
+echo "     cd model_irt && source .venv/bin/activate && bash aws_setup/run_all_auditor.sh"
 echo ""
 echo "=== Auto-termination ==="
 echo "The instance will automatically upload results to S3 and terminate itself"
@@ -124,9 +121,6 @@ echo ""
 echo "S3 bucket: $S3_BUCKET"
 echo "Download results when done:"
 echo "  aws s3 sync s3://$S3_BUCKET/auditor_features/ ./auditor_features/"
-echo ""
-echo "Delete the S3 bucket when you no longer need the results:"
-echo "  aws s3 rb s3://$S3_BUCKET --force"
 echo ""
 echo "To manually terminate early:"
 echo "  aws ec2 terminate-instances --region $REGION --instance-ids $INSTANCE_ID"
