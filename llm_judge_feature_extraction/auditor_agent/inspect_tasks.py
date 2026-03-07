@@ -343,7 +343,7 @@ def _get_gso_image(sample) -> str:
 
     GSO images follow the naming: slimshetty/gso:gso.eval.x86_64.{instance_id}
     """
-    instance_id = str(sample.id)
+    instance_id = str(sample.id).lower()
     return f"{GSO_DOCKER_REPO}:gso.eval.x86_64.{instance_id}"
 
 
