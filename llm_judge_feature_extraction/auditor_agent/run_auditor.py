@@ -426,10 +426,6 @@ def main():
             print(f"\nSaved to {output_path}")
         return
 
-    # Pre-pull Docker images for all remaining tasks
-    images = get_docker_images_for_batch(args.dataset, remaining_ids)
-    pre_pull_images(images, max_workers=args.max_connections)
-
     # Split into batches
     batches = [
         remaining_ids[i:i + args.batch_size]
@@ -439,6 +435,10 @@ def main():
 
     # Run batches
     for batch_num, batch_ids in enumerate(batches):
+        # Pre-pull Docker images for this batch
+        batch_images = get_docker_images_for_batch(args.dataset, batch_ids)
+        pre_pull_images(batch_images, max_workers=args.max_connections)
+
         batch_log_dir = run_inspect_batch(
             batch_num,
             batch_ids,
