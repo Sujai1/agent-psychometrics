@@ -23,8 +23,7 @@ model_irt/
 ├── swebench_irt/                      # IRT model training
 ├── py_irt/                            # IRT library (local fork)
 ├── data/                              # Input data + IRT models (data/{dataset}/irt/)
-├── chris_output/                      # Outputs and results
-└── docs/                              # Detailed documentation
+└── chris_output/                      # Outputs and results
 ```
 
 ## Quick Start
@@ -60,8 +59,6 @@ All input data lives under `data/{dataset}/`:
 
 | Document | Purpose |
 |----------|---------|
-| [docs/README.md](docs/README.md) | Documentation index |
-| [docs/IRT_MODELS.md](docs/IRT_MODELS.md) | IRT theory, model variants |
 | [experiment_new_tasks/README.md](experiment_new_tasks/README.md) | Experiment New Tasks details |
 | [experiment_appendix_h_hard_tasks/README.md](experiment_appendix_h_hard_tasks/README.md) | Appendix H Hard Tasks details |
 | [llm_judge_feature_extraction/README.md](llm_judge_feature_extraction/README.md) | LLM judge feature extraction |
@@ -69,7 +66,7 @@ All input data lives under `data/{dataset}/`:
 
 ## Key Results
 
-1D IRT model is best by both AIC and BIC (see [docs/IRT_MODELS.md](docs/IRT_MODELS.md)).
+1D IRT model is best by both AIC and BIC.
 
 See [experiment_new_tasks/README.md](experiment_new_tasks/README.md) and [experiment_appendix_h_hard_tasks/README.md](experiment_appendix_h_hard_tasks/README.md) for detailed results tables.
 

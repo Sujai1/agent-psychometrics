@@ -734,5 +734,4 @@ chris_output/experiment_appendix_h_hard_tasks/frontier_analysis/
 
 ## References
 
-- [IRT Models Documentation](../docs/IRT_MODELS.md)
 - [Research Proposal](../chris%20proposal.md) - Section 3.2
