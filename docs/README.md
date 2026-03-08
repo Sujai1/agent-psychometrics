@@ -8,7 +8,6 @@ This directory contains detailed documentation for the SWE-bench IRT project.
 |----------|-------------|
 | [../CLAUDE.md](../CLAUDE.md) | Project overview, structure, quick start |
 | [IRT_MODELS.md](IRT_MODELS.md) | IRT theory, model variants, training commands |
-| [DATA_PIPELINE.md](DATA_PIPELINE.md) | Data flow from raw results to trained models |
 
 ## Experiment Documentation
 

@@ -62,9 +62,9 @@ All input data lives under `data/{dataset}/`:
 |----------|---------|
 | [docs/README.md](docs/README.md) | Documentation index |
 | [docs/IRT_MODELS.md](docs/IRT_MODELS.md) | IRT theory, model variants |
-| [docs/DATA_PIPELINE.md](docs/DATA_PIPELINE.md) | Data flow |
 | [experiment_new_tasks/README.md](experiment_new_tasks/README.md) | Experiment New Tasks details |
 | [experiment_appendix_h_hard_tasks/README.md](experiment_appendix_h_hard_tasks/README.md) | Appendix H Hard Tasks details |
+| [llm_judge_feature_extraction/README.md](llm_judge_feature_extraction/README.md) | LLM judge feature extraction |
 | [MIT_ENGAGING_SETUP.md](MIT_ENGAGING_SETUP.md) | Cluster setup |
 
 ## Key Results
