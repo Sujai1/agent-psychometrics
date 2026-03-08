@@ -9,7 +9,7 @@
 #   bash aws_setup/run_all_auditor.sh
 #
 # To run a single dataset:
-#   python -m llm_judge_feature_extraction.auditor_agent.run_auditor --dataset gso --batch_size 50 --max_connections 30
+#   python -m llm_judge_feature_extraction.auditor_agent.run_auditor --dataset gso --batch_size 50 --max_connections 25
 
 set -euo pipefail
 
@@ -30,7 +30,7 @@ echo "=== [1/4] GSO (102 tasks) ==="
 python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
     --dataset gso \
     --batch_size 50 \
-    --max_connections 30 \
+    --max_connections 25 \
     --s3_bucket "$S3_BUCKET"
 echo "GSO complete: $(date)"
 docker system prune -af
@@ -41,7 +41,7 @@ echo "=== [2/4] Terminal Bench (89 tasks) ==="
 python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
     --dataset terminalbench \
     --batch_size 44 \
-    --max_connections 30 \
+    --max_connections 25 \
     --s3_bucket "$S3_BUCKET"
 echo "Terminal Bench complete: $(date)"
 docker system prune -af
@@ -52,7 +52,7 @@ echo "=== [3/4] SWE-bench Pro (731 tasks) ==="
 python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
     --dataset swebench_pro \
     --batch_size 50 \
-    --max_connections 30 \
+    --max_connections 25 \
     --s3_bucket "$S3_BUCKET"
 echo "SWE-bench Pro complete: $(date)"
 docker system prune -af
@@ -63,7 +63,7 @@ echo "=== [4/4] SWE-bench Verified (500 tasks) ==="
 python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
     --dataset swebench_verified \
     --batch_size 50 \
-    --max_connections 30 \
+    --max_connections 25 \
     --s3_bucket "$S3_BUCKET"
 echo "SWE-bench Verified complete: $(date)"
 echo ""
