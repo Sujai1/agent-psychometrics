@@ -366,6 +366,24 @@ def main():
 
     args = parser.parse_args()
 
+    # Pre-flight: verify model dependencies are installed before doing any work
+    if not args.aggregate_only:
+        model_provider = args.model.split("/")[0] if "/" in args.model else ""
+        if model_provider == "openai":
+            try:
+                import openai  # noqa: F401
+            except ImportError:
+                print("ERROR: OpenAI model requested but 'openai' package is not installed.")
+                print("Install with: pip install openai")
+                sys.exit(1)
+        elif model_provider == "anthropic":
+            try:
+                import anthropic  # noqa: F401
+            except ImportError:
+                print("ERROR: Anthropic model requested but 'anthropic' package is not installed.")
+                print("Install with: pip install anthropic")
+                sys.exit(1)
+
     # Get dataset config
     config = DATASET_CONFIGS[args.dataset]
     expected_features = EXPECTED_FEATURES_V4

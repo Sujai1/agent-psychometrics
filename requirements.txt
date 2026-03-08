@@ -13,4 +13,5 @@ inspect-ai
 inspect-evals
 datasets
 anthropic
+openai
 pyyaml
