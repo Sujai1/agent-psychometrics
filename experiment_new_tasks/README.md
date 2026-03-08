@@ -132,7 +132,7 @@ class CVPredictor(Protocol):
 | File | Purpose |
 |------|---------|
 | `run_all_datasets.py` | Run all datasets with Ridge (default) or Feature-IRT (`--feature_irt`) |
-| `run_information_ablation.py` | Run information source ablation study (SWE-bench Verified) |
+| `run_information_ablation.py` | Run information level ablation across all datasets (v8 features) |
 
 ## Methods
 
@@ -360,71 +360,45 @@ Embeddings are generated with a prompt containing `question_statement + solution
 - No-solution embedding: paired with Problem Only LLM features
 - With-solution embedding: paired with Full LLM features
 
-#### LLM Judge Ablation (SWE-bench Verified)
+#### LLM Judge Information Level Ablation (All Datasets, v8 features)
 
-To measure the contribution of different information sources, we ran ablation experiments progressively adding features from different affordances. Feature count is held constant at 15 via Ridge coefficient-based selection to isolate the value of each information source:
+Measures the contribution of each information level by progressively adding features. Uses v8 features extracted at natural info levels (no leakage). Feature count is held constant at 15 via Ridge coefficient-based selection.
 
-| Method | # Features | LLM Judge AUC | Grouped Ridge AUC |
-|--------|------------|---------------|-------------------|
-| Problem Only | 15 | 0.7821 ± 0.0164 | 0.7800 ± 0.0241 |
-| + Auditor | 15 | 0.8015 ± 0.0167 | 0.7967 ± 0.0240 |
-| + Test | 15 | 0.8225 ± 0.0230 | 0.8174 ± 0.0235 |
-| **Full** | 15 | **0.8363 ± 0.0205** | **0.8436 ± 0.0216** |
+**LLM Judge AUC by Information Level**:
 
-**Note**: Grouped Ridge pairs each LLM ablation level with the corresponding embedding variant:
-- Problem Only, +Auditor, +Test: paired with no-solution embedding (neither has solution access)
-- Full: paired with with-solution embedding (both have solution access)
+| Info Level | SWE-bench Verified | GSO | TerminalBench | SWE-bench Pro |
+|---|---|---|---|---|
+| Baseline | 0.7175 | 0.7130 | 0.7338 | 0.6558 |
+| Problem | 0.7873 | 0.7276 | 0.7984 | 0.7175 |
+| + Auditor | 0.7984 | 0.7296 | 0.8076 | 0.7365 |
+| + Test | 0.8215 | 0.7250 | 0.8059 | 0.7489 |
+| + Solution (Full) | 0.8435 | 0.7343 | 0.8086 | 0.7562 |
+| Oracle | 0.9447 | 0.9139 | 0.9317 | 0.9183 |
 
-**Information sources**:
-- **Problem Only**: Features derived from the problem statement alone (7 original + 8 extended)
-- **+ Auditor**: 3 features requiring shell access to task environment (entry_point_clarity, change_blast_radius, fix_localization)
-- **+ Test**: 3 features analyzing the test patch diff (test_comprehensiveness, test_assertion_complexity, test_edge_case_coverage)
-- **+ Solution (Full)**: 2 features requiring the gold solution patch (solution_complexity, integration_complexity)
+**Information sources** (28 features total across 4 levels):
+- **Problem** (15 features): Derived from problem statement alone
+- **+ Auditor** (8 features): Environment exploration via Docker (no tests/solution access)
+- **+ Test** (3 features): Test/evaluation artifact analysis (no solution access)
+- **+ Solution** (2 features): Gold solution patch analysis
 
-**Feature selection method**: Ridge regression on all available features → rank by |coefficient| → keep top 15.
+**Feature selection**: Ridge regression (alpha=1.0) on all available features at each level → rank by |coefficient| → keep top 15.
 
-**Key finding**: Even with the same number of features, adding affordances provides significant improvement in LLM Judge AUC:
-- +Auditor: +1.9% (0.782 → 0.801)
-- +Test: +2.1% (0.801 → 0.823)
-- +Solution: +1.4% (0.823 → 0.836)
+**Key findings**:
+- **SWE-bench Verified** shows clear monotonic improvement: each level adds ~1-2% AUC
+- **SWE-bench Pro** similarly monotonic, with auditor providing the largest single jump (+1.9%)
+- **TerminalBench** captures most signal at Problem level; additional levels add marginal value
+- **GSO** is noisy (102 tasks, std ~0.05) — all levels are within noise of each other
 
-**Note**: Test features are extracted WITHOUT access to the solution patch, ensuring clean ablation. The Grouped Ridge column uses matching embedding variants (no-solution for levels 1-3, with-solution for Full).
-
-All affordance-specific features (auditor, test, solution) ranked in the top 15 by coefficient magnitude, confirming they capture information not available from the problem statement alone.
-
-**Full model coefficients (23 features, ranked by |coefficient|)**:
-
-| Rank | Feature | Coefficient | Source |
-|------|---------|-------------|--------|
-| 1 | solution_complexity | +0.566 | Solution |
-| 2 | integration_complexity | +0.450 | Solution |
-| 3 | test_comprehensiveness | +0.386 | Test |
-| 4 | test_edge_case_coverage | +0.334 | Test |
-| 5 | information_completeness | +0.332 | Problem (ext) |
-| 6 | fix_localization | -0.311 | Auditor |
-| 7 | entry_point_clarity | -0.303 | Auditor |
-| 8 | atypicality | +0.238 | Problem (orig) |
-| 9 | similar_issue_likelihood | +0.189 | Problem (ext) |
-| 10 | codebase_scope | +0.189 | Problem (ext) |
-| 11 | problem_clarity | -0.187 | Problem (orig) |
-| 12 | change_blast_radius | +0.159 | Auditor |
-| 13 | error_specificity | -0.140 | Problem (ext) |
-| 14 | solution_hint | -0.104 | Problem (orig) |
-| 15 | debugging_complexity | +0.099 | Problem (ext) |
-
-To run the ablation study:
+To run:
 ```bash
-# Run information source ablation (SWE-bench Verified)
+# Run information level ablation (all datasets, parallel)
 python -m experiment_new_tasks.run_information_ablation
 
-# Rebuild ablation CSVs (if feature sources change)
+# Rebuild ablation CSVs
 python -m experiment_new_tasks.run_information_ablation --rebuild_csvs
-```
 
-To run the ablation across all datasets:
-```bash
-# Run all datasets with judge ablation
-python -m experiment_new_tasks.run_all_datasets --judge_ablation --sequential
+# Run specific datasets
+python -m experiment_new_tasks.run_information_ablation --datasets swebench_verified gso
 ```
 
 To extract features:
