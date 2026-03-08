@@ -276,3 +276,9 @@ chris_output/llm_judge_features/v4_opt_scale_natural/
 chris_output/llm_judge_features/v4_opt_scale_solution/
 chris_output/llm_judge_features/v5_anthropic_solution/
 chris_output/llm_judge_features/v6_anthropic_natural/
+chris_output/llm_judge_features/v7_*/
+chris_output/llm_judge_features/v8_*/
+chris_output/llm_judge_features/gso_v7_*/
+chris_output/llm_judge_features/terminalbench_v7_*/
+chris_output/experiment_b/llm_judge_v7_features/
+chris_output/experiment_b/experiment_b_mode_comparison_llm_judge_v7.json
