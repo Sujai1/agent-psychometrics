@@ -12,8 +12,8 @@ Usage:
 
     # Extract from custom task list (e.g., all-fail non-frontier tasks)
     python -m experiment_appendix_h_hard_tasks.trajectory_features.extract_frontier_features --version v2 \\
-        --task-list chris_output/trajectory_features/all_fail_nonfrontier_tasks.json \\
-        --output-dir chris_output/trajectory_features/nonfrontier_v2_openhands
+        --task-list output/trajectory_features/all_fail_nonfrontier_tasks.json \\
+        --output-dir output/trajectory_features/nonfrontier_v2_openhands
 
     # Limit number of tasks (useful for testing)
     python -m experiment_appendix_h_hard_tasks.trajectory_features.extract_frontier_features --version v2 --limit 5
@@ -78,7 +78,7 @@ def main():
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory (default: chris_output/trajectory_features/frontier_{version})",
+        help="Output directory (default: output/trajectory_features/frontier_{version})",
     )
     parser.add_argument(
         "--dry-run",
@@ -120,7 +120,7 @@ def main():
 
     # Set output directory
     if args.output_dir is None:
-        args.output_dir = Path(f"chris_output/trajectory_features/frontier_{args.version}")
+        args.output_dir = Path(f"output/trajectory_features/frontier_{args.version}")
 
     # Load configuration
     config = SWEBenchConfig()

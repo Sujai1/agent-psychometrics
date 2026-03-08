@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "None - agent did not edit any files",
-  "gold_patch_files": "django/db/models/fields/related.py",
-  "reasoning": "The agent never found the right location and did not edit any files. The gold patch requires changes to django/db/models/fields/related.py but the agent spent the entire trajectory searching for settings.py and apps.py files that were not relevant to the actual fix needed.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -23,7 +23,7 @@ Usage:
     # Aggregate existing JSONs to CSV
     python -m llm_judge_feature_extraction aggregate \
         --dataset swebench_verified \
-        --output-dir chris_output/experiment_a/llm_judge_features
+        --output-dir output/experiment_a/llm_judge_features
 
     # Analyze feature correlations with IRT difficulty
     python -m llm_judge_feature_extraction correlations \
@@ -49,10 +49,10 @@ from llm_judge_feature_extraction.task_loaders import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT_DIRS = {
-    "swebench_verified": Path("chris_output/experiment_a/llm_judge_features"),
-    "swebench_pro": Path("chris_output/experiment_a_swebench_pro/llm_judge_features"),
-    "terminalbench": Path("chris_output/experiment_a_terminalbench/llm_judge_features"),
-    "gso": Path("chris_output/gso_llm_judge_features"),
+    "swebench_verified": Path("output/experiment_a/llm_judge_features"),
+    "swebench_pro": Path("output/experiment_a_swebench_pro/llm_judge_features"),
+    "terminalbench": Path("output/experiment_a_terminalbench/llm_judge_features"),
+    "gso": Path("output/gso_llm_judge_features"),
 }
 
 
@@ -69,7 +69,7 @@ def _resolve_output_dir(args: argparse.Namespace) -> Path:
         return Path(args.output_dir)
     return DEFAULT_OUTPUT_DIRS.get(
         args.dataset,
-        Path(f"chris_output/llm_judge_features/{args.dataset}"),
+        Path(f"output/llm_judge_features/{args.dataset}"),
     )
 
 

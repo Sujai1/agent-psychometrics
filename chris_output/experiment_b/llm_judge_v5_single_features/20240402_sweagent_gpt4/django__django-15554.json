@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce.py",
-  "gold_patch_files": "django/db/models/sql/query.py",
-  "reasoning": "The agent never edited any Django source code files, only worked on a reproduction script, while the gold patch modifies core ORM query building functions.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

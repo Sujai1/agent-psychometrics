@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "sphinx/util/typing.py",
-  "gold_patch_files": "sphinx/domains/python.py",
-  "reasoning": "Agent edited a completely different file (typing.py) than the gold patch (domains/python.py) and never found the correct regex parsing logic.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

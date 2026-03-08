@@ -58,54 +58,12 @@ experiment_appendix_h_hard_tasks/trajectory_data/unified_trajs/_blob_style/
 # Experiment B reference papers
 experiment_b/LLM judge inspiration papers/
 
-# LLM judge extracted features (expensive to regenerate, large)
-chris_output/experiment_b/llm_judge_features/
-
-# Experiment B run outputs (regenerable)
-chris_output/experiment_b/embedding_*/
-chris_output/experiment_b/heuristic_*/
-chris_output/experiment_b/llm_judge_combined_features/
-chris_output/experiment_b/llm_judge_prior_features/
-chris_output/experiment_b/llm_judge_prior_results.json
-chris_output/experiment_b/test_progression_features/
-chris_output/experiment_b/embedding_plus_*.json
-chris_output/experiment_b/experiment_b_results.json
-chris_output/experiment_b/experiment_b_mode_comparison*.json
-
-# Experiment A LLM judge features (regenerable from API)
-chris_output/experiment_a/llm_judge_features/
-
-# Experiment B LLM judge v4 features
-chris_output/experiment_b/llm_judge_v4_features/
-
-# Experiment B LLM judge v5 features
-chris_output/experiment_b/llm_judge_v5_features/
-
-# Experiment B simple results (regenerable)
-chris_output/experiment_b/simple_results/
-
-# Compute logs
-chris_output/experiment_b/v5_compute_log.txt
-chris_output/experiment_b/v5_single_compute_log.txt
-chris_output/experiment_b/v5_single_valid_compute_log.txt
-
-# Residual analysis outputs
-chris_output/experiment_b/m1_m2_residual_analysis.json
-
-# Sandbox test results
-chris_output/sandbox_test_results.json
-
-# Sandbox runs outputs
-chris_output/experiment_a/sandbox_runs/
+# All experiment outputs (regenerable)
+output/
 
 # Overnight logs
 overnight.log
 overnight_resume.log
-
-# Temporary/intermediate result files
-chris_output/experiment_a/missing_test_tasks.txt
-chris_output/experiment_b/llm_judge_residual_analysis.json
-chris_output/experiment_b/v3_prompt_test_results.json
 
 # Personal cluster setup notes
 MIT_ENGAGING_SETUP.md
@@ -113,139 +71,9 @@ MIT_ENGAGING_SETUP.md
 # Paper PDFs (reference papers in root)
 *.pdf
 
-# Experiment B execution features (regenerable)
-chris_output/experiment_b/execution_features/
-
-# Experiment B LLM judge v6/v7 features (regenerable)
-chris_output/experiment_b/llm_judge_v6_features/
-chris_output/experiment_b/llm_judge_v7_features/
-
-# Trajectory embeddings (large, computed on cluster)
-chris_output/experiment_b/trajectory_embeddings/
-chris_output/experiment_b/trajectory_embeddings_test/
-
-# Sandbox features (regenerable)
-chris_output/experiment_a/sandbox_features/
-
-# PCA ablation results (regenerable)
-chris_output/experiment_a/pca_ablation/
-chris_output/experiment_b/pca_ablation/
-
-# Experiment A outputs (regenerable)
-chris_output/experiment_a/logs/
-chris_output/experiment_a/batched_runs_to_delete.json
-chris_output/experiment_a/embedding_plus_llm_results.json
-chris_output/experiment_a/experiment_a_results.json
-
-# Additional experiment output directories
-chris_output/experiment_a_*/
-chris_output/experiment_b_*/
-chris_output/experiment_pass_at_k/
-
-# Trajectory summaries (large, generated on cluster or via API)
-chris_output/trajectory_summaries/
-chris_output/trajectory_summaries_api/
-
-# Iterative refinement outputs (regenerable)
-chris_output/iterative_refinement/
-chris_output/iterative_refinement_n100/
-
-# SAD IRT outputs (regenerable)
-chris_output/sad_irt_long/
-chris_output/sad_irt_beta_values/
-
-# IRT fold splits (regenerable)
-chris_output/experiment_a/irt_splits/
-
-# CV results
-chris_output/experiment_a/experiment_a_cv*_results.json
-
 # Generated plots
 training_curves.png
-chris_output/scale_alignment_analysis/
 
-# Experiment B TerminalBench outputs (regenerable)
-chris_output/experiment_b/terminalbench/
-
-# Experiment B SWE-bench outputs (regenerable)
-chris_output/experiment_b/swebench/
-
-# Feature-IRT grid search outputs (regenerable)
-chris_output/feature_irt_grid_search.csv
-chris_output/feature_irt_grid_search.png
-
-# Generated figures (regenerable, but keep .py scripts)
-chris_output/figures/*.png
-chris_output/figures/*.pdf
-
-# SWE-bench Pro Experiment B outputs (regenerable)
-chris_output/experiment_b/swebench_pro/
-chris_output/experiment_a/llm_judge_features_v2/
-chris_output/experiment_a/llm_judge_features_v2_pilot/
-chris_output/experiment_a_terminalbench/llm_judge_features_v2/
-
-# Trajectory features (regenerable via LLM API)
-chris_output/trajectory_features/
-
-# Stacked coefficient analysis (regenerable)
-chris_output/stacked_coefficient_analysis.json
-
-# Threshold sweep outputs (regenerable)
-chris_output/threshold_sweep/
-chris_output/threshold_sweep_*/
-
-# LLM standalone coefficient analysis (regenerable)
-chris_output/llm_standalone_coefficient_analysis.json
-
-# Grouped ridge coefficient analysis (regenerable)
-chris_output/grouped_ridge_coefficient_analysis.json
-
-# GSO LLM judge features (regenerable via LLM API)
-chris_output/gso_llm_judge_features_v1/
+# Misc
 threshold_sweep.log
-
-# Tensor analysis outputs (regenerable)
-chris_output/tensor_analysis/
-
-# MLP diagnostics outputs (regenerable)
-chris_output/experiment_a/mlp_diagnostics/
-chris_output/experiment_a/mlp_gated_diagnostics/
-chris_output/experiment_a/mlp_lr_ablation/
-chris_output/experiment_a/mlp_two_stage/
-chris_output/experiment_a/mlp_embedding/
-
-# Experiment B timestamped result CSVs (regenerable)
-chris_output/experiment_b/results_*.csv
-
-chris_output/env_features/
-chris_output/auditor_features/
-chris_output/auditor_test*/
-chris_output/auditor_verification/
-chris_output/logistic_solve_dates/
-chris_output/pc2_analysis/
-chris_output/experiment_b/frontier_analysis/
-chris_output/auditor_pilot/
 embed_pca_vs_oracle_theta__model.csv
-chris_output/llm_judge_prompts_latex.tex
-
-# Misc regenerable outputs
-chris_output/bash_only_abilities.png
-chris_output/swebench_verified_unified_9_features.csv
-
-# Experiment A auditor/LLM auditor outputs (regenerable)
-chris_output/experiment_a/with_auditor/
-chris_output/experiment_a/with_combined_llm_auditor/
-
-# Experiment B frontier analysis v3 (regenerable)
-chris_output/experiment_b/frontier_analysis_v3/
-
-# LLM judge coefficient analysis (regenerable)
-chris_output/llm_judge_coefficient_analysis/
-
-# LLM judge features (regenerable)
-chris_output/llm_judge_features/
-chris_output/experiment_b/llm_judge_v7_features/
-chris_output/experiment_b/experiment_b_mode_comparison_llm_judge_v7.json
-
-# Unified feature search outputs (regenerable)
-chris_output/unified_feature_search/

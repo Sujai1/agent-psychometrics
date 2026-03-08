@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "tests/migrations/test_optimizer.py",
-  "gold_patch_files": "django/db/migrations/operations/models.py",
-  "reasoning": "The agent only added a test case to the test file but never found or edited the actual implementation file where the optimization logic needs to be implemented. The gold patch modifies the core migration operations code, while the agent only worked on tests.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

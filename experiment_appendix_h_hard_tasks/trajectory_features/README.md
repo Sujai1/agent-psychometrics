@@ -18,8 +18,8 @@ Extracts behavioral features from agent trajectories to predict task difficulty.
 
 ## Output Files
 
-- `chris_output/trajectory_features/raw_features_500tasks_6agents.csv` - Raw per-trajectory features (500 tasks x 6 agents = 3000 rows)
-- `chris_output/trajectory_features/aggregated_features.csv` - Task-level aggregated features (500 tasks x 20 columns)
+- `output/trajectory_features/raw_features_500tasks_6agents.csv` - Raw per-trajectory features (500 tasks x 6 agents = 3000 rows)
+- `output/trajectory_features/aggregated_features.csv` - Task-level aggregated features (500 tasks x 20 columns)
 
 ### Aggregated Feature Columns (20 total)
 
@@ -56,8 +56,8 @@ Selection criteria:
 ### Extract features for all tasks
 ```bash
 python -m experiment_b.trajectory_features.extract_missing \
-    --existing_path chris_output/trajectory_features/raw_features_prefrontier_clean.csv \
-    --output_path chris_output/trajectory_features/raw_features_500tasks_6agents.csv \
+    --existing_path output/trajectory_features/raw_features_prefrontier_clean.csv \
+    --output_path output/trajectory_features/raw_features_500tasks_6agents.csv \
     --n_tasks 500 \
     --agents_per_task 6 \
     --parallel 100
@@ -66,16 +66,16 @@ python -m experiment_b.trajectory_features.extract_missing \
 ### Aggregate features (behavioral only, no outcome leakage)
 ```bash
 python -m experiment_b.trajectory_features.aggregate_features \
-    --input_path chris_output/trajectory_features/raw_features_500tasks_6agents.csv \
-    --output_path chris_output/trajectory_features/aggregated_features.csv \
+    --input_path output/trajectory_features/raw_features_500tasks_6agents.csv \
+    --output_path output/trajectory_features/aggregated_features.csv \
     --behavioral_only
 ```
 
 ### Dry run to see extraction plan
 ```bash
 python -m experiment_b.trajectory_features.extract_missing \
-    --existing_path chris_output/trajectory_features/raw_features_prefrontier_clean.csv \
-    --output_path chris_output/trajectory_features/raw_features_500tasks_6agents.csv \
+    --existing_path output/trajectory_features/raw_features_prefrontier_clean.csv \
+    --output_path output/trajectory_features/raw_features_500tasks_6agents.csv \
     --n_tasks 500 \
     --agents_per_task 6 \
     --dry_run

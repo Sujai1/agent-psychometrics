@@ -111,7 +111,7 @@ def run_agent_verification(instance_id: str, model: str = "anthropic/claude-opus
         "llm_judge_feature_extraction/auditor_agent/inspect_tasks.py@auditor_verification",
         f"--model={model}",
         f"--sample-id={instance_id}",
-        "--log-dir=chris_output/auditor_verification",
+        "--log-dir=output/auditor_verification",
     ]
 
     print(f"    Command: {' '.join(cmd)}")
@@ -125,7 +125,7 @@ def run_agent_verification(instance_id: str, model: str = "anthropic/claude-opus
     # Read the log file to extract agent's completion
     from inspect_ai.log import read_eval_log
 
-    log_dir = _project_root / "chris_output" / "auditor_verification"
+    log_dir = _project_root / "output" / "auditor_verification"
     log_files = list(log_dir.rglob("*.eval"))
 
     if not log_files:

@@ -1015,16 +1015,16 @@ Examples:
   python llm_judge/trajectory_filter.py --traj experiments/evaluation/verified/20240620_sweagent_claude3.5sonnet/trajs/django__django-10880.traj
 
   # Filter unified format trajectory
-  python llm_judge/trajectory_filter.py --traj chris_output/unified_trajs/agent/task.json --output filtered.json
+  python llm_judge/trajectory_filter.py --traj output/unified_trajs/agent/task.json --output filtered.json
 
   # Save filtered trajectory
   python llm_judge/trajectory_filter.py --traj path/to/task.traj --output filtered.json
 
   # Filter all trajectories for an agent (legacy format)
-  python llm_judge/trajectory_filter.py --agent 20240620_sweagent_claude3.5sonnet --output_dir chris_output/filtered_trajs/
+  python llm_judge/trajectory_filter.py --agent 20240620_sweagent_claude3.5sonnet --output_dir output/filtered_trajs/
 
   # Filter a directory of unified format trajectories
-  python llm_judge/trajectory_filter.py --unified_dir trajectory_data/unified_trajs/agent --output_dir chris_output/filtered_unified/
+  python llm_judge/trajectory_filter.py --unified_dir trajectory_data/unified_trajs/agent --output_dir output/filtered_unified/
 
   # Filter ALL unified trajectories across all agents
   python llm_judge/trajectory_filter.py --all_unified --output_dir trajectory_data/filtered_unified/
@@ -1149,7 +1149,7 @@ Examples:
             print(f"Error: Agent directory not found: {agent_dir}")
             return
 
-        output_dir = Path(args.output_dir) if args.output_dir else Path(f'chris_output/filtered_trajs/{args.agent}')
+        output_dir = Path(args.output_dir) if args.output_dir else Path(f'output/filtered_trajs/{args.agent}')
 
         print(f"Filtering trajectories for {args.agent}...")
         summary = filter_agent_trajectories(

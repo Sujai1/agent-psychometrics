@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "lib/matplotlib/figure.py (subfigures method)",
-  "gold_patch_files": "lib/matplotlib/figure.py (subfigures method)",
-  "reasoning": "The agent found and edited the exact same function (subfigures method in figure.py) and worked on the same lines where the gold patch applies, but failed to implement the correct fix involving GridSpec positioning and layout engine checks.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "xarray/core/indexes.py",
-  "gold_patch_files": "xarray/core/indexing.py",
-  "reasoning": "Agent found the correct class and method (PandasMultiIndexingAdapter.__array__) but edited it in the wrong file (indexes.py instead of indexing.py).",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

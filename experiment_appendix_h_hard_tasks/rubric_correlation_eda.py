@@ -11,8 +11,8 @@ Usage:
     python -m experiment_appendix_h_hard_tasks.rubric_correlation_eda
 
 Output:
-    Plots saved to: chris_output/experiment_b/rubric_eda/rubric_vs_eta_all_items.png
-    Stats saved to: chris_output/experiment_b/rubric_eda/correlation_stats.csv
+    Plots saved to: output/experiment_b/rubric_eda/rubric_vs_eta_all_items.png
+    Stats saved to: output/experiment_b/rubric_eda/correlation_stats.csv
 """
 
 from pathlib import Path
@@ -32,7 +32,7 @@ def load_baseline_irt_cached() -> tuple[pd.DataFrame, pd.DataFrame]:
         Tuple of (items_df, abilities_df) with 'b' and 'theta' columns
     """
     # Find the baseline IRT cache directory for swebench
-    baseline_dir = Path("chris_output/experiment_b/swebench/baseline_irt")
+    baseline_dir = Path("output/experiment_b/swebench/baseline_irt")
     if not baseline_dir.exists():
         raise FileNotFoundError(f"Baseline IRT directory not found: {baseline_dir}")
 
@@ -228,7 +228,7 @@ def main():
     print("=" * 80)
 
     # Load rubric data
-    rubric_path = Path("chris_output/trajectory_features/raw_features_500tasks_6agents.csv")
+    rubric_path = Path("output/trajectory_features/raw_features_500tasks_6agents.csv")
     print(f"\nLoading rubric data from: {rubric_path}")
     rubric_source = RubricDataSource(rubric_path, RubricPreprocessor())
 
@@ -246,7 +246,7 @@ def main():
     print(f"  Verified: all {len(rubric_agents)} rubric agents are in baseline IRT")
 
     # Generate plots
-    output_dir = Path("chris_output/experiment_b/rubric_eda")
+    output_dir = Path("output/experiment_b/rubric_eda")
     print(f"\nGenerating correlation plots...")
     correlation_stats = plot_rubric_vs_eta(
         rubric_source, items_df, abilities_df, output_dir

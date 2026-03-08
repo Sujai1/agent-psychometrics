@@ -25,8 +25,8 @@ from split_agents_model_scaffold import split_agent_name
 
 # Paths
 PC2_CSV = PROJECT_ROOT / "embed_pca_vs_oracle_theta__model.csv"
-CHAR_COUNTS_CSV = PROJECT_ROOT / "chris_output" / "tensor_analysis" / "swebench_verified_char_counts.csv"
-OUTPUT_DIR = PROJECT_ROOT / "chris_output" / "pc2_analysis"
+CHAR_COUNTS_CSV = PROJECT_ROOT / "output" / "tensor_analysis" / "swebench_verified_char_counts.csv"
+OUTPUT_DIR = PROJECT_ROOT / "output" / "pc2_analysis"
 
 # ============================================================================
 # Reasoning Model Classification

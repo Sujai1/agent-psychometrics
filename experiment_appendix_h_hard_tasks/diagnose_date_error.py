@@ -321,7 +321,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("chris_output/figures"),
+        default=Path("output/figures"),
         help="Directory for output plots",
     )
     parser.add_argument(

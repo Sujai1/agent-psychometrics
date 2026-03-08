@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_bug.py, django/forms/fields.py (searched but no edits)",
-  "gold_patch_files": "django/db/models/fields/__init__.py",
-  "reasoning": "Agent searched in completely wrong file (django/forms/fields.py) while the gold patch applies to django/db/models/fields/__init__.py, never finding the correct DecimalField implementation.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

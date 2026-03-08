@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/query_utils.py, django/db/models/expressions.py",
-  "gold_patch_files": "django/db/models/query_utils.py",
-  "reasoning": "The agent found the exact same file, function, and line as the gold patch but couldn't implement the correct fix of checking the conditional attribute.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

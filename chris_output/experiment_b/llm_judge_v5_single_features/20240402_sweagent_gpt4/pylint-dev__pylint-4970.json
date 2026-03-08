@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "pylint/checkers/similar.py",
-  "gold_patch_files": "pylint/checkers/similar.py",
-  "reasoning": "Agent found the right file and general similarity checking area, but edited the wrong class (SimilarChecker vs Similar) and wrong method (close vs run).",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

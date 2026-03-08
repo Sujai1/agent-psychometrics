@@ -46,7 +46,7 @@ def resolve_output_dir(path_str: str) -> Path:
         return p
     if "/" in path_str or "\\" in path_str:
         return ROOT / p
-    return ROOT / "chris_output" / "clean_data" / p
+    return ROOT / "output" / "clean_data" / p
 
 def _suggest_jsonl_paths(missing_path: Path) -> list[Path]:
     # Look for likely candidates near the requested location, then fallback to repo-wide.
@@ -56,7 +56,7 @@ def _suggest_jsonl_paths(missing_path: Path) -> list[Path]:
         candidates.extend(sorted(parent.glob("*.jsonl")))
         candidates.extend(sorted(parent.glob("**/*.jsonl")))
     if not candidates:
-        candidates.extend(sorted((ROOT / "chris_output").glob("**/*.jsonl")))
+        candidates.extend(sorted((ROOT / "output").glob("**/*.jsonl")))
     # De-duplicate while preserving order
     seen = set()
     out: list[Path] = []

@@ -6,8 +6,8 @@ reusing existing extracted data.
 Usage:
     # Fill to 6 agents per task for 500 tasks, reusing existing data
     python -m experiment_appendix_h_hard_tasks.trajectory_features.extract_missing \
-        --existing_path chris_output/trajectory_features/raw_features_100tasks.csv \
-        --output_path chris_output/trajectory_features/raw_features_500tasks_6agents.csv \
+        --existing_path output/trajectory_features/raw_features_100tasks.csv \
+        --output_path output/trajectory_features/raw_features_500tasks_6agents.csv \
         --n_tasks 500 \
         --agents_per_task 6 \
         --parallel 20
@@ -244,13 +244,13 @@ def main():
     parser.add_argument(
         "--existing_path",
         type=str,
-        default="chris_output/trajectory_features/raw_features_100tasks.csv",
+        default="output/trajectory_features/raw_features_100tasks.csv",
         help="Path to existing extracted features",
     )
     parser.add_argument(
         "--output_path",
         type=str,
-        default="chris_output/trajectory_features/raw_features_500tasks_6agents.csv",
+        default="output/trajectory_features/raw_features_500tasks_6agents.csv",
         help="Output path for merged results",
     )
     parser.add_argument(

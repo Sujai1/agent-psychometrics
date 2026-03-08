@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 4,
-  "agent_files_edited": "sympy/core/numbers.py",
-  "gold_patch_files": "sympy/core/numbers.py",
-  "reasoning": "Agent found the correct file and function (Rational.__new__) but edited the wrong section - focusing on single-parameter string handling instead of the two-parameter variable scoping issue.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

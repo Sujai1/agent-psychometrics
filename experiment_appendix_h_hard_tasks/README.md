@@ -426,8 +426,8 @@ experiment_appendix_h_hard_tasks/
 |------|---------|
 | `data/swebench_verified/irt/1d_1pl/items.csv` | Oracle IRT difficulties |
 | `data/swebench_verified/responses.jsonl` | Response matrix |
-| `chris_output/experiment_a/embeddings/` | Task embeddings |
-| `chris_output/experiment_a/llm_judge_features/` | LLM judge features |
+| `output/experiment_a/embeddings/` | Task embeddings |
+| `output/experiment_a/llm_judge_features/` | LLM judge features |
 
 ### SWE-bench Pro
 
@@ -436,7 +436,7 @@ experiment_appendix_h_hard_tasks/
 | `data/swebench_pro/irt/1d/items.csv` | Oracle IRT difficulties |
 | `data/swebench_pro/responses.jsonl` | Response matrix (730 tasks, 14 agents) |
 | `out/swebench_pro/embeddings__deepseek-ai__...npz` | Task embeddings |
-| `chris_output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv` | LLM judge v5 features (8 features) |
+| `output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv` | LLM judge v5 features (8 features) |
 | `data/swebench_pro/agent_dates.json` | Agent release dates (public announcements) |
 
 ### TerminalBench
@@ -445,8 +445,8 @@ experiment_appendix_h_hard_tasks/
 |------|---------|
 | `data/terminalbench/irt/1d/items.csv` | Oracle IRT difficulties |
 | `data/terminalbench/responses.jsonl` | Response matrix |
-| `chris_output/experiment_a_terminalbench/embeddings/` | Task embeddings |
-| `chris_output/experiment_a_terminalbench/llm_judge_features/` | LLM judge features (4 pre-selected) |
+| `output/experiment_a_terminalbench/embeddings/` | Task embeddings |
+| `output/experiment_a_terminalbench/llm_judge_features/` | LLM judge features (4 pre-selected) |
 
 ## Configuration
 
@@ -533,9 +533,9 @@ Data Summary:
 
 | Cache | Location | When to Clear |
 |-------|----------|---------------|
-| **Baseline IRT** | `chris_output/experiment_appendix_h_hard_tasks/{dataset}/baseline_irt/` | Auto-invalidated when training data changes |
-| **Embeddings** | `chris_output/experiment_a{_terminalbench}/embeddings/` | When changing backbone |
-| **LLM Features** | `chris_output/experiment_a{_terminalbench}/llm_judge_features/` | When re-extracting |
+| **Baseline IRT** | `output/experiment_appendix_h_hard_tasks/{dataset}/baseline_irt/` | Auto-invalidated when training data changes |
+| **Embeddings** | `output/experiment_a{_terminalbench}/embeddings/` | When changing backbone |
+| **LLM Features** | `output/experiment_a{_terminalbench}/llm_judge_features/` | When re-extracting |
 
 ## Threshold Sweep Analysis
 
@@ -569,7 +569,7 @@ python -m experiment_appendix_h_hard_tasks.threshold_sweep --baseline_only
 
 ### Output Files
 
-Results are saved to `chris_output/threshold_sweep/`:
+Results are saved to `output/threshold_sweep/`:
 
 | File | Description |
 |------|-------------|
@@ -718,7 +718,7 @@ For trajectory features, the script tests all agents and selects the one with th
 ### Output Files
 
 ```
-chris_output/experiment_appendix_h_hard_tasks/frontier_analysis/
+output/experiment_appendix_h_hard_tasks/frontier_analysis/
 ├── correlation_comparison.csv   # All features with correlations
 ├── findings.md                  # Summary table
 ├── rubric/*.png                 # Rubric feature scatter plots

@@ -61,19 +61,19 @@ ENVIRONMENT_FEATURES = [
 # Per-dataset auditor paths and which columns to use
 AUDITOR_CONFIG = {
     "swebench_verified": {
-        "path": ROOT / "chris_output" / "auditor_features" / "swebench_verified_v4_gpt54" / "auditor_features.csv",
+        "path": ROOT / "output" / "auditor_features" / "swebench_verified_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
     "gso": {
-        "path": ROOT / "chris_output" / "auditor_features" / "gso_v4_gpt54" / "auditor_features.csv",
+        "path": ROOT / "output" / "auditor_features" / "gso_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
     "swebench_pro": {
-        "path": ROOT / "chris_output" / "auditor_features" / "swebench_pro_v4_gpt54" / "auditor_features.csv",
+        "path": ROOT / "output" / "auditor_features" / "swebench_pro_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
     "terminalbench": {
-        "path": ROOT / "chris_output" / "auditor_features" / "terminalbench_v4_gpt54" / "auditor_features.csv",
+        "path": ROOT / "output" / "auditor_features" / "terminalbench_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
 }
@@ -83,11 +83,11 @@ AUDITOR_CONFIG = {
 
 def get_judge_csv_path(version: str, dataset: str) -> Path:
     ver_dir = FEATURE_VERSIONS[version]["dir"]
-    return ROOT / "chris_output" / "llm_judge_features" / ver_dir / dataset / "llm_judge_features.csv"
+    return ROOT / "output" / "llm_judge_features" / ver_dir / dataset / "llm_judge_features.csv"
 
 
 def get_output_dir(version: str) -> Path:
-    return ROOT / "chris_output" / "llm_judge_features" / "comparison" / version
+    return ROOT / "output" / "llm_judge_features" / "comparison" / version
 
 
 def normalize_instance_id(df: pd.DataFrame) -> pd.DataFrame:
@@ -284,7 +284,7 @@ def main():
                     break
     print(f"Versions: {versions}")
 
-    comparison_dir = ROOT / "chris_output" / "llm_judge_features" / "comparison"
+    comparison_dir = ROOT / "output" / "llm_judge_features" / "comparison"
     comparison_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Step 1: Build augmented CSVs ─────────────────────────────────────

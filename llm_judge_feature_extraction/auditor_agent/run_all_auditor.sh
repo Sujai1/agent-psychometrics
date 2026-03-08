@@ -21,8 +21,8 @@ echo ""
 
 # Download any existing results from S3 (for resuming after a previous run)
 echo "=== Downloading existing results from S3 ==="
-mkdir -p chris_output/auditor_features
-aws s3 sync "s3://$S3_BUCKET/auditor_features/" chris_output/auditor_features/ || true
+mkdir -p output/auditor_features
+aws s3 sync "s3://$S3_BUCKET/auditor_features/" output/auditor_features/ || true
 echo ""
 
 # GSO — 102 tasks, images share base layers, can do all at once
@@ -74,7 +74,7 @@ echo "End time: $(date)"
 # Upload results to S3 and self-terminate
 echo ""
 echo "=== Uploading results to S3 ==="
-aws s3 sync chris_output/auditor_features/ "s3://$S3_BUCKET/auditor_features/"
+aws s3 sync output/auditor_features/ "s3://$S3_BUCKET/auditor_features/"
 echo "Upload complete. Results in s3://$S3_BUCKET/auditor_features/"
 echo ""
 echo "=== Shutting down instance ==="

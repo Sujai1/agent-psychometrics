@@ -10,7 +10,7 @@ For each feature type, generates side-by-side scatter plots:
 
 Usage:
     python -m experiment_appendix_h_hard_tasks.frontier_feature_analysis
-    python -m experiment_appendix_h_hard_tasks.frontier_feature_analysis --output_dir chris_output/experiment_b/frontier_analysis
+    python -m experiment_appendix_h_hard_tasks.frontier_feature_analysis --output_dir output/experiment_b/frontier_analysis
 """
 
 import argparse
@@ -117,7 +117,7 @@ def load_llm_judge_features(config: SWEBenchConfig) -> pd.DataFrame:
 
 def load_trajectory_char_counts() -> pd.DataFrame:
     """Load raw per-agent trajectory features (assistant char counts)."""
-    path = Path("chris_output/tensor_analysis/swebench_verified_char_counts.csv")
+    path = Path("output/tensor_analysis/swebench_verified_char_counts.csv")
     if not path.exists():
         raise FileNotFoundError(f"Trajectory char counts not found at {path}")
     return pd.read_csv(path)
@@ -125,7 +125,7 @@ def load_trajectory_char_counts() -> pd.DataFrame:
 
 def load_logistic_solve_dates() -> pd.DataFrame:
     """Load logistic solve date analysis results."""
-    path = Path("chris_output/logistic_solve_dates/results.csv")
+    path = Path("output/logistic_solve_dates/results.csv")
     if not path.exists():
         raise FileNotFoundError(f"Logistic solve dates not found at {path}")
     df = pd.read_csv(path)
@@ -670,7 +670,7 @@ def main():
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("chris_output/experiment_b/frontier_analysis"),
+        default=Path("output/experiment_b/frontier_analysis"),
         help="Output directory for figures and summary",
     )
     parser.add_argument(

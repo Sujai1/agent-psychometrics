@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_issue.py, test_app/models.py, test_fix.py",
-  "gold_patch_files": "django/db/backends/mysql/operations.py, django/db/backends/oracle/operations.py, django/db/backends/sqlite3/base.py, django/db/backends/sqlite3/operations.py",
-  "reasoning": "The agent never found the right location - it spent the entire trajectory creating reproduction scripts and test files, but never examined or edited any of the database backend operations files where the actual fix needed to be applied.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

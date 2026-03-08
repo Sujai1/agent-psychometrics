@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "doc/index.rst, doc/conf.py",
-  "gold_patch_files": "sphinx/directives/other.py, sphinx/environment/adapters/toctree.py, sphinx/environment/collectors/toctree.py",
-  "reasoning": "The agent edited completely different files (documentation config) rather than the core Sphinx toctree implementation files where the actual fix needed to be applied.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

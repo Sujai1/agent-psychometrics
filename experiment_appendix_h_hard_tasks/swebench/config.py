@@ -64,12 +64,12 @@ class SWEBenchConfig(DatasetConfig):
     )
     llm_judge_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/llm_judge_features/ablation_studies/swebench_ablation_controlled_v3/4_full_15.csv"
+            "output/llm_judge_features/ablation_studies/swebench_ablation_controlled_v3/4_full_15.csv"
         )
     )
     trajectory_features_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/trajectory_features/aggregated_features.csv"
+            "output/trajectory_features/aggregated_features.csv"
         )
     )
 
@@ -78,7 +78,7 @@ class SWEBenchConfig(DatasetConfig):
 
     # Output
     output_dir: Path = field(
-        default_factory=lambda: Path("chris_output/experiment_b/swebench")
+        default_factory=lambda: Path("output/experiment_b/swebench")
     )
 
     @property

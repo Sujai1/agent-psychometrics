@@ -34,7 +34,7 @@ python -m llm_judge_feature_extraction extract \
 # Aggregate existing JSONs to CSV
 python -m llm_judge_feature_extraction aggregate \
     --dataset swebench_verified \
-    --output-dir chris_output/experiment_a/llm_judge_features
+    --output-dir output/experiment_a/llm_judge_features
 
 # Analyze feature correlations with IRT difficulty
 python -m llm_judge_feature_extraction correlations \
@@ -72,7 +72,7 @@ Combine per-task JSON files into a single CSV.
 ```bash
 python -m llm_judge_feature_extraction aggregate \
     --dataset swebench_verified \
-    --output-dir chris_output/experiment_a/llm_judge_features
+    --output-dir output/experiment_a/llm_judge_features
 ```
 
 ### `correlations` — Analyze Feature Correlations
@@ -177,7 +177,7 @@ python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
 | `--batch_size` | 10 | Tasks per batch (Docker cleanup runs between batches) |
 | `--max_connections` | 10 | Parallel Docker containers per batch |
 | `--model` | `openai/gpt-5.4-2026-03-05` | LLM model |
-| `--log_dir` | auto | Output directory (default: `chris_output/auditor_features/{dataset}_v4`) |
+| `--log_dir` | auto | Output directory (default: `output/auditor_features/{dataset}_v4`) |
 | `--s3_bucket` | none | Sync incremental CSV to S3 after each batch |
 | `--limit` | none | Limit to first N tasks (for testing) |
 | `--sample_ids` | none | Comma-separated specific task IDs |
@@ -210,7 +210,7 @@ bash llm_judge_feature_extraction/auditor_agent/run_all_auditor.sh  # runs all 4
 | `auditor_agent/parse_outputs.py` | Parse Inspect logs → CSV with 8 features + reasoning |
 | `auditor_agent/verify_commands.py` | Validation tool for agent outputs |
 
-## Extracted Feature Data (`chris_output/llm_judge_features/`)
+## Extracted Feature Data (`output/llm_judge_features/`)
 
 ### Active Default: `v7_unified_15/`
 
@@ -281,7 +281,7 @@ Note: "Info Level (natural)" shows what each feature would see without override.
 | `swebench_pro_v7_plus_auditor/` | SWE-bench Pro | 730 |
 | `terminalbench_v7_plus_auditor/` | TerminalBench | 89 |
 
-### Auditor Feature Directories (`chris_output/auditor_features/`)
+### Auditor Feature Directories (`output/auditor_features/`)
 
 | Directory | Dataset | Model | Tools | Tasks | Notes |
 |-----------|---------|-------|-------|-------|-------|
@@ -329,7 +329,7 @@ the top 15 features by coefficient magnitude at each cumulative info level:
 | + Solution (Full) | `ablation/{dataset}/4_full_15.csv` | All 28 features | 28 |
 
 Each CSV contains `instance_id` + 15 selected feature columns. Source data:
-`chris_output/llm_judge_features/{dataset}_v8_plus_auditor/llm_judge_features.csv`
+`output/llm_judge_features/{dataset}_v8_plus_auditor/llm_judge_features.csv`
 
 Regenerate with:
 ```bash
@@ -342,7 +342,7 @@ python -m experiment_new_tasks.run_information_ablation --rebuild_csvs
 from experiment_new_tasks.feature_source import CSVFeatureSource
 
 llm_source = CSVFeatureSource(
-    csv_path="chris_output/experiment_a/llm_judge_features/llm_judge_features.csv",
+    csv_path="output/experiment_a/llm_judge_features/llm_judge_features.csv",
     task_id_column="_instance_id",
     feature_columns=["solution_hint", "problem_clarity", "solution_complexity"],
 )

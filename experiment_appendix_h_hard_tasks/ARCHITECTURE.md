@@ -25,7 +25,7 @@ This document describes the class hierarchy and data flow for Appendix H Hard Ta
 │  --frontier_definitions zero_pre        --thresholds 0.0 0.05 0.10 ...           │
 │  --cutoff_date 20250501                 --l2_weight 0.001                        │
 │  --forecast_dates                       --l2_residual 10.0                       │
-│  --output_csv results.csv               --output_dir chris_output/threshold_sweep│
+│  --output_csv results.csv               --output_dir output/threshold_sweep│
 │                                                                                  │
 └───────────────────────────────────┬─────────────────────────────────────────────┘
                                     │
@@ -764,7 +764,7 @@ def compute_baseline_irt_cache_key(responses_path, pre_agents, cutoff_date):
 
 ### 3. Baseline IRT retraining unexpectedly?
 - Cache key depends on: responses filename + sorted agents + cutoff
-- Check `chris_output/experiment_appendix_h_hard_tasks/{dataset}/baseline_irt/cache_*/cache_info.json`
+- Check `output/experiment_appendix_h_hard_tasks/{dataset}/baseline_irt/cache_*/cache_info.json`
 - Different agent list (e.g., new agents added) invalidates cache
 
 ### 4. Feature-IRT not improving over Baseline?

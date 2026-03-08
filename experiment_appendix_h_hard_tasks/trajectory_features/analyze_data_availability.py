@@ -215,7 +215,7 @@ def main():
         print(f"    Tasks where >= {threshold} agents fail: {tasks_at_threshold}")
 
     # Save all-fail task list
-    output_dir = Path("chris_output/trajectory_features")
+    output_dir = Path("output/trajectory_features")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_fail_path = output_dir / "all_fail_nonfrontier_tasks.json"
@@ -228,7 +228,7 @@ def main():
     print("Section 2: Success vs Failure Feature Differences")
     print("-" * 60)
 
-    raw_features_path = Path("chris_output/trajectory_features/raw_features_500tasks_6agents.csv")
+    raw_features_path = Path("output/trajectory_features/raw_features_500tasks_6agents.csv")
     if raw_features_path.exists():
         feature_comparison = analyze_success_failure_features(raw_features_path)
         print("\nFeature differences between successful and failed trajectories:")

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "test_resolver_instances.py",
-  "gold_patch_files": "django/urls/base.py, django/urls/resolvers.py",
-  "reasoning": "Agent found and examined the exact right location (get_resolver function) but only created test scripts instead of implementing the required code changes.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

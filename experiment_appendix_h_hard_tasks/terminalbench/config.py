@@ -337,7 +337,7 @@ class TerminalBenchConfig(DatasetConfig):
     )
     llm_judge_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/experiment_a_terminalbench/llm_judge_features/llm_judge_features.csv"
+            "output/experiment_a_terminalbench/llm_judge_features/llm_judge_features.csv"
         )
     )
 
@@ -352,7 +352,7 @@ class TerminalBenchConfig(DatasetConfig):
 
     # Output
     output_dir: Path = field(
-        default_factory=lambda: Path("chris_output/experiment_b/terminalbench")
+        default_factory=lambda: Path("output/experiment_b/terminalbench")
     )
 
     # Cache for loaded model release dates

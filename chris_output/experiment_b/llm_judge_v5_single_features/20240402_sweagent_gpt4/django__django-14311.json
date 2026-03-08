@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/utils/autoreload.py",
-  "gold_patch_files": "django/utils/autoreload.py",
-  "reasoning": "The agent found the exact right location (same file, function, and lines as the gold patch) but implemented an overly simplistic fix that doesn't handle all the edge cases properly.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

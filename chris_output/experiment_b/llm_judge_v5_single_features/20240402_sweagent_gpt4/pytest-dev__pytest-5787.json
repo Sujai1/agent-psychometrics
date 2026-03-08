@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "test_exceptions.py",
-  "gold_patch_files": "src/_pytest/reports.py",
-  "reasoning": "Agent never found the right location - they only created a test file while the actual fix needed to be in pytest's core reporting module for exception serialization.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

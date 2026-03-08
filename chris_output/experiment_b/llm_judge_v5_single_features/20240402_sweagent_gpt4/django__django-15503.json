@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_issue.py, setup_and_migrate.py",
-  "gold_patch_files": "django/db/models/fields/json.py",
-  "reasoning": "Agent never found the right location - it only edited test reproduction files and never examined the Django core source code where the JSONField has_key lookup is implemented.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

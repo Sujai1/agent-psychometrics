@@ -17,7 +17,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "abilities_path": Path("data/swebench_verified/irt/1d_1pl/abilities.csv"),
         "items_path": Path("data/swebench_verified/irt/1d_1pl/items.csv"),
         "responses_path": Path("data/swebench_verified/responses.jsonl"),
-        "output_dir": Path("chris_output/experiment_a"),
+        "output_dir": Path("output/experiment_a"),
         "embeddings_path": Path(
             "embeddings/"
             "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
@@ -39,7 +39,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "abilities_path": Path("data/gso/irt/1d_1pl/abilities.csv"),
         "items_path": Path("data/gso/irt/1d_1pl/items.csv"),
         "responses_path": Path("data/gso/responses.jsonl"),
-        "output_dir": Path("chris_output/experiment_a_gso"),
+        "output_dir": Path("output/experiment_a_gso"),
         "embeddings_path": Path(
             "embeddings/"
             "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
@@ -61,7 +61,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "abilities_path": Path("data/swebench_pro/irt/1d_1pl/abilities.csv"),
         "items_path": Path("data/swebench_pro/irt/1d_1pl/items.csv"),
         "responses_path": Path("data/swebench_pro/responses.jsonl"),
-        "output_dir": Path("chris_output/experiment_a_swebench_pro"),
+        "output_dir": Path("output/experiment_a_swebench_pro"),
         "embeddings_path": Path(
             "embeddings/"
             "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
@@ -83,7 +83,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "abilities_path": Path("data/terminalbench/irt/1d_1pl/abilities.csv"),
         "items_path": Path("data/terminalbench/irt/1d_1pl/items.csv"),
         "responses_path": Path("data/terminalbench/responses.jsonl"),
-        "output_dir": Path("chris_output/experiment_a_terminalbench"),
+        "output_dir": Path("output/experiment_a_terminalbench"),
         "embeddings_path": Path(
             "embeddings/"
             "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"

@@ -73,7 +73,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("chris_output/trajectory_features/sample_test"),
+        default=Path("output/trajectory_features/sample_test"),
         help="Output directory for sample extraction",
     )
     parser.add_argument(

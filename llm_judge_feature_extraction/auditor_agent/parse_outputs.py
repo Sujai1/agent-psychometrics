@@ -5,10 +5,10 @@ the 8 difficulty-related features into a CSV file for use in Experiment A.
 
 Usage:
     # Parse logs and create CSV
-    python -m llm_judge_feature_extraction.auditor_agent.parse_outputs --log_dir chris_output/auditor_runs
+    python -m llm_judge_feature_extraction.auditor_agent.parse_outputs --log_dir output/auditor_runs
 
     # Validate parsed results
-    python -m llm_judge_feature_extraction.auditor_agent.parse_outputs --log_dir chris_output/auditor_runs --validate
+    python -m llm_judge_feature_extraction.auditor_agent.parse_outputs --log_dir output/auditor_runs --validate
 """
 
 import argparse

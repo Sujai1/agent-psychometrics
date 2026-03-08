@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 4,
-  "agent_files_edited": "reproduce_bug.py",
-  "gold_patch_files": "django/db/models/fields/json.py",
-  "reasoning": "Agent found and extensively examined the correct file (django/db/models/fields/json.py) where the gold patch applies, understanding the KeyTransform classes, but never actually edited that file to implement the fix.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

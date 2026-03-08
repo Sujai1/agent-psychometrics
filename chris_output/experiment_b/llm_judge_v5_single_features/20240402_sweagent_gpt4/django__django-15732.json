@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "tests/schema/test_drop_unique_together.py",
-  "gold_patch_files": "django/db/backends/base/schema.py",
-  "reasoning": "Agent found and analyzed the exact right file, methods, and lines as the gold patch but only created tests instead of implementing the actual fix.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/sql/compiler.py, django/db/models/sql/subqueries.py",
-  "gold_patch_files": "django/db/models/sql/compiler.py, django/db/models/sql/subqueries.py",
-  "reasoning": "The agent found and edited the exact same files and functions as the gold patch - specifically the pre_sql_setup method in SQLUpdateCompiler and get_related_updates method in UpdateQuery. The agent identified the correct location where the issue occurs but struggled with implementing the proper fix.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

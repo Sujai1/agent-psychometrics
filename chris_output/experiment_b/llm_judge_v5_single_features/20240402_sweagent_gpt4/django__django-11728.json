@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "reproduce_bug.py (test file created by agent)",
-  "gold_patch_files": "django/contrib/admindocs/utils.py",
-  "reasoning": "Agent found the exact right function and examined the precise lines where the gold patch applies, but failed to implement any actual fix to the bracket matching logic.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

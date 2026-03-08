@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "django/db/models/fields/related_descriptors.py",
-  "gold_patch_files": "django/contrib/contenttypes/fields.py, django/db/models/fields/related_descriptors.py",
-  "reasoning": "Agent found the right file and general area for related managers but completely missed the second file that also needed async method implementations.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

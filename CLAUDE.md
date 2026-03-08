@@ -23,7 +23,7 @@ model_irt/
 ├── swebench_irt/                      # IRT model training
 ├── py_irt/                            # IRT library (local fork)
 ├── data/                              # Input data + IRT models (data/{dataset}/irt/)
-└── chris_output/                      # Outputs and results
+└── output/                            # Outputs and results (gitignored)
 ```
 
 ## Quick Start

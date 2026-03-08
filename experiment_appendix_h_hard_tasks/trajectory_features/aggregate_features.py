@@ -5,8 +5,8 @@ them to produce per-task features suitable for difficulty prediction.
 
 Usage:
     python -m experiment_appendix_h_hard_tasks.trajectory_features.aggregate_features \
-        --input_path chris_output/trajectory_features/raw_features.csv \
-        --output_path chris_output/trajectory_features/aggregated_features.csv
+        --input_path output/trajectory_features/raw_features.csv \
+        --output_path output/trajectory_features/aggregated_features.csv
 """
 
 import argparse
@@ -202,13 +202,13 @@ def main():
     parser.add_argument(
         "--input_path",
         type=str,
-        default="chris_output/trajectory_features/raw_features.csv",
+        default="output/trajectory_features/raw_features.csv",
         help="Input path for raw features",
     )
     parser.add_argument(
         "--output_path",
         type=str,
-        default="chris_output/trajectory_features/aggregated_features.csv",
+        default="output/trajectory_features/aggregated_features.csv",
         help="Output path for aggregated features",
     )
     parser.add_argument(

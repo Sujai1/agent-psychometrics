@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/fields/related_descriptors.py",
-  "gold_patch_files": "django/db/models/fields/related_descriptors.py",
-  "reasoning": "The agent found the exact same file, function, and lines as the gold patch but implemented incorrect fixes rather than the proper conditional check.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 4,
-  "agent_files_edited": "django/db/backends/mysql/base.py",
-  "gold_patch_files": "django/db/backends/mysql/base.py, django/db/backends/mysql/client.py",
-  "reasoning": "The agent found the correct function and edited the exact same lines as in the gold patch for base.py (lines 202-205), but failed to identify and fix the second file (client.py) that also needed changes according to the gold patch.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

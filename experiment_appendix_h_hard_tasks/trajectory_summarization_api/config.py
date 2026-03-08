@@ -26,8 +26,8 @@ class SummarizationConfig:
 
     # Data paths
     trajectory_dir: Path = Path("experiment_appendix_h_hard_tasks/trajectory_data/unified_trajs")
-    output_dir: Path = Path("chris_output/trajectory_summaries_api")
-    checkpoint_file: Path = Path("chris_output/trajectory_summaries_api/.checkpoint.json")
+    output_dir: Path = Path("output/trajectory_summaries_api")
+    checkpoint_file: Path = Path("output/trajectory_summaries_api/.checkpoint.json")
 
     # Processing settings
     batch_size: int = 100  # Save checkpoint every N completions

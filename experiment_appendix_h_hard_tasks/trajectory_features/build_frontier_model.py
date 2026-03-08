@@ -236,7 +236,7 @@ def main():
     parser.add_argument(
         "--features-dir",
         type=Path,
-        default=Path("chris_output/trajectory_features"),
+        default=Path("output/trajectory_features"),
         help="Directory containing extracted features",
     )
     parser.add_argument(

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "sympy/printing/latex.py, sympy/core/basic.py",
-  "gold_patch_files": "sympy/printing/latex.py, sympy/printing/pretty/pretty.py, sympy/printing/str.py",
-  "reasoning": "Agent found the right file (latex.py) and was working in the printing area, but edited the wrong functions (_print_Add instead of _print_MatAdd/_print_MatMul).",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

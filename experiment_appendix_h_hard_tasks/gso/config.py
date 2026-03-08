@@ -41,7 +41,7 @@ class GSOConfig(DatasetConfig):
     )
     llm_judge_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/gso_llm_judge_features_v1/llm_judge_features.csv"
+            "output/gso_llm_judge_features_v1/llm_judge_features.csv"
         )
     )
 
@@ -60,7 +60,7 @@ class GSOConfig(DatasetConfig):
 
     # Output
     output_dir: Path = field(
-        default_factory=lambda: Path("chris_output/experiment_b/gso")
+        default_factory=lambda: Path("output/experiment_b/gso")
     )
 
     # Cached agent dates from JSON

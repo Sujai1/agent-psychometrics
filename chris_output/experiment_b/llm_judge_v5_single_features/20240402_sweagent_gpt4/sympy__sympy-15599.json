@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 2,
-  "agent_files_edited": "sympy/core/mod.py, sympy/core/tests/test_arit.py",
-  "gold_patch_files": "sympy/core/mod.py",
-  "reasoning": "Agent found the correct file but edited the wrong section - focusing on Mul handling logic instead of the basic number processing and integer coefficient handling where the actual fix was needed.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce.rst, run_sphinx.py, conf.py",
-  "gold_patch_files": "sphinx/domains/python.py, sphinx/util/docfields.py",
-  "reasoning": "The agent never found the right location, editing only test/reproduction files instead of the actual Sphinx source code files where the bug exists.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

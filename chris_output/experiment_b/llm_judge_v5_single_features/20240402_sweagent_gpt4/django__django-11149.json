@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/contrib/admin/options.py",
-  "gold_patch_files": "django/contrib/admin/options.py",
-  "reasoning": "The agent found the exact right file and edited the same functions (has_add_permission, has_change_permission, has_delete_permission, has_view_permission) that are in the gold patch, but couldn't implement the correct fix despite multiple attempts.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

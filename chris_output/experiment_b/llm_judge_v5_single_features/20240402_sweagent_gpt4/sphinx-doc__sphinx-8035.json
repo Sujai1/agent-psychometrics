@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "sphinx/ext/autodoc/__init__.py",
-  "gold_patch_files": "sphinx/ext/autodoc/__init__.py",
-  "reasoning": "Agent found the right file and general areas (option_spec and member filtering logic) but targeted different specific functions and lines than the comprehensive changes in the gold patch.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

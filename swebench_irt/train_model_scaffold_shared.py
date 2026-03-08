@@ -30,7 +30,7 @@ def resolve_output_dir(path_str: str) -> Path:
         return p
     if "/" in path_str or "\\" in path_str:
         return ROOT / p
-    return ROOT / "chris_output" / "clean_data" / p
+    return ROOT / "output" / "clean_data" / p
 
 
 def set_seed(seed: int) -> None:

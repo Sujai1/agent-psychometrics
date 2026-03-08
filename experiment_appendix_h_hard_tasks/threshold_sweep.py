@@ -10,7 +10,7 @@ Datasets are processed in parallel using multiprocessing.
 Usage:
     python -m experiment_appendix_h_hard_tasks.threshold_sweep
     python -m experiment_appendix_h_hard_tasks.threshold_sweep --datasets swebench terminalbench
-    python -m experiment_appendix_h_hard_tasks.threshold_sweep --output_dir chris_output/threshold_sweep
+    python -m experiment_appendix_h_hard_tasks.threshold_sweep --output_dir output/threshold_sweep
 """
 
 import argparse
@@ -156,8 +156,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("chris_output/threshold_sweep"),
-        help="Directory to save results (default: chris_output/threshold_sweep)",
+        default=Path("output/threshold_sweep"),
+        help="Directory to save results (default: output/threshold_sweep)",
     )
     parser.add_argument(
         "--post_frontier_oracle",

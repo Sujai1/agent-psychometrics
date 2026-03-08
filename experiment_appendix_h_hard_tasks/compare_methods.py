@@ -19,7 +19,7 @@ both agent groups). This alignment uses oracle information and is ONLY for evalu
 Usage:
     python -m experiment_appendix_h_hard_tasks.compare_methods
     python -m experiment_appendix_h_hard_tasks.compare_methods --dataset terminalbench
-    python -m experiment_appendix_h_hard_tasks.compare_methods --output_csv chris_output/experiment_b_results.csv
+    python -m experiment_appendix_h_hard_tasks.compare_methods --output_csv output/experiment_b_results.csv
     python -m experiment_appendix_h_hard_tasks.compare_methods --forecast_dates
     python -m experiment_appendix_h_hard_tasks.compare_methods --frontier_definitions passrate irt
 """
@@ -300,7 +300,7 @@ def main():
             print(f"  Feature contribution: {diag['feature_contribution_ratio']:.2%}")
 
     # Run Ordered Logit IRT (if rubric data available)
-    rubric_path = Path("chris_output/trajectory_features/raw_features_500tasks_6agents.csv")
+    rubric_path = Path("output/trajectory_features/raw_features_500tasks_6agents.csv")
     if rubric_path.exists() and data.baseline_abilities is not None:
         ordered_logit_preds = collect_ordered_logit_irt_predictions(
             rubric_path=rubric_path,

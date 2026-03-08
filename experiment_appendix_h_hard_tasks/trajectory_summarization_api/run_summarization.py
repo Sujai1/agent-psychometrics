@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--output_dir",
         type=Path,
-        default=Path("chris_output/trajectory_summaries_api"),
+        default=Path("output/trajectory_summaries_api"),
         help="Directory to save summaries",
     )
 

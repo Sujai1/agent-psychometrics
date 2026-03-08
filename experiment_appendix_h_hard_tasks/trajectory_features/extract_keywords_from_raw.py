@@ -8,7 +8,7 @@ Usage:
     # Extract keywords for one agent from custom task list
     python -m experiment_appendix_h_hard_tasks.trajectory_features.extract_keywords_from_raw \
         --agent amazon \
-        --task-list chris_output/trajectory_features/all_fail_nonfrontier_tasks.json
+        --task-list output/trajectory_features/all_fail_nonfrontier_tasks.json
 
     # Extract for all keyword-only agents
     python -m experiment_appendix_h_hard_tasks.trajectory_features.extract_keywords_from_raw --all-keyword-agents
@@ -131,7 +131,7 @@ def main():
     parser.add_argument(
         "--task-list",
         type=Path,
-        default=Path("chris_output/trajectory_features/all_fail_nonfrontier_tasks.json"),
+        default=Path("output/trajectory_features/all_fail_nonfrontier_tasks.json"),
         help="JSON file with task IDs to process",
     )
     parser.add_argument(
@@ -143,7 +143,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("chris_output/trajectory_features/raw_keywords"),
+        default=Path("output/trajectory_features/raw_keywords"),
         help="Output directory for CSV files",
     )
     args = parser.parse_args()

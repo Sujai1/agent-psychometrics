@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_bug.py, docs/conf.py, docs/index.rst, build_docs.sh, simulate_sphinx_build.py",
-  "gold_patch_files": "sphinx/domains/python.py",
-  "reasoning": "The agent never found the right location - it created test files and hypothetical extensions instead of finding the actual Sphinx domain code that needed fixing. The gold patch modifies sphinx/domains/python.py but the agent never opened or edited this file.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

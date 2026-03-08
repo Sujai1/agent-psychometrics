@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_issue.py",
-  "gold_patch_files": "django/db/migrations/autodetector.py",
-  "reasoning": "Agent never found the right location, spending entire time on reproduction script instead of examining the Django migration autodetector code where the actual fix was needed.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

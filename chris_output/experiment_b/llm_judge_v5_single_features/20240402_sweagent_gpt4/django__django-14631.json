@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/forms/forms.py, django/forms/boundfield.py",
-  "gold_patch_files": "django/forms/boundfield.py, django/forms/forms.py",
-  "reasoning": "The agent found the exact same files and core functions as the gold patch, including the _clean_fields() method, but failed to implement the correct solution approach.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

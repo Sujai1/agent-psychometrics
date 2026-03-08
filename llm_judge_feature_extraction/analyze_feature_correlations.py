@@ -8,7 +8,7 @@ This module provides functions to:
 
 Usage:
     python -m llm_judge_feature_extraction.analyze_feature_correlations \
-        --features-csv chris_output/experiment_a/llm_judge_features/llm_judge_features.csv \
+        --features-csv output/experiment_a/llm_judge_features/llm_judge_features.csv \
         --irt-items data/swebench_verified/irt/1d_1pl/items.csv \
         --dataset swebench
 """

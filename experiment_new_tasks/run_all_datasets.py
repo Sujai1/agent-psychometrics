@@ -283,7 +283,7 @@ def main():
         type=str,
         default=None,
         help="Override LLM judge features CSV path. Supports {dataset} template "
-             "(e.g., 'chris_output/.../v2/{dataset}/features.csv').",
+             "(e.g., 'output/.../v2/{dataset}/features.csv').",
     )
     args = parser.parse_args()
 

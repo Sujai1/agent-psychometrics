@@ -210,16 +210,16 @@ Deterministic features extracted from SWE-bench task environments by running bas
 python -m experiment_new_tasks.env_features.run_extraction \
     --batch_size 10 \
     --max_connections 10 \
-    --output_dir chris_output/env_features/swebench_verified/
+    --output_dir output/env_features/swebench_verified/
 
 # Resume interrupted extraction (automatically skips completed samples)
-python -m experiment_new_tasks.env_features.run_extraction --output_dir chris_output/env_features/swebench_verified/
+python -m experiment_new_tasks.env_features.run_extraction --output_dir output/env_features/swebench_verified/
 
 # Just aggregate existing logs to CSV
 python -m experiment_new_tasks.env_features.run_extraction --aggregate_only
 ```
 
-**Output**: `chris_output/env_features/swebench_verified/env_features.csv`
+**Output**: `output/env_features/swebench_verified/env_features.csv`
 
 **Architecture**:
 - Uses Inspect AI framework with deterministic solver (no LLM calls)
@@ -248,13 +248,13 @@ Semantic features extracted by an LLM auditor agent (Claude Opus 4.5) that explo
 **Usage**:
 ```bash
 # Run auditor on all SWE-bench Verified tasks
-python -m experiment_new_tasks.auditor_agent.run_auditor --output_dir chris_output/auditor_pilot/
+python -m experiment_new_tasks.auditor_agent.run_auditor --output_dir output/auditor_pilot/
 
 # Parse outputs to CSV
 python -m experiment_new_tasks.auditor_agent.parse_outputs
 ```
 
-**Output**: `chris_output/auditor_pilot/v3_features_top3.csv`
+**Output**: `output/auditor_pilot/v3_features_top3.csv`
 
 **Integration**: Auditor features are included in the default LLM Judge feature set via coefficient-based selection.
 
@@ -266,7 +266,7 @@ Semantic features extracted via LLM structured output:
 
 **All datasets (20 features, v5 — Anthropic Sonnet 4.6, solution-level override)**:
 
-Default feature set: `chris_output/llm_judge_features/v5_anthropic_solution/{dataset}/llm_judge_features.csv`
+Default feature set: `output/llm_judge_features/v5_anthropic_solution/{dataset}/llm_judge_features.csv`
 
 20 features extracted with solution-level context:
 - solution_hint, problem_clarity, domain_knowledge_required, logical_reasoning_required
@@ -278,7 +278,7 @@ Default feature set: `chris_output/llm_judge_features/v5_anthropic_solution/{dat
 
 Note: SWE-bench Verified's v5 CSV also includes 3 auditor features (entry_point_clarity, change_blast_radius, fix_localization) for 23 total.
 
-Old defaults (9-15 features) are archived in `chris_output/llm_judge_features/experiment_a_old_defaults/`.
+Old defaults (9-15 features) are archived in `output/llm_judge_features/experiment_a_old_defaults/`.
 
 ### Unified Features (Default)
 
@@ -305,16 +305,16 @@ We tested whether extracting all 20 non-auditor features (instead of the 9/15 de
 Run with:
 ```bash
 python -m experiment_new_tasks.run_all_datasets \
-  --llm_judge_features_path "chris_output/llm_judge_features/v2_full_20features/{dataset}/llm_judge_features.csv"
+  --llm_judge_features_path "output/llm_judge_features/v2_full_20features/{dataset}/llm_judge_features.csv"
 
 python -m experiment_new_tasks.run_all_datasets \
-  --llm_judge_features_path "chris_output/llm_judge_features/v3_solution_level/{dataset}/llm_judge_features.csv"
+  --llm_judge_features_path "output/llm_judge_features/v3_solution_level/{dataset}/llm_judge_features.csv"
 
 python -m experiment_new_tasks.run_all_datasets \
-  --llm_judge_features_path "chris_output/llm_judge_features/v6_anthropic_natural/{dataset}/llm_judge_features.csv"
+  --llm_judge_features_path "output/llm_judge_features/v6_anthropic_natural/{dataset}/llm_judge_features.csv"
 
 python -m experiment_new_tasks.run_all_datasets \
-  --llm_judge_features_path "chris_output/llm_judge_features/v5_anthropic_solution/{dataset}/llm_judge_features.csv"
+  --llm_judge_features_path "output/llm_judge_features/v5_anthropic_solution/{dataset}/llm_judge_features.csv"
 ```
 
 **Results (Grouped Ridge AUC — Emb+LLM combined)**:
@@ -436,7 +436,7 @@ Dataset-specific auxiliary files:
 - **GSO**: `data/gso/agent_dates.json`
 - **TerminalBench**: `data/terminalbench/model_release_dates.json`, `data/terminalbench/tasks.jsonl`, `data/terminalbench/meta.json`
 
-Fold-specific IRT models (cached): `chris_output/experiment_a_{dataset}/irt_splits/`
+Fold-specific IRT models (cached): `output/experiment_a_{dataset}/irt_splits/`
 
 ## Command Line Options
 
@@ -454,7 +454,7 @@ Fold-specific IRT models (cached): `chris_output/experiment_a_{dataset}/irt_spli
 
 ## Output
 
-Results saved to `chris_output/experiment_new_tasks/experiment_a_cv5_results.json`:
+Results saved to `output/experiment_new_tasks/experiment_a_cv5_results.json`:
 
 ```json
 {
@@ -488,9 +488,9 @@ The `--coefficients` flag extracts per-fold Ridge coefficients from the LLM Judg
 
 | Cache | Location | When to Clear |
 |-------|----------|---------------|
-| **IRT Split Models** | `chris_output/experiment_new_tasks/irt_splits/` | When changing split parameters |
-| **Embeddings** | `chris_output/experiment_new_tasks/embeddings/` | When changing backbone |
-| **LLM Judge Features** | `chris_output/experiment_new_tasks/llm_judge_features/` | When re-extracting |
+| **IRT Split Models** | `output/experiment_new_tasks/irt_splits/` | When changing split parameters |
+| **Embeddings** | `output/experiment_new_tasks/embeddings/` | When changing backbone |
+| **LLM Judge Features** | `output/experiment_new_tasks/llm_judge_features/` | When re-extracting |
 
 ## References
 

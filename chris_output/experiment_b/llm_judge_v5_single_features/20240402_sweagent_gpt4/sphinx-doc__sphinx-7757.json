@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "None - agent failed to edit any source files due to persistent file editing errors",
-  "gold_patch_files": "sphinx/util/inspect.py",
-  "reasoning": "The agent never found or edited the correct file (sphinx/util/inspect.py) where the gold patch applies, spending time in unrelated files and test setup instead.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

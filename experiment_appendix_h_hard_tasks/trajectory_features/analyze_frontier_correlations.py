@@ -5,12 +5,12 @@ trajectory features and oracle IRT difficulty for frontier tasks only.
 
 Usage:
     python -m experiment_appendix_h_hard_tasks.trajectory_features.analyze_frontier_correlations \
-        --features-csv chris_output/trajectory_features/frontier_v1/llm_judge_features.csv
+        --features-csv output/trajectory_features/frontier_v1/llm_judge_features.csv
 
     # Save results to JSON
     python -m experiment_appendix_h_hard_tasks.trajectory_features.analyze_frontier_correlations \
-        --features-csv chris_output/trajectory_features/frontier_v1/llm_judge_features.csv \
-        --output chris_output/trajectory_features/frontier_v1/correlation_results.json
+        --features-csv output/trajectory_features/frontier_v1/llm_judge_features.csv \
+        --output output/trajectory_features/frontier_v1/correlation_results.json
 """
 
 import argparse

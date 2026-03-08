@@ -617,7 +617,7 @@ def main():
     parser.add_argument(
         "--output_path",
         type=str,
-        default="chris_output/trajectory_features/raw_features.csv",
+        default="output/trajectory_features/raw_features.csv",
         help="Output path for results",
     )
     parser.add_argument(

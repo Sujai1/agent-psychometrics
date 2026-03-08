@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/sql/compiler.py",
-  "gold_patch_files": "django/db/models/sql/compiler.py",
-  "reasoning": "Agent found the exact same file, function, and lines as the gold patch (lines 428-433 in get_combinator_sql method) but implemented a different solution approach.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

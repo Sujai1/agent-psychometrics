@@ -22,11 +22,11 @@ def main():
     print("=" * 80)
 
     # Load rubric data
-    rubric_path = Path("chris_output/trajectory_features/raw_features_500tasks_6agents.csv")
+    rubric_path = Path("output/trajectory_features/raw_features_500tasks_6agents.csv")
     rubric_source = RubricDataSource(rubric_path, RubricPreprocessor())
 
     # Load baseline IRT
-    baseline_dir = Path("chris_output/experiment_b/swebench/baseline_irt")
+    baseline_dir = Path("output/experiment_b/swebench/baseline_irt")
     cache_dirs = list(baseline_dir.glob("cache_*"))
     if not cache_dirs:
         print("ERROR: No baseline IRT cache found")

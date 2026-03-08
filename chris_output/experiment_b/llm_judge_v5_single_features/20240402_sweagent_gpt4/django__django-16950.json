@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_bug.py, settings.py, urls.py, wsgi.py, bugapp/models.py, bugapp/admin.py, manage.py, setup_database.py, simulate_admin_actions.py",
-  "gold_patch_files": "django/forms/models.py",
-  "reasoning": "The agent never found the correct location - it created reproduction files but never examined the Django source code in django/forms/models.py where the actual bug exists.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "sphinx/directives/code.py",
-  "gold_patch_files": "sphinx/directives/code.py",
-  "reasoning": "The agent found the correct file and general area (LiteralIncludeReader class) but edited the wrong methods (prepend_filter and append_filter) instead of the correct location (read method's filter ordering).",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

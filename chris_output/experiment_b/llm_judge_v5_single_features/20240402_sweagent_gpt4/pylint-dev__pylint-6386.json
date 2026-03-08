@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 3,
-  "agent_files_edited": "pylint/lint/base_options.py",
-  "gold_patch_files": "pylint/config/argument.py, pylint/config/arguments_manager.py, pylint/config/utils.py, pylint/lint/base_options.py",
-  "reasoning": "Agent found the right file and the verbose option definition area, but edited the wrong lines and missed the broader configuration system changes needed.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

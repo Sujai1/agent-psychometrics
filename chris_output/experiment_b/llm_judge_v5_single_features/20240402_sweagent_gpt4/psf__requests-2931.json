@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "requests/utils.py",
-  "gold_patch_files": "requests/models.py",
-  "reasoning": "The agent edited the wrong file entirely - they modified the to_native_string function in utils.py, while the gold patch modifies the _encode_params and prepare_url functions in models.py.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

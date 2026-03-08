@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "django/db/models/fields/__init__.py",
-  "gold_patch_files": "django/db/models/sql/query.py",
-  "reasoning": "The agent edited a completely different file and focused on field value preparation rather than the subquery output field resolution that the gold patch addresses.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

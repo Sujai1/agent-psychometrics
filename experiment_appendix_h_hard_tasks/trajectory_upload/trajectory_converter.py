@@ -1637,7 +1637,7 @@ def main():
     experiments_dir = Path(__file__).resolve().parents[1] / 'experiments'
 
     if args.all:
-        output_dir = Path(args.output_dir) if args.output_dir else Path('chris_output/unified_trajs')
+        output_dir = Path(args.output_dir) if args.output_dir else Path('output/unified_trajs')
 
         print("Converting ALL agent trajectories...")
         if args.verified_only:
@@ -1692,7 +1692,7 @@ def main():
             print(f"Error: Agent not found: {agent_dir}")
             return
 
-        output_dir = Path(args.output_dir) if args.output_dir else Path(f'chris_output/unified_trajs/{args.agent}')
+        output_dir = Path(args.output_dir) if args.output_dir else Path(f'output/unified_trajs/{args.agent}')
 
         print(f"Converting {args.agent}...")
         summary = convert_agent_trajectories(agent_dir, output_dir)

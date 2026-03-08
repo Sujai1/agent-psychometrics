@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "sympy/polys/sqfreetools.py",
-  "gold_patch_files": "sympy/polys/polytools.py",
-  "reasoning": "The agent edited a completely different file than the gold patch, working in sqfreetools.py instead of polytools.py, showing they never found the right location.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

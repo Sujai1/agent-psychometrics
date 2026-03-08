@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "test_model.py, run_checks.py",
-  "gold_patch_files": "django/contrib/auth/checks.py",
-  "reasoning": "Agent never found the right location - it only created test files to reproduce the issue but never examined or edited the actual Django source code file that contains the system check logic.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

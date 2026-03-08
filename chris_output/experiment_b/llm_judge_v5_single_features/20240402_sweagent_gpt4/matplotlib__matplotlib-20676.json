@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "/matplotlib__matplotlib/lib/matplotlib/widgets.py",
-  "gold_patch_files": "lib/matplotlib/widgets.py",
-  "reasoning": "The agent edited the exact same method (_setup_edge_handle) and lines as the gold patch, implementing essentially the same fix using axis bounds instead of self.extents.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

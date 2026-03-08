@@ -2,11 +2,11 @@
 
 Usage:
     python -m experiment_appendix_h_hard_tasks.trajectory_features.analyze_correlation \
-        --features_path chris_output/trajectory_features/raw_features.csv
+        --features_path output/trajectory_features/raw_features.csv
 
     # With aggregated features
     python -m experiment_appendix_h_hard_tasks.trajectory_features.analyze_correlation \
-        --features_path chris_output/trajectory_features/aggregated_features.csv \
+        --features_path output/trajectory_features/aggregated_features.csv \
         --aggregated
 """
 
@@ -225,7 +225,7 @@ def main():
     parser.add_argument(
         "--features_path",
         type=str,
-        default="chris_output/trajectory_features/raw_features.csv",
+        default="output/trajectory_features/raw_features.csv",
         help="Path to features CSV",
     )
     parser.add_argument(

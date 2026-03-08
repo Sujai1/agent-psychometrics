@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/expressions.py",
-  "gold_patch_files": "django/db/models/expressions.py",
-  "reasoning": "The agent found the exact right location and edited the same file and same classes (Func, Value, ExpressionWrapper, When, Case, OrderBy) as the gold patch, but failed to implement the correct fix of adding @deconstructible decorators with simplified paths.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

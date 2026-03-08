@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 2,
-  "agent_files_edited": "django/db/backends/base/operations.py",
-  "gold_patch_files": "django/db/backends/base/operations.py, django/db/backends/mysql/operations.py, django/db/backends/sqlite3/operations.py, django/db/models/expressions.py",
-  "reasoning": "The agent found one correct file (base/operations.py) but edited the wrong function (convert_durationfield_value) instead of focusing on the main issue which was in expressions.py and required removing date_interval_sql methods.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

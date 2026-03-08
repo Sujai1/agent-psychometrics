@@ -332,7 +332,7 @@ def main():
         "--log_dir",
         type=Path,
         default=None,
-        help="Directory to store logs (default: chris_output/auditor_features/{dataset})",
+        help="Directory to store logs (default: output/auditor_features/{dataset})",
     )
     parser.add_argument(
         "--aggregate_only",
@@ -395,7 +395,7 @@ def main():
 
     # Set default log_dir based on dataset
     if args.log_dir is None:
-        args.log_dir = Path("chris_output/auditor_features") / config["log_dir_name"]
+        args.log_dir = Path("output/auditor_features") / config["log_dir_name"]
 
     # Create log directory
     args.log_dir.mkdir(parents=True, exist_ok=True)

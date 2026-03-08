@@ -38,7 +38,7 @@ class SWEBenchProConfig(DatasetConfig):
     )
     llm_judge_path: Optional[Path] = field(
         default_factory=lambda: Path(
-            "chris_output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv"
+            "output/experiment_a_swebench_pro/llm_judge_features/llm_judge_features.csv"
         )
     )
 
@@ -56,7 +56,7 @@ class SWEBenchProConfig(DatasetConfig):
 
     # Output
     output_dir: Path = field(
-        default_factory=lambda: Path("chris_output/experiment_b/swebench_pro")
+        default_factory=lambda: Path("output/experiment_b/swebench_pro")
     )
 
     # Cached agent dates from JSON

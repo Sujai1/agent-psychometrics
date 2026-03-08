@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 1,
-  "agent_files_edited": "reproduce_issue.py (created for testing)",
-  "gold_patch_files": "django/db/models/aggregates.py",
-  "reasoning": "The agent never found the correct file (aggregates.py) and spent time exploring SQL compiler/query files instead of the aggregates module where the fix was needed.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "django/db/models/sql/query.py",
-  "gold_patch_files": "django/db/models/sql/query.py",
-  "reasoning": "The agent found the exact same file and function (get_aggregation) as the gold patch and edited in the same line range, but implemented the wrong solution.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}

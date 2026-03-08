@@ -1,9 +1,0 @@
-{
-  "location_vs_fix_alignment": 5,
-  "agent_files_edited": "xarray/core/dataarray.py",
-  "gold_patch_files": "xarray/core/dataarray.py, xarray/core/dataset.py",
-  "reasoning": "Agent found the exact right location and method (DataArray.integrate at line 3483) and attempted correct changes multiple times, but was blocked by environment configuration issues rather than location problems.",
-  "_model": "claude-sonnet-4-20250514",
-  "_provider": "anthropic",
-  "_resolved": false
-}
