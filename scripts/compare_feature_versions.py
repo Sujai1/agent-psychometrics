@@ -2,11 +2,7 @@
 """Compare all feature extraction versions across datasets.
 
 For each feature version (v2, v3, v5, v6, v7, v8):
-1. Augments judge features with auditor/environment features:
-   - SWE-bench Verified: +3 auditor pilot features (23 total)
-   - GSO: +8 GPT 5.4 auditor features (28 total)
-   - TerminalBench: +8 GPT 5.4 auditor features (28 total)
-   - SWE-bench Pro: no auditor features (20 total)
+1. Augments judge features with +8 GPT 5.4 auditor features (28 total per dataset)
 2. Runs full experiment to get Ridge coefficients
 3. Selects top 15 features per dataset by |coefficient|
 4. Runs experiment with top-15 features
@@ -65,18 +61,21 @@ ENVIRONMENT_FEATURES = [
 # Per-dataset auditor paths and which columns to use
 AUDITOR_CONFIG = {
     "swebench_verified": {
-        "path": ROOT / "chris_output" / "auditor_pilot" / "v3_features_top3.csv",
-        "columns": ["entry_point_clarity", "change_blast_radius", "fix_localization"],
+        "path": ROOT / "chris_output" / "auditor_features" / "swebench_verified_v4_gpt54" / "auditor_features.csv",
+        "columns": ENVIRONMENT_FEATURES,
     },
     "gso": {
         "path": ROOT / "chris_output" / "auditor_features" / "gso_v4_gpt54" / "auditor_features.csv",
+        "columns": ENVIRONMENT_FEATURES,
+    },
+    "swebench_pro": {
+        "path": ROOT / "chris_output" / "auditor_features" / "swebench_pro_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
     "terminalbench": {
         "path": ROOT / "chris_output" / "auditor_features" / "terminalbench_v4_gpt54" / "auditor_features.csv",
         "columns": ENVIRONMENT_FEATURES,
     },
-    # swebench_pro: no auditor features yet
 }
 
 
@@ -146,6 +145,10 @@ def build_augmented_csv(version: str, dataset: str) -> Optional[Path]:
                 raise FileNotFoundError(f"Auditor features not found: {auditor_path}")
 
             auditor_df = pd.read_csv(auditor_path)
+            # Normalize Inspect AI instance_ids (e.g. "instance_Foo__Bar-abc123-vdef456" -> "Foo__Bar-abc123")
+            auditor_df["instance_id"] = (auditor_df["instance_id"]
+                .str.replace(r"^instance_", "", regex=True)
+                .str.replace(r"-v([a-f0-9]+|nan)$", "", regex=True))
             auditor_df = auditor_df[["instance_id"] + missing]
 
             nan_count = auditor_df[missing].isna().sum().sum()

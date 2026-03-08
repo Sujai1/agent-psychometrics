@@ -8,14 +8,14 @@ Top 15 features per dataset selected by Ridge coefficient magnitude from v7 Opus
 
 **Base model**: Claude Opus 4.6 (`claude-opus-4-6`)
 **Info Level**: Solution override (all features see full task info including gold patch)
-**Features**: 15 per dataset (selected from 20-28 depending on auditor availability)
+**Features**: 15 per dataset (selected from 28 = 20 judge + 8 auditor)
 **Selection**: Ridge regression (alpha=1.0) on standardized features vs IRT difficulty
 
 | Dataset | Path | Features | Auditor Features Included |
 |---------|------|----------|--------------------------|
-| SWE-bench Verified | `v7_opus_solution_top15/swebench_verified/llm_judge_features.csv` | 15 (from 23) | 2/3 (entry_point_clarity, fix_localization) |
+| SWE-bench Verified | `v7_opus_solution_top15/swebench_verified/llm_judge_features.csv` | 15 (from 28) | 3/8 (environment_setup_complexity, fix_localization, implementation_language_complexity) |
 | GSO | `v7_opus_solution_top15/gso/llm_judge_features.csv` | 15 (from 28) | 1/8 (codebase_scale) |
-| SWE-bench Pro | `v7_opus_solution_top15/swebench_pro/llm_judge_features.csv` | 15 (from 20) | 0 (none available) |
+| SWE-bench Pro | `v7_opus_solution_top15/swebench_pro/llm_judge_features.csv` | 15 (from 28) | 3/8 (implementation_language_complexity, testing_infrastructure_quality, change_blast_radius) |
 | TerminalBench | `v7_opus_solution_top15/terminalbench/llm_judge_features.csv` | 15 (from 28) | 4/8 (dependency_complexity, fix_localization, testing_infrastructure_quality, codebase_scale) |
 
 Note: The top 15 are selected per-dataset. A future goal is a unified feature set that performs comparably across all datasets.
@@ -60,12 +60,14 @@ Note: "Info Level (natural)" shows what each feature would see without override.
 
 ## Auditor-Combined Features
 
-Merge of v7 judge features + auditor agent environment features.
+20 v7 Opus 4.6 judge features + 8 GPT 5.4 auditor features = 28 features per task.
 
-| Directory | Dataset | Judge Model | Auditor Model | Auditor Tools | Features | Tasks |
-|-----------|---------|-------------|---------------|---------------|----------|-------|
-| `gso_v7_plus_auditor/` | GSO | Opus 4.6 | Opus 4.6 | bash only | 28 (20+8) | 102 |
-| `terminalbench_v7_plus_auditor/` | TerminalBench | Opus 4.6 | GPT 5.4 | bash + python | 28 (20+8) | 89 |
+| Directory | Dataset | Tasks |
+|-----------|---------|-------|
+| `swebench_verified_v7_plus_auditor/` | SWE-bench Verified | 500 |
+| `gso_v7_plus_auditor/` | GSO | 102 |
+| `swebench_pro_v7_plus_auditor/` | SWE-bench Pro | 730 |
+| `terminalbench_v7_plus_auditor/` | TerminalBench | 89 |
 
 ## Auditor Agent Features (`chris_output/auditor_features/`)
 
@@ -73,9 +75,11 @@ Environment-level features extracted by an agent that explores the task's Docker
 
 | Directory | Dataset | Model | Tools | Tasks | Notes |
 |-----------|---------|-------|-------|-------|-------|
+| `swebench_verified_v4_gpt54/` | SWE-bench Verified | GPT 5.4 | bash + python | 500 | **Active** |
 | `gso_v4_gpt54/` | GSO | GPT 5.4 | bash + python | 102 | **Active** |
+| `swebench_pro_v4_gpt54/` | SWE-bench Pro | GPT 5.4 | bash + python | 730 | **Active** |
 | `terminalbench_v4_gpt54/` | TerminalBench | GPT 5.4 | bash + python | 89 | **Active** |
-| `gso_v4/` | GSO | Opus 4.6 | bash only | 102 (78 valid, 24 parse errors) | Obsolete — 24 parse errors, superseded by gso_v4_gpt54 |
+| `gso_v4_opus_obsolete/` | GSO | Opus 4.6 | bash only | 102 (78 valid, 24 parse errors) | Obsolete — superseded by gso_v4_gpt54 |
 
 ### Auditor Feature List (8 features)
 

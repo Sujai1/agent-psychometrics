@@ -45,14 +45,14 @@ python -m experiment_new_tasks.run_all_datasets --datasets terminalbench
 
 Run with: `python -m experiment_new_tasks.run_all_datasets`
 
-**LLM features**: v7 Opus 4.6, solution-level override, top 15 features per dataset (selected by Ridge coefficient magnitude from 20 judge + auditor features). See `chris_output/llm_judge_features/README.md` for details.
+**LLM features**: v7 Opus 4.6, solution-level override, top 15 features per dataset (selected by Ridge coefficient magnitude from 28 features = 20 judge + 8 auditor). See `chris_output/llm_judge_features/README.md` for details.
 
 | Dataset | Tasks | Agents | Oracle | Grouped Ridge (Emb+LLM) | LLM Judge | Embedding | Baseline |
 |---------|-------|--------|--------|-------------------------|-----------|-----------|----------|
-| SWE-bench Verified | 500 | 134 | 0.9447 | **0.8501** | 0.8467 | 0.8244 | 0.7175 |
+| SWE-bench Verified | 500 | 134 | 0.9447 | **0.8497** | 0.8483 | 0.8244 | 0.7175 |
 | GSO | 102 | 15 | 0.9139 | **0.7945** | 0.7873 | 0.7581 | 0.7130 |
 | TerminalBench | 89 | 112 | 0.9317 | **0.8332** | 0.8099 | 0.8174 | 0.7338 |
-| SWE-bench Pro | 731 | 14 | 0.9183 | **0.7664** | 0.7308 | 0.7550 | 0.6558 |
+| SWE-bench Pro | 730 | 14 | 0.9183 | **0.7673** | 0.7503 | 0.7550 | 0.6558 |
 
 **Key findings**:
 - **Grouped Ridge (Emb+LLM) is best**: Outperforms single sources on all datasets
