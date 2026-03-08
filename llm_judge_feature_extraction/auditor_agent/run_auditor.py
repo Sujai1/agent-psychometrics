@@ -72,6 +72,11 @@ DATASET_CONFIGS = {
         "items_csv": "data/gso/irt/1d_1pl/items.csv",
         "log_dir_name": "gso_v4",
     },
+    "gso_ablation": {
+        "inspect_task": "llm_judge_feature_extraction/auditor_agent/inspect_tasks.py@auditor_task_v4_gso_ablation",
+        "items_csv": "data/gso/irt/1d_1pl/items.csv",
+        "log_dir_name": "gso_v4_ablation",
+    },
 }
 
 INCREMENTAL_CSV_NAME = "auditor_features_incremental.csv"
@@ -97,7 +102,7 @@ def get_docker_images_for_batch(dataset: str, instance_ids: list[str]) -> list[s
         return [f"jefzda/sweap-images:{id_to_tag[iid]}" for iid in instance_ids if iid in id_to_tag]
     elif dataset == "terminalbench":
         return [f"xiangyangli/{iid}:20260204" for iid in instance_ids]
-    elif dataset == "gso":
+    elif dataset in ("gso", "gso_ablation"):
         return [f"slimshetty/gso:gso.eval.x86_64.{iid.lower()}" for iid in instance_ids]
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
