@@ -108,18 +108,92 @@ python -m llm_judge_feature_extraction correlations \
 | `task_loaders.py` | Task loading functions for all datasets |
 | `response_parser.py` | JSON response parsing and validation |
 | `analyze_feature_correlations.py` | Correlation analysis with IRT difficulty |
-| `sandbox_utils.py` | Docker sandbox configuration helpers |
-| `auditor_agent/` | Environment-level feature extraction via Inspect |
+| `sandbox_utils.py` | Docker sandbox configuration and cleanup helpers |
 
 ## Environment Features (Auditor Agent)
 
-Environment-level features (8 features) are extracted via an agentic pipeline using Docker containers and the Inspect framework. See `auditor_agent/` for details.
+Environment-level features (8 features) are extracted via an **agentic pipeline**: an LLM explores each task's Docker container via bash and Python tools, then rates the environment on 8 difficulty axes. This uses the [Inspect AI](https://inspect.ai) framework.
+
+### How It Works
+
+1. Each task is spun up in a Docker container with the repo at `/testbed`
+2. The auditor agent (GPT-5.4) explores the codebase using bash and Python (8–15 tool calls)
+3. After exploration, the agent submits a JSON report rating 8 features on a 1–5 scale
+4. Results are parsed from Inspect logs into an incremental CSV
+
+### 8 Environment Features
+
+| Feature | Scale | What It Measures |
+|---------|-------|-----------------|
+| `fix_localization` | 1–5 | How spread out is the fix? (1=many modules, 5=single function) |
+| `entry_point_clarity` | 1–5 | How easy to find where the problem manifests? |
+| `change_blast_radius` | 1–5 | How many components are affected? |
+| `environment_setup_complexity` | 1–5 | How complex is the runtime/tooling? |
+| `implementation_language_complexity` | 1–5 | How complex is the tech stack? |
+| `testing_infrastructure_quality` | 1–5 | How good is the testing/validation setup? |
+| `dependency_complexity` | 1–5 | How complex are dependencies? |
+| `codebase_scale` | 1–5 | How large/complex is the codebase? |
+
+### Quick Start
 
 ```bash
-# Run auditor on SWE-bench Verified
+# Test on a single task
 inspect eval llm_judge_feature_extraction/auditor_agent/inspect_tasks.py@auditor_task_v4_swebench_verified \
-    --model anthropic/claude-opus-4-6 --limit 1
+    --model openai/gpt-5.4-2026-03-05 --limit 1
+
+# Run a full dataset with batching, Docker cleanup, and S3 sync
+python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
+    --dataset terminalbench \
+    --batch_size 50 \
+    --max_connections 25 \
+    --model openai/gpt-5.4-2026-03-05 \
+    --s3_bucket my-bucket
+
+# Just aggregate existing logs to CSV (skip running)
+python -m llm_judge_feature_extraction.auditor_agent.run_auditor \
+    --dataset swebench_verified --aggregate_only
 ```
+
+### `run_auditor` Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--dataset` | `swebench_verified` | Dataset: `gso`, `swebench_pro`, `swebench_verified`, `terminalbench` |
+| `--batch_size` | 10 | Tasks per batch (Docker cleanup runs between batches) |
+| `--max_connections` | 10 | Parallel Docker containers per batch |
+| `--model` | `anthropic/claude-opus-4-6` | LLM model (e.g., `openai/gpt-5.4-2026-03-05`) |
+| `--log_dir` | auto | Output directory (default: `chris_output/auditor_features/{dataset}_v4`) |
+| `--s3_bucket` | none | Sync incremental CSV to S3 after each batch |
+| `--limit` | none | Limit to first N tasks (for testing) |
+| `--sample_ids` | none | Comma-separated specific task IDs |
+| `--aggregate_only` | false | Only aggregate existing logs, skip running |
+| `--skip_cleanup` | false | Skip Docker cleanup between batches |
+
+### Resumability
+
+The auditor is fully resumable. After each batch, results are appended to `auditor_features_incremental.csv`. On restart, completed tasks are skipped automatically. This is critical for long runs on spot instances.
+
+### AWS Deployment
+
+For running all 4 datasets on EC2, see `aws_setup/`:
+
+```bash
+# Launch spot instance
+bash aws_setup/launch_spot.sh
+
+# On EC2: setup + run all datasets
+bash aws_setup/setup_instance.sh
+bash aws_setup/run_all_auditor.sh  # runs all 4 datasets, syncs to S3, auto-terminates
+```
+
+### Auditor Agent Files
+
+| File | Purpose |
+|------|---------|
+| `auditor_agent/inspect_tasks.py` | Inspect task definitions for all 4 datasets |
+| `auditor_agent/run_auditor.py` | Batched orchestration with pre-pull, cleanup, S3 sync |
+| `auditor_agent/parse_outputs.py` | Parse Inspect logs → CSV with 8 features + reasoning |
+| `auditor_agent/verify_commands.py` | Validation tool for agent outputs |
 
 ## Integration with Experiment A
 
