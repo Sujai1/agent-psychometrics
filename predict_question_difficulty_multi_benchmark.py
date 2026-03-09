@@ -1356,26 +1356,41 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--verified_judge_features_dir",
         type=str,
-        default="llm_judge/features/verified.csv",
-        help="Verified judge features (CSV like llm_judge/features/verified.csv, or directory of per-item JSONs).",
+        default="llm_judge_features/defaults/swebench_verified/llm_judge_features.csv",
+        help=(
+            "Verified judge features (CSV like "
+            "llm_judge_features/defaults/swebench_verified/llm_judge_features.csv, "
+            "or directory of per-item JSONs)."
+        ),
     )
     p.add_argument(
         "--pro_judge_features_dir",
         type=str,
-        default="llm_judge/features/pro.csv",
-        help="Pro judge features (CSV like llm_judge/features/pro.csv, or directory of per-item JSONs).",
+        default="llm_judge_features/defaults/swebench_pro/llm_judge_features.csv",
+        help=(
+            "Pro judge features (CSV like "
+            "llm_judge_features/defaults/swebench_pro/llm_judge_features.csv, "
+            "or directory of per-item JSONs)."
+        ),
     )
     p.add_argument(
         "--terminal_bench_judge_features_dir",
         type=str,
-        default="llm_judge/features/terminal_bench.csv",
-        help="Terminal-Bench judge features (CSV like llm_judge/features/terminal_bench.csv, or directory of per-item JSONs).",
+        default="llm_judge_features/defaults/terminalbench/llm_judge_features.csv",
+        help=(
+            "Terminal-Bench judge features (CSV like "
+            "llm_judge_features/defaults/terminalbench/llm_judge_features.csv, "
+            "or directory of per-item JSONs)."
+        ),
     )
     p.add_argument(
         "--gso_judge_features_dir",
         type=str,
-        default="llm_judge/features/gso.csv",
-        help="GSO judge features (CSV like llm_judge/features/gso.csv, or directory of per-item JSONs).",
+        default="llm_judge_features/defaults/gso/llm_judge_features.csv",
+        help=(
+            "GSO judge features (CSV like llm_judge_features/defaults/gso/llm_judge_features.csv, "
+            "or directory of per-item JSONs)."
+        ),
     )
 
     p.add_argument(

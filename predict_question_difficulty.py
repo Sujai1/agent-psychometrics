@@ -126,14 +126,21 @@ DIFFICULTY_INSTRUCTION = (
 )
 
 JUDGE_FEATURE_NAMES: List[str] = [
-    "solution_hint",
-    "problem_clarity",
-    "solution_complexity",
-    "domain_knowledge_required",
-    "logical_reasoning_required",
     "atypicality",
+    "codebase_scale",
+    "codebase_scope",
+    "debugging_complexity",
+    "domain_knowledge_required",
+    "error_specificity",
+    "fix_localization",
+    "implementation_language_complexity",
+    "logical_reasoning_required",
+    "side_effect_risk",
+    "similar_issue_likelihood",
+    "solution_complexity",
+    "solution_hint",
+    "test_edge_case_coverage",
     "verification_difficulty",
-    "standard_pattern_available",
 ]
 
 _V_SUFFIX_RE = re.compile(r"-v(?:\d+|[0-9a-f]{6,}|nan)$", re.IGNORECASE)
@@ -155,7 +162,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_path": "",
             "split": "test",
             "agent_results": os.path.join(base, "data/swebench_verified/responses.jsonl"),
-            "judge_features_dir": os.path.join(base, "llm_judge/features/verified.csv"),
+            "judge_features_dir": os.path.join(base, "llm_judge_features/defaults/swebench_verified/llm_judge_features.csv"),
             "out_dir": os.path.join(base, "data/swebench_verified"),
         },
         "pro": {
@@ -163,7 +170,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_path": "",
             "split": "test",
             "agent_results": os.path.join(base, "data/swebench_pro/responses.jsonl"),
-            "judge_features_dir": os.path.join(base, "llm_judge/features/pro.csv"),
+            "judge_features_dir": os.path.join(base, "llm_judge_features/defaults/swebench_pro/llm_judge_features.csv"),
             "out_dir": os.path.join(base, "data/swebench_pro"),
         },
         "terminal_bench": {
@@ -171,7 +178,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_path": os.path.join(base, "data/terminalbench/tasks.jsonl"),
             "split": "train",
             "agent_results": os.path.join(base, "data/terminalbench/responses.jsonl"),
-            "judge_features_dir": os.path.join(base, "llm_judge/features/terminal_bench.csv"),
+            "judge_features_dir": os.path.join(base, "llm_judge_features/defaults/terminalbench/llm_judge_features.csv"),
             "out_dir": os.path.join(base, "data/terminalbench"),
         },
         "gso": {
@@ -179,7 +186,7 @@ def _get_benchmark_defaults(benchmark: str) -> Dict[str, str]:
             "dataset_path": "",
             "split": "test",
             "agent_results": os.path.join(base, "data/gso/responses.jsonl"),
-            "judge_features_dir": os.path.join(base, "llm_judge/features/gso.csv"),
+            "judge_features_dir": os.path.join(base, "llm_judge_features/defaults/gso/llm_judge_features.csv"),
             "out_dir": os.path.join(base, "data/gso"),
         },
     }
@@ -2181,9 +2188,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--judge_features_dir",
         type=str,
-        default="",
+        default="llm_judge_features/defaults/swebench_verified/llm_judge_features.csv",
         help=(
-            "Judge features (CSV like llm_judge/features/verified_full.csv, or directory of per-task JSONs)."
+            "Judge features (CSV like llm_judge_features/defaults/swebench_verified/llm_judge_features.csv, "
+            "or directory of per-task JSONs)."
         ),
     )
     p.add_argument(
