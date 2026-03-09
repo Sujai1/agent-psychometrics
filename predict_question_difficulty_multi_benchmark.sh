@@ -2,7 +2,8 @@
 #SBATCH -n 1
 #SBATCH -t 6:00:00
 #SBATCH --mem=100G
-#SBATCH --partition=mit_normal
+#SBATCH --partition=mit_normal_gpu
+#SBATCH --gres=gpu:h200:1
 
 set -euo pipefail
 cd /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship
@@ -14,9 +15,10 @@ export PYTHONUNBUFFERED=1
 
 python -u predict_question_difficulty_multi_benchmark.py \
   --trust_remote_code \
-  --train_benchmarks verified,terminalbench,gso \
-  --ood_benchmark pro \
+  --train_benchmarks verified,terminalbench,pro \
+  --ood_benchmark gso \
   --out_dir data/held_out_benchmark \
   --method combined \
   --split_by benchmark \
+  --include_zero_success \
   --overwrite

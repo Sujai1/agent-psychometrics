@@ -2,7 +2,8 @@
 #SBATCH -n 1
 #SBATCH -t 6:00:00
 #SBATCH --mem=100G
-#SBATCH --partition=mit_normal
+#SBATCH --partition=mit_normal_gpu
+#SBATCH --gres=gpu:h200:1
 
 set -euo pipefail
 cd /orcd/scratch/orcd/001/daria_k/fulcrum/fellowship
@@ -13,9 +14,7 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 
 python -u predict_question_difficulty.py \
   --trust_remote_code \
-  --benchmark terminalbench \
-  --seed 1 \
-  --agent_results data/terminalbench/responses_terminus2.jsonl \
+  --benchmark verified \
   --include_zero_success \
   --method embedding \
-  --embeddings_cache data/terminalbench/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__d15df42755c9__maxlen8192.npz \
+  --overwrite
