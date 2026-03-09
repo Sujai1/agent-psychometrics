@@ -22,10 +22,10 @@ experiment_appendix_h_hard_tasks/trajectory_data/filtered_unified/
 experiment_appendix_h_hard_tasks/trajectory_data/swebench_pro/
 terminal-bench-2/
 gso-experiments/
+696fe40af46a0d67d47671ce/ 
 
 # Embeddings from cluster (large files, don't sync back)
 out/
-embeddings/
 
 
 # Output files
@@ -39,6 +39,7 @@ embeddings/
 !data/terminalbench/tasks.jsonl
 *.jsonlines
 *.npz
+!embeddings/*.npz
 
 # Matplotlib cache
 .cache/
