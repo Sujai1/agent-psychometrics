@@ -360,9 +360,14 @@ Embeddings are generated with a prompt containing `question_statement + solution
 - No-solution embedding: paired with Problem Only LLM features
 - With-solution embedding: paired with Full LLM features
 
-#### LLM Judge Information Level Ablation (All Datasets, v8 features)
+#### LLM Judge Information Level Ablation (All Datasets)
 
-Measures the contribution of each information level by progressively adding features. Uses v8 features extracted at natural info levels (no leakage). Feature count is held constant at 15 via Ridge coefficient-based selection.
+Measures the contribution of each information level by progressively adding features.
+At each ablation level, all non-ENVIRONMENT features are extracted with **info level
+override** — the LLM sees the full context available at that level (e.g., at +Test,
+PROBLEM features are re-extracted with the LLM seeing the test patch). ENVIRONMENT
+features come from the auditor agent pipeline and are always at their natural level.
+Feature count is held constant at 15 via Ridge coefficient-based selection.
 
 **LLM Judge AUC by Information Level**:
 
@@ -375,11 +380,19 @@ Measures the contribution of each information level by progressively adding feat
 | + Solution (Full) | 0.8435 | 0.7343 | 0.8086 | 0.7562 |
 | Oracle | 0.9447 | 0.9139 | 0.9317 | 0.9183 |
 
+*Results above are from v8 natural features — will be updated after re-extraction with info level overrides.*
+
 **Information sources** (28 features total across 4 levels):
 - **Problem** (15 features): Derived from problem statement alone
 - **+ Auditor** (8 features): Environment exploration via Docker (no tests/solution access)
 - **+ Test** (3 features): Test/evaluation artifact analysis (no solution access)
 - **+ Solution** (2 features): Gold solution patch analysis
+
+**Per-level source CSVs** (in `llm_judge_features/information_ablation/per_level_source/{dataset}/`):
+- `problem.csv` — 15 PROBLEM + 8 ENV features (PROBLEM at natural level)
+- `environment.csv` — same as problem (ENVIRONMENT doesn't change extraction context)
+- `test.csv` — 18 PROBLEM+TEST + 8 ENV features (all re-extracted at TEST level)
+- `solution.csv` — 20 non-ENV + 8 ENV features (all re-extracted at SOLUTION level)
 
 **Feature selection**: Ridge regression (alpha=1.0) on all available features at each level → rank by |coefficient| → keep top 15.
 
@@ -394,31 +407,22 @@ To run:
 # Run information level ablation (all datasets, parallel)
 python -m experiment_new_tasks.run_information_ablation
 
-# Rebuild ablation CSVs
+# Rebuild ablation CSVs from per-level source CSVs
 python -m experiment_new_tasks.run_information_ablation --rebuild_csvs
 
 # Run specific datasets
 python -m experiment_new_tasks.run_information_ablation --datasets swebench_verified gso
 ```
 
-To extract features:
+To extract features at info level overrides (for regenerating per-level source CSVs):
 ```bash
-# SWE-bench features
-python -m llm_judge_feature_extraction extract --dataset swebench_verified --dry-run
-python -m llm_judge_feature_extraction extract --dataset swebench_verified
+# Extract at each info level (API calls to Opus 4.6)
+python -m llm_judge_feature_extraction.extract_ablation_overrides \
+    --info-level test --parallel --concurrency 30
 
-# TerminalBench features
-python -m llm_judge_feature_extraction extract --dataset terminalbench --dry-run
-python -m llm_judge_feature_extraction extract --dataset terminalbench
-
-# Options
-python -m llm_judge_feature_extraction extract --dataset swebench_verified --limit 50  # Process first 50 tasks
-python -m llm_judge_feature_extraction extract --dataset swebench_verified --provider openai  # Use OpenAI
-python -m llm_judge_feature_extraction extract --dataset swebench_verified --model claude-sonnet-4-20250514  # Use specific model
-python -m llm_judge_feature_extraction extract --dataset gso --info-level-override solution --all  # All features at solution level
-
-# Aggregate existing JSON files to CSV
-python -m llm_judge_feature_extraction aggregate --dataset swebench_verified
+# Dry run to see cost estimate
+python -m llm_judge_feature_extraction.extract_ablation_overrides \
+    --info-level test --dry-run
 ```
 
 ## Data Paths
