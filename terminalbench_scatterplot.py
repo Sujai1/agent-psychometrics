@@ -138,16 +138,6 @@ if all_vals:
     plt.xlim(lo, hi)
     plt.ylim(lo, hi)
 
-    # y=x reference
-    plt.plot(
-        [lo, hi],
-        [lo, hi],
-        linestyle="--",
-        linewidth=1.0,
-        alpha=0.55,
-        label="y=x",
-    )
-
     if not (math.isnan(a) or math.isnan(b)):
         fx = [lo, hi]
         fy = [a + b * lo, a + b * hi]
