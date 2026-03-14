@@ -165,6 +165,7 @@ for i, (x, y, mid, sid) in enumerate(points):
         bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.62),
     )
 
+plt.xlim(left=-6)
 plt.xlabel("LLM ability")
 plt.ylabel("Terminus 2 agent ability")
 plt.title(
