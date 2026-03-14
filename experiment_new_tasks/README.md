@@ -155,7 +155,7 @@ class CVPredictor(Protocol):
 | `cross_validation.py` | `CVPredictor` protocol, `evaluate_predictor_cv()`, `k_fold_split_tasks()` |
 | `difficulty_predictors.py` | `OraclePredictor`, `ConstantPredictor`, `DifficultyPredictorAdapter` |
 | `feature_irt.py` | `JointTrainingCVPredictor` (with per-source L2 regularization), `feature_irt_predictor_factory()` |
-| `coefficient_analysis.py` | `extract_llm_coefficients()`, `print_coefficient_table()`, `save_coefficient_bar_chart()` |
+
 
 ### Multi-Dataset Scripts (`experiment_new_tasks/`)
 
@@ -480,7 +480,7 @@ Fold-specific IRT models (cached): `output/experiment_a_{dataset}/irt_splits/`
 --sequential          Run datasets sequentially instead of in parallel
 --k_folds             Number of folds for cross-validation (default: 5)
 --max_workers         Maximum parallel workers for datasets (default: 4)
---coefficients        Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3)
+
 --feature_irt         Use Feature-IRT (joint training) instead of Ridge regression
 --llm_judge_features_path  Override LLM features CSV path; supports {dataset} template
 --embeddings_path     Override embeddings .npz path; supports {dataset} template
@@ -503,20 +503,6 @@ Results saved to `output/experiment_new_tasks/experiment_a_cv5_results.json`:
   }
 }
 ```
-
-## Coefficient Analysis
-
-Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3 in the paper):
-
-```bash
-# Run with coefficient analysis for a specific dataset
-python -m experiment_new_tasks.run_all_datasets --datasets swebench_verified --coefficients --sequential
-```
-
-The `--coefficients` flag extracts per-fold Ridge coefficients from the LLM Judge predictor and prints:
-- Feature rankings by |coefficient| magnitude
-- Source-level summary (Problem Statement, Environment, Test Patch, Solution Patch)
-- Bar chart saved to the output directory
 
 ## Caches
 

@@ -31,7 +31,6 @@ def run_single_dataset(
     dataset: str,
     output_base: Optional[Path] = None,
     k_folds: int = 5,
-    coefficients: bool = False,
     predictor_factory=None,
     llm_judge_features_path: Optional[str] = None,
     embeddings_path: Optional[str] = None,
@@ -42,7 +41,6 @@ def run_single_dataset(
         dataset: Dataset short name (e.g., "swebench_verified", "gso").
         output_base: Base directory for outputs.
         k_folds: Number of CV folds.
-        coefficients: Whether to extract LLM Judge Ridge coefficients.
         predictor_factory: Optional callable(source_name, source, config) -> CVPredictor.
         llm_judge_features_path: Optional override for LLM judge features CSV path.
             Supports {dataset} template variable.
@@ -68,45 +66,12 @@ def run_single_dataset(
         display_name = DATASET_DEFAULTS[dataset]["display_name"]
         return display_name, {"error": f"Config error: {e}"}
 
-    # Set up coefficient extraction if requested
-    diagnostics_extractors = None
-    if coefficients:
-        from experiment_new_tasks.coefficient_analysis import make_llm_coef_extractor
-        diagnostics_extractors = make_llm_coef_extractor()
-
     # Run the experiment
     try:
         results = cross_validate_all_predictors(
             config, ROOT, k_folds,
-            diagnostics_extractors=diagnostics_extractors,
             predictor_factory=predictor_factory,
         )
-
-        # Print coefficient analysis if requested
-        if coefficients:
-            from experiment_new_tasks.coefficient_analysis import (
-                print_coefficient_table,
-                save_coefficient_bar_chart,
-            )
-            cv_results_dict = results.get("cv_results", {})
-            llm_result = cv_results_dict.get("llm_judge")
-            if llm_result is not None:
-                fold_diagnostics = llm_result.get("fold_diagnostics", [])
-                coeffs = [d for d in fold_diagnostics if d is not None]
-                if coeffs:
-                    print(f"\n{'=' * 80}")
-                    print(f"LLM JUDGE COEFFICIENT ANALYSIS — {config.display_name}")
-                    print(f"{'=' * 80}")
-                    print_coefficient_table(coeffs)
-
-                    if output_base:
-                        chart_dir = output_base / dataset
-                        chart_dir.mkdir(parents=True, exist_ok=True)
-                        save_coefficient_bar_chart(
-                            coeffs,
-                            chart_dir / "coefficient_bar_chart.png",
-                            title=f"Mean Coefficient Magnitude ({config.display_name})",
-                        )
 
         return config.display_name, results
 
@@ -275,11 +240,6 @@ def main():
         help="Maximum parallel workers for datasets (default: 4)",
     )
     parser.add_argument(
-        "--coefficients",
-        action="store_true",
-        help="Extract and display LLM Judge Ridge coefficients (Table 10 / Figure 3).",
-    )
-    parser.add_argument(
         "--feature_irt",
         action="store_true",
         help="Use Feature-IRT (joint training) instead of Ridge regression.",
@@ -327,7 +287,6 @@ def main():
                 dataset,
                 output_base=args.output_dir,
                 k_folds=args.k_folds,
-                coefficients=args.coefficients,
                 predictor_factory=predictor_factory,
                 llm_judge_features_path=args.llm_judge_features_path,
                 embeddings_path=args.embeddings_path,
@@ -352,7 +311,6 @@ def main():
                     dataset,
                     output_base=args.output_dir,
                     k_folds=args.k_folds,
-                    coefficients=args.coefficients,
                     predictor_factory=predictor_factory,
                     llm_judge_features_path=args.llm_judge_features_path,
                     embeddings_path=args.embeddings_path,
