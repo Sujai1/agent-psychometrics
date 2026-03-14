@@ -394,13 +394,16 @@ def main():
     table = format_results_table(ordered_results)
     print(table)
 
+    # Ensure output directory exists before saving any files
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
     # Save CSV if requested
     if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         save_results_csv(ordered_results, args.output)
         print(f"\nResults saved to: {args.output}")
 
     # Save JSON with full details
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     json_path = args.output_dir / "summary.json"
 
     # Convert any non-serializable types

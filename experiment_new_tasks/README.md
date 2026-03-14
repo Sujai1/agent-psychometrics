@@ -65,15 +65,45 @@ Run with: `python -m experiment_new_tasks.run_all_datasets --feature_irt`
 
 | Dataset | Oracle | Feature-IRT (Emb+LLM) | Feature-IRT (LLM) | Feature-IRT (Emb) | Baseline |
 |---------|--------|----------------------|-------------------|-------------------|----------|
-| SWE-bench Verified | 0.9447 | **0.8389** | 0.8370 | 0.8243 | 0.7174 |
-| GSO | 0.9139 | 0.7407 | 0.7149 | **0.7571** | 0.7130 |
-| TerminalBench | 0.9317 | — | — | — | 0.7338 |
-| SWE-bench Pro | 0.9183 | 0.7236 | 0.7112 | **0.7555** | 0.6567 |
+| SWE-bench Verified | 0.945 | **0.843** | 0.842 | 0.825 | 0.718 |
+| GSO | 0.914 | **0.781** | 0.769 | 0.771 | 0.714 |
+| TerminalBench | 0.932 | **0.807** | 0.805 | 0.802 | 0.733 |
+| SWE-bench Pro | 0.918 | 0.750 | 0.744 | **0.756** | 0.657 |
 
 **Key findings**:
 - **Feature-IRT performs similarly to Ridge** in Experiment New Tasks (task holdout) because it must generalize to unseen test tasks using only feature weights
-- **Embedding alone often outperforms combined** in Feature-IRT (3/4 datasets), suggesting the joint optimization may overfit to LLM features
+- **Combined outperforms single sources** on 3/4 datasets, matching Ridge behavior
 - **Per-source regularization**: Feature-IRT uses per-source L2 grids (Emb: [100, 1000, 10000], LLM: [0.01, 0.1, 1, 10]) with internal CV for selection
+
+### Backbone Ablation (LLM-as-a-Judge Model)
+
+Run with:
+```bash
+# Opus 4.6 (default)
+python -m experiment_new_tasks.run_all_datasets
+
+# GPT-5.4
+python -m experiment_new_tasks.run_all_datasets \
+  --llm_judge_features_path "llm_judge_features/backbone_ablation/v3_gpt54_solution/{dataset}/llm_judge_features_15.csv"
+
+# Sonnet 4.6
+python -m experiment_new_tasks.run_all_datasets \
+  --llm_judge_features_path "llm_judge_features/backbone_ablation/v5_sonnet_solution/{dataset}/llm_judge_features_15.csv"
+```
+
+Ablates the model used to extract the 12 non-repository-state LLM-as-a-judge features, keeping the same 15 features. The 3 repository state features (codebase_scale, fix_localization, implementation_language_complexity), extracted by GPT-5.4 via the auditor agent, are kept constant.
+
+| Dataset | Claude Opus 4.6 | GPT-5.4 | Claude Sonnet 4.6 |
+|---------|----------------|---------|-------------------|
+| SWE-bench Verified | **0.8427** | 0.8367 | 0.8413 |
+| SWE-bench Pro | 0.7622 | **0.7654** | 0.7619 |
+| GSO | **0.8048** | 0.7334 | 0.7652 |
+| TerminalBench | 0.8207 | **0.8367** | 0.8334 |
+
+**Key findings**:
+- **No single model dominates**: Opus 4.6 is best on SWE-bench Verified and GSO, GPT-5.4 on SWE-bench Pro and TerminalBench
+- **GSO shows the largest spread**: Opus 4.6 (0.8048) vs GPT-5.4 (0.7334), a 7.1% gap
+- **Results are robust to backbone choice**: All three models achieve similar AUC on most datasets
 
 ## Evaluation Protocol
 
