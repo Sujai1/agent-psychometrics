@@ -57,20 +57,20 @@ python swebench_irt/train.py --dims 1 --model 1pl \
 
 ```
 agent-psychometrics/
-├── experiment_new_tasks/              # New Tasks experiment
+├── data/                              # Input data + IRT models
+├── embeddings/                        # Pre-computed task embeddings (.npz)
 ├── experiment_agent_features/         # Experiments involving agent features: New Responses, New Agents, and New Benchmarks
 ├── experiment_appendix_h_hard_tasks/  # Frontier task difficulty prediction
+├── experiment_new_tasks/              # New Tasks experiment
 ├── llm_judge_feature_extraction/      # LLM-as-a-judge feature extraction
 │   └── auditor_agent/                 #   Repository state feature extraction
 ├── llm_judge_features/                # LLM-as-a-judge feature CSV files
 │   ├── backbone_ablation/             #   Features from GPT-5.4 and Claude 4.6 Sonnet (Appendix C.2)
 │   ├── defaults/                      #   Features used in main experiments
 │   └── information_ablation/          #   Features used in the feature source ablation experiment (Table 3)
-├── embeddings/                        # Pre-computed task embeddings (.npz)
-├── swebench_irt/                      # IRT model training
+├── output/                            # Experiment outputs (gitignored)
 ├── py_irt/                            # IRT library (local fork)
-├── data/                              # Input data + IRT models
-└── output/                            # Experiment outputs (gitignored)
+└── swebench_irt/                      # IRT model training
 ```
 
 ## Datasets
