@@ -1,14 +1,6 @@
-# SWE-bench IRT Analysis
+# Agent Psychometrics: Task-Level Performance Prediction in Agentic Coding Benchmarks
 
-Applies Item Response Theory (IRT) to agentic coding benchmark data to model agent abilities and task difficulties.
-
-## Research Goal
-
-Derive calibrated estimates of task difficulty (β) using human-interpretable features.
-
-Two regimes:
-1. **Solvable Regime**: Predict difficulty from task features alone, cheaper than running agents
-2. **Frontier Regime** (deprioritized): Refine difficulty estimates using failure trajectories from weak models
+We present a framework for predicting success or failure on individual tasks tailored to the agentic coding regime. Our approach augments **Item Response Theory (IRT)** with rich features extracted from tasks, including issue statements, repository contexts, solutions, and test cases, and introduces a novel decomposition of agent ability into **LLM and scaffold ability components**.
 
 ## Repository Structure
 
