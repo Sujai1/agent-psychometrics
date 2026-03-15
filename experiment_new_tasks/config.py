@@ -20,9 +20,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "output_dir": Path("output/experiment_a"),
         "embeddings_path": Path(
             "embeddings/"
-            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
-            "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v1__"
-            "princeton-nlp_SWE-bench_Verified__test__maxlen8192.npz"
+            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__49b73e4eabfd__maxlen8192.npz"
         ),
         "llm_judge_features_path": Path(
             "llm_judge_features/defaults/swebench_verified/llm_judge_features.csv"
@@ -42,9 +40,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "output_dir": Path("output/experiment_a_gso"),
         "embeddings_path": Path(
             "embeddings/"
-            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
-            "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v1__"
-            "gso-bench_gso__test__maxlen8192.npz"
+            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__086238f5ec4d__maxlen8192.npz"
         ),
         "llm_judge_features_path": Path(
             "llm_judge_features/defaults/gso/llm_judge_features.csv"
@@ -64,9 +60,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "output_dir": Path("output/experiment_a_swebench_pro"),
         "embeddings_path": Path(
             "embeddings/"
-            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
-            "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v1__"
-            "ScaleAI_SWE-bench_Pro__test__maxlen8192.npz"
+            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__7b0a101f1bc0__maxlen8192.npz"
         ),
         "llm_judge_features_path": Path(
             "llm_judge_features/defaults/swebench_pro/llm_judge_features.csv"
@@ -86,9 +80,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "output_dir": Path("output/experiment_a_terminalbench"),
         "embeddings_path": Path(
             "embeddings/"
-            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__pool-lasttoken__qs-sol-instr__"
-            "__solcap_nocapqs_sol_no_tests_instr_nocap_b7008f2d__idnorm_instance-v2__"
-            "json_terminal_bench_tasks.jsonl__test__maxlen8192.npz"
+            "embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__0accb67658c0__maxlen8192.npz"
         ),
         "llm_judge_features_path": Path(
             "llm_judge_features/defaults/terminalbench/llm_judge_features.csv"

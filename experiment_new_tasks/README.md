@@ -35,10 +35,10 @@ Run with: `python -m experiment_new_tasks.run_all_datasets`
 
 | Benchmark | Baseline | Embedding | LLM-as-a-Judge | Combined | Oracle |
 |-----------|----------|-----------|----------------|----------|--------|
-| SWE-bench Verified | 0.7175 | 0.8244 | 0.8415 | **0.8427** | 0.9447 |
-| SWE-bench Pro | 0.6565 | 0.7548 | 0.7417 | **0.7622** | 0.9183 |
-| GSO | 0.7140 | 0.7624 | 0.7971 | **0.8048** | 0.9139 |
-| Terminal-Bench 2.0 | 0.7334 | 0.8171 | 0.8059 | **0.8207** | 0.9317 |
+| SWE-bench Verified | 0.7175 | 0.8237 | 0.8409 | **0.8419** | 0.9447 |
+| SWE-bench Pro | 0.6569 | 0.7529 | 0.7417 | **0.7591** | 0.9183 |
+| GSO | 0.7137 | 0.7610 | 0.7856 | **0.8044** | 0.9139 |
+| Terminal-Bench 2.0 | 0.7335 | 0.7744 | 0.8059 | **0.8101** | 0.9317 |
 
 ### Feature Source Ablation (Table 3)
 
@@ -61,10 +61,10 @@ Ablates the model used to extract 12 non-repository-state LLM-as-a-judge feature
 
 | Benchmark | Claude Opus 4.6 | GPT-5.4 | Claude Sonnet 4.6 |
 |-----------|----------------|---------|-------------------|
-| SWE-bench Verified | **0.8427** | 0.8367 | 0.8413 |
-| SWE-bench Pro | 0.7622 | **0.7654** | 0.7619 |
-| GSO | **0.8048** | 0.7334 | 0.7652 |
-| Terminal-Bench 2.0 | 0.8207 | **0.8367** | 0.8334 |
+| SWE-bench Verified | **0.8419** | 0.8350 | 0.8383 |
+| SWE-bench Pro | 0.7591 | **0.7597** | 0.7579 |
+| GSO | **0.8044** | 0.7008 | 0.7464 |
+| Terminal-Bench 2.0 | 0.8101 | 0.8284 | **0.8303** |
 
 ## Evaluation Protocol
 
@@ -82,10 +82,10 @@ The IRT model is trained separately on train tasks to avoid data leakage. A full
 ### Embeddings
 
 Pre-computed embeddings from DeepSeek-R1-Distill-Qwen-32B, stored in `embeddings/`:
-- SWE-bench Verified: `embeddings/embeddings__...__princeton-nlp_SWE-bench_Verified__test__maxlen8192.npz`
-- SWE-bench Pro: `embeddings/embeddings__...__ScaleAI_SWE-bench_Pro__test__maxlen8192.npz`
-- Terminal-Bench 2.0: `embeddings/embeddings__...__json_terminal_bench_tasks.jsonl__test__maxlen8192.npz`
-- GSO: `embeddings/embeddings__...__gso-bench_gso__test__maxlen8192.npz`
+- SWE-bench Verified: `embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__49b73e4eabfd__maxlen8192.npz`
+- SWE-bench Pro: `embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__7b0a101f1bc0__maxlen8192.npz`
+- Terminal-Bench 2.0: `embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__0accb67658c0__maxlen8192.npz`
+- GSO: `embeddings/embeddings__deepseek-ai__DeepSeek-R1-Distill-Qwen-32B__086238f5ec4d__maxlen8192.npz`
 
 ### LLM Judge Features
 
