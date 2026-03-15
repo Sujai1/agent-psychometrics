@@ -1,4 +1,4 @@
-# New Tasks Experiment (Section 4.1)
+# New Tasks Experiment 
 
 Evaluates how well a difficulty predictor can predict agent success on held-out tasks using the 1PL IRT model.
 
@@ -17,10 +17,10 @@ Then measure AUC by comparing these predicted probabilities to actual binary out
 ```bash
 source .venv/bin/activate
 
-# Run all datasets (Table 1)
+# Run all datasets (Table 2)
 python -m experiment_new_tasks.run_all_datasets
 
-# Feature source ablation (Table 2)
+# Feature source ablation (Table 3)
 python -m experiment_new_tasks.run_information_ablation
 
 # Run specific datasets only
@@ -29,7 +29,7 @@ python -m experiment_new_tasks.run_all_datasets --datasets gso terminalbench
 
 ## Results
 
-### Main Results (Table 1)
+### Main Results (Table 2)
 
 Run with: `python -m experiment_new_tasks.run_all_datasets`
 
@@ -40,7 +40,7 @@ Run with: `python -m experiment_new_tasks.run_all_datasets`
 | GSO | 0.7140 | 0.7624 | 0.7971 | **0.8048** | 0.9139 |
 | Terminal-Bench 2.0 | 0.7334 | 0.8171 | 0.8059 | **0.8207** | 0.9317 |
 
-### Feature Source Ablation (Table 2)
+### Feature Source Ablation (Table 3)
 
 Run with: `python -m experiment_new_tasks.run_information_ablation`
 
