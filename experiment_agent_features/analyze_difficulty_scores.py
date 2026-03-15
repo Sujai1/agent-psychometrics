@@ -111,31 +111,31 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument(
         "--items_verified_csv",
         type=str,
-        default="data/all_benchmarks/1d_1pl/items_verified.csv",
+        default="../data/all_benchmarks/1d_1pl/items_verified.csv",
         help="Path to SWE-bench Verified items CSV (must contain column 'b').",
     )
     p.add_argument(
         "--items_pro_csv",
         type=str,
-        default="data/all_benchmarks/1d_1pl/items_pro.csv",
+        default="../data/all_benchmarks/1d_1pl/items_pro.csv",
         help="Path to SWE-bench Pro items CSV (must contain column 'b').",
     )
     p.add_argument(
         "--items_terminal_bench_csv",
         type=str,
-        default="data/all_benchmarks/1d_1pl/items_terminal_bench.csv",
+        default="../data/all_benchmarks/1d_1pl/items_terminal_bench.csv",
         help="Path to Terminal-Bench items CSV (must contain column 'b').",
     )
     p.add_argument(
         "--items_gso_csv",
         type=str,
-        default="data/all_benchmarks/1d_1pl/items_gso.csv",
+        default="../data/all_benchmarks/1d_1pl/items_gso.csv",
         help="Path to GSO items CSV (must contain column 'b').",
     )
     p.add_argument(
         "--out_plot",
         type=str,
-        default="data/difficulty_score_histograms.png",
+        default="../data/difficulty_score_histograms.png",
         help="Where to write the histogram PNG.",
     )
     p.add_argument("--alpha", type=float, default=0.45, help="Histogram transparency.")

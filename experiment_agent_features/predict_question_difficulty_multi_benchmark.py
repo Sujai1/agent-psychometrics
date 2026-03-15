@@ -698,7 +698,7 @@ def load_all_responses_generic(*, path: str, normalize_item_ids: bool) -> List[T
 
 def _import_swebench_irt_module(module_name: str):
     here = Path(__file__).resolve().parent
-    swe_irt_dir = str(here / "swebench_irt")
+    swe_irt_dir = str(here.parent / "swebench_irt")
     if swe_irt_dir not in sys.path:
         sys.path.insert(0, swe_irt_dir)
     return __import__(str(module_name))
