@@ -2,8 +2,7 @@
 #SBATCH -n 1
 #SBATCH -t 6:00:00
 #SBATCH --mem=100G
-#SBATCH --partition=mit_normal_gpu
-#SBATCH --gres=gpu:h200:1
+#SBATCH --partition=mit_normal
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -17,5 +16,5 @@ python -u -m experiment_agent_features.predict_question_difficulty_multi_benchma
   --split_by benchmark \
   --train_benchmarks verified,terminalbench,pro \
   --ood_benchmark gso \
-  --out_dir data/held_out_benchmark \
+  --out_dir data/held_out_benchmark/gso \
   --method combined

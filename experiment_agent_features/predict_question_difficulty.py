@@ -9,6 +9,7 @@ import inspect
 import json
 import math
 import os
+from pathlib import Path
 import random
 import re
 import shutil
@@ -144,6 +145,7 @@ JUDGE_FEATURE_NAMES: List[str] = [
 ]
 
 _V_SUFFIX_RE = re.compile(r"-v(?:\d+|[0-9a-f]{6,}|nan)$", re.IGNORECASE)
+EMBEDDING_TEXT_FORMAT = "qs_solution_instruction_v1"
 
 def _canon_benchmark_name(name: str) -> str:
     s = str(name or "").strip().lower().replace("-", "_")
@@ -918,9 +920,7 @@ def _npz_scalar(value, default=None):
     if value is None:
         return default
     try:
-        import numpy as _np
-
-        if isinstance(value, _np.ndarray):
+        if isinstance(value, np.ndarray):
             if value.shape == ():
                 return value.item()
             if value.size == 1:
@@ -935,6 +935,201 @@ def _npz_scalar(value, default=None):
             return value[0]
         return list(value)
     return value
+
+def _meta_str(value: object, default: str = "") -> str:
+    v = _npz_scalar(value, default)
+    if isinstance(v, np.ndarray):
+        if v.size == 1:
+            v = v.reshape(-1)[0]
+    if isinstance(v, (list, tuple)) and len(v) == 1:
+        v = v[0]
+    s = str(v if v is not None else default).strip()
+    if (s.startswith("['") and s.endswith("']")) or (s.startswith('["') and s.endswith('"]')):
+        s = s[2:-2].strip()
+    return s
+
+def _to_boolish(value: object, default: bool = False) -> bool:
+    if value is None:
+        return bool(default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, np.integer)):
+        return bool(int(value))
+    s = str(value).strip().lower()
+    if s in {"1", "true", "yes", "y", "on"}:
+        return True
+    if s in {"0", "false", "no", "n", "off"}:
+        return False
+    return bool(default)
+
+def _candidate_embedding_roots(*, out_dir: str) -> List[str]:
+    roots: List[str] = []
+    out = str(out_dir or "").strip()
+    if out:
+        roots.extend([out, os.path.join(out, "embeddings")])
+    repo_root = str(Path(__file__).resolve().parents[1])
+    roots.extend([os.path.join(repo_root, "embeddings"), os.path.join(repo_root, "data")])
+    seen: Set[str] = set()
+    out_roots: List[str] = []
+    for p in roots:
+        ap = os.path.abspath(str(p))
+        if ap in seen or not os.path.isdir(ap):
+            continue
+        seen.add(ap)
+        out_roots.append(ap)
+    return out_roots
+
+def _shared_embeddings_dir() -> str:
+    repo_root = str(Path(__file__).resolve().parents[1])
+    return os.path.join(repo_root, "embeddings")
+
+def _iter_embedding_npz_candidates(search_roots: Sequence[str]) -> List[str]:
+    out: List[str] = []
+    seen: Set[str] = set()
+    for root in search_roots:
+        rp = os.path.abspath(str(root))
+        if not os.path.isdir(rp):
+            continue
+        patterns = [
+            os.path.join(rp, "*.npz"),
+            os.path.join(rp, "embeddings", "*.npz"),
+            os.path.join(rp, "*", "*.npz"),
+        ]
+        for pat in patterns:
+            try:
+                for p in Path(rp).glob(str(Path(pat).relative_to(rp))):
+                    ap = str(p.resolve())
+                    if ap in seen:
+                        continue
+                    seen.add(ap)
+                    out.append(ap)
+            except Exception:
+                continue
+    out.sort(key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0.0, reverse=True)
+    return out
+
+def load_compatible_embeddings_cache(
+    path: str,
+    *,
+    backbone: str,
+    max_length: int,
+    instruction_sig: str,
+    required_task_ids: Optional[Sequence[str]] = None,
+    expected_n_items: Optional[int] = None,
+    require_single_dataset_source: bool = False,
+) -> Optional[Tuple[List[str], np.ndarray, Dict[str, object]]]:
+    p = str(path or "").strip()
+    if (not p) or (not os.path.exists(p)):
+        return None
+    try:
+        with np.load(p, allow_pickle=True) as data:
+            if ("task_ids" not in data) or ("X" not in data):
+                return None
+            task_ids = [str(x) for x in list(data["task_ids"].tolist())]
+            X = data["X"].astype(np.float32)
+            if X.ndim != 2 or X.shape[0] != len(task_ids) or X.shape[1] <= 0:
+                return None
+            if len(set(task_ids)) != len(task_ids):
+                return None
+
+            cached_instr_sig = _meta_str(data.get("instruction_signature", None), "")
+            req_instr_sig = str(instruction_sig or "").strip()
+            same_prompt_template_family = False
+            if cached_instr_sig and req_instr_sig:
+                same_prompt_template_family = (
+                    str(cached_instr_sig) == str(req_instr_sig)
+                    or (str(cached_instr_sig).startswith("qs_sol_") and str(req_instr_sig).startswith("qs_sol_"))
+                )
+
+            cached_backbone = _meta_str(data.get("backbone", None), "")
+            if cached_backbone and cached_backbone != str(backbone):
+                return None
+
+            cached_dataset_source = _meta_str(data.get("dataset_name", None), "")
+            if bool(require_single_dataset_source) and ("|" in cached_dataset_source):
+                return None
+
+            includes_solution = _to_boolish(_npz_scalar(data.get("includes_solution", None), None), default=False) if "includes_solution" in data else False
+            text_format = _meta_str(data.get("text_format", None), "")
+            cache_prompt_template_ok = (
+                includes_solution
+                or text_format == EMBEDDING_TEXT_FORMAT
+                or cached_instr_sig.startswith("qs_sol_")
+            )
+            if not (cache_prompt_template_ok and (same_prompt_template_family or (not req_instr_sig))):
+                return None
+
+            if required_task_ids:
+                id_set = set(task_ids)
+                for tid in required_task_ids:
+                    if str(tid) not in id_set:
+                        return None
+            if expected_n_items is not None:
+                n_cached = int(len(task_ids))
+                n_expected = int(expected_n_items)
+                pro_off_by_one_ok = (n_expected == 730 and n_cached == 731)
+                if (n_cached != n_expected) and (not pro_off_by_one_ok):
+                    return None
+
+            cached_layer = int(_npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
+            cached_maxlen = int(_npz_scalar(data.get("max_length", None), int(max_length))) if "max_length" in data else int(max_length)
+
+            meta = {
+                "path": str(p),
+                "n_items": int(len(task_ids)),
+                "dim": int(X.shape[1]),
+                "embedding_layer": int(cached_layer),
+                "instruction_signature": str(cached_instr_sig),
+                "max_length": int(cached_maxlen),
+                "backbone": str(cached_backbone),
+                "dataset_name": str(cached_dataset_source),
+                "text_format": str(text_format),
+            }
+            return task_ids, X, meta
+    except Exception:
+        return None
+
+def find_compatible_embeddings_cache(
+    *,
+    preferred_paths: Sequence[str],
+    search_roots: Sequence[str],
+    backbone: str,
+    max_length: int,
+    instruction_sig: str,
+    required_task_ids: Optional[Sequence[str]] = None,
+    expected_n_items: Optional[int] = None,
+    require_single_dataset_source: bool = False,
+) -> Optional[Tuple[str, List[str], np.ndarray, Dict[str, object]]]:
+    candidates: List[str] = []
+    seen: Set[str] = set()
+    for p in preferred_paths:
+        ap = os.path.abspath(str(p))
+        if ap in seen:
+            continue
+        seen.add(ap)
+        candidates.append(ap)
+    for p in _iter_embedding_npz_candidates(search_roots):
+        ap = os.path.abspath(str(p))
+        if ap in seen:
+            continue
+        seen.add(ap)
+        candidates.append(ap)
+
+    for p in candidates:
+        loaded = load_compatible_embeddings_cache(
+            p,
+            backbone=str(backbone),
+            max_length=int(max_length),
+            instruction_sig=str(instruction_sig),
+            required_task_ids=required_task_ids,
+            expected_n_items=expected_n_items,
+            require_single_dataset_source=bool(require_single_dataset_source),
+        )
+        if loaded is None:
+            continue
+        task_ids, X, meta = loaded
+        return str(p), task_ids, X, meta
+    return None
 
 def _as_1d_float32(x: object) -> np.ndarray:
     a = np.asarray(x, dtype=np.float64).reshape(-1)
@@ -2313,37 +2508,51 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             cache_key = hashlib.sha1(json.dumps(cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
             model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
             short_basename = f"embeddings__{model_short}__{cache_key}__maxlen{int(args.max_length)}.npz"
-            emb_cache = os.path.join(args.out_dir, short_basename)
+            emb_cache = os.path.join(_shared_embeddings_dir(), short_basename)
 
-        if os.path.exists(emb_cache) and not args.overwrite and not str(args.embeddings_cache or "").strip():
-            data = np.load(emb_cache, allow_pickle=True)
-            task_ids = [str(x) for x in list(data["task_ids"].tolist())]
-            X = data["X"].astype(np.float32)
-            counts_kind = str(_npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
-            cached_layer = int(_npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
-            if int(args.embedding_layer) != int(cached_layer):
-                raise RuntimeError(
-                    f"Embeddings cache was created with embedding_layer={cached_layer}, but you requested "
-                    f"--embedding_layer={int(args.embedding_layer)}. Use --overwrite, or pick a different cache file."
+        if not bool(args.overwrite):
+            explicit_cache = str(args.embeddings_cache or "").strip()
+            if explicit_cache:
+                loaded = load_compatible_embeddings_cache(
+                    emb_cache,
+                    backbone=str(args.backbone),
+                    max_length=int(args.max_length),
+                    instruction_sig=str(instr_sig),
                 )
-            print(
-                f"Loaded embeddings cache: {emb_cache} (n={len(task_ids)}, dim={X.shape[1]}, counts_kind={counts_kind or 'unknown'}, embedding_layer={cached_layer})"
-            )
-        elif os.path.exists(emb_cache) and not args.overwrite and str(args.embeddings_cache or "").strip():
-            data = np.load(emb_cache, allow_pickle=True)
-            task_ids = [str(x) for x in list(data["task_ids"].tolist())]
-            X = data["X"].astype(np.float32)
-            counts_kind = str(_npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
-            cached_layer = int(_npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
-            if int(args.embedding_layer) != int(cached_layer):
-                raise RuntimeError(
-                    f"Embeddings cache (explicit) was created with embedding_layer={cached_layer}, but you requested "
-                    f"--embedding_layer={int(args.embedding_layer)}. Use --overwrite, or point --embeddings_cache to a matching file."
+                if loaded is not None:
+                    task_ids, X, meta = loaded
+                    print(
+                        f"Loaded embeddings cache (explicit): {emb_cache} "
+                        f"(n={len(task_ids)}, dim={X.shape[1]}, embedding_layer={meta.get('embedding_layer', -1)})"
+                    )
+                elif os.path.exists(emb_cache):
+                    raise RuntimeError(
+                        f"Embeddings cache (explicit) was incompatible with this run: {emb_cache}. "
+                        "Use --overwrite, or point --embeddings_cache to a compatible file."
+                    )
+                else:
+                    print(
+                        f"WARNING: --embeddings_cache was provided but file does not exist: {emb_cache} "
+                        f"(cwd={os.getcwd()}). Will recompute embeddings."
+                    )
+            else:
+                search_roots = _candidate_embedding_roots(out_dir=str(args.out_dir))
+                found = find_compatible_embeddings_cache(
+                    preferred_paths=[str(emb_cache)],
+                    search_roots=search_roots,
+                    backbone=str(args.backbone),
+                    max_length=int(args.max_length),
+                    instruction_sig=str(instr_sig),
                 )
-            print(
-                f"Loaded embeddings cache (explicit): {emb_cache} (n={len(task_ids)}, dim={X.shape[1]}, counts_kind={counts_kind or 'unknown'}, embedding_layer={cached_layer})"
-            )
-        else:
+                if found is not None:
+                    found_path, task_ids, X, meta = found
+                    emb_cache = str(found_path)
+                    print(
+                        f"Loaded embeddings cache (auto): {emb_cache} "
+                        f"(n={len(task_ids)}, dim={X.shape[1]}, embedding_layer={meta.get('embedding_layer', -1)})"
+                    )
+
+        if X is None:
 
             items = list(
                 iter_swebench_items(
@@ -2385,6 +2594,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 n_items=np.array([int(len(ids_sorted))], dtype=np.int64),
                 instruction=np.array([str(args.instruction)], dtype=object),
                 instruction_signature=np.array([str(instr_sig)], dtype=object),
+                text_format=np.array([str(EMBEDDING_TEXT_FORMAT)], dtype=object),
+                includes_solution=np.array([True], dtype=np.bool_),
                 backbone=np.array([str(args.backbone)], dtype=object),
                 max_length=np.array([int(args.max_length)], dtype=np.int64),
                 embedding_dim=np.array([int(emb_dim)], dtype=np.int64),

@@ -41,6 +41,77 @@ def _parse_benchmark_list(spec: str) -> List[str]:
             seen.add(k)
     return out
 
+def _default_benchmark_embedding_dirs() -> Dict[str, str]:
+    repo_root = str(Path(__file__).resolve().parents[1])
+    return {
+        "verified": os.path.join(repo_root, "data", "swebench_verified"),
+        "pro": os.path.join(repo_root, "data", "swebench_pro"),
+        "terminal_bench": os.path.join(repo_root, "data", "terminalbench"),
+        "gso": os.path.join(repo_root, "data", "gso"),
+    }
+
+def _shared_embeddings_dir() -> str:
+    repo_root = str(Path(__file__).resolve().parents[1])
+    return os.path.join(repo_root, "embeddings")
+
+def _try_load_concat_embeddings_from_single_benchmark_caches(
+    *,
+    train_benchmarks: Sequence[str],
+    required_ids_by_bench: Dict[str, List[str]],
+    out_dir: str,
+    backbone: str,
+    max_length: int,
+    embedding_layer: int,
+    instruction_sig: str,
+) -> Optional[Tuple[List[str], "base.np.ndarray", Dict[str, str]]]:
+    roots: List[str] = []
+    roots.extend(base._candidate_embedding_roots(out_dir=str(out_dir)))
+    bench_dirs = _default_benchmark_embedding_dirs()
+    for b in train_benchmarks:
+        p = str(bench_dirs.get(str(b), "") or "").strip()
+        if p:
+            roots.append(p)
+            roots.append(os.path.join(p, "embeddings"))
+    roots = [str(r) for r in roots if str(r).strip()]
+    used_files: Dict[str, str] = {}
+    rows: List["base.np.ndarray"] = []
+    task_ids: List[str] = []
+    seen_ids: Set[str] = set()
+
+    for b in train_benchmarks:
+        bench = str(b)
+        required_ids = [str(tid) for tid in list(required_ids_by_bench.get(bench, []))]
+        if not required_ids:
+            raise RuntimeError(f"{bench} training benchmark: 0 item_ids remain after response-driven filtering.")
+
+        found = base.find_compatible_embeddings_cache(
+            preferred_paths=[],
+            search_roots=roots,
+            backbone=str(backbone),
+            max_length=int(max_length),
+            instruction_sig=str(instruction_sig),
+            expected_n_items=int(len(required_ids)),
+            require_single_dataset_source=True,
+        )
+        if found is None:
+            return None
+        cache_path, cache_task_ids, cache_X, _ = found
+        used_files[bench] = str(cache_path)
+        idx_by_id = {str(tid): int(i) for i, tid in enumerate(cache_task_ids)}
+        for tid in required_ids:
+            if tid not in idx_by_id:
+                return None
+            if tid in seen_ids:
+                continue
+            seen_ids.add(tid)
+            task_ids.append(tid)
+            rows.append(cache_X[int(idx_by_id[tid])].astype(base.np.float32, copy=False))
+
+    if not task_ids or not rows:
+        return None
+    X = base.np.stack(rows, axis=0).astype(base.np.float32)
+    return task_ids, X, used_files
+
 def _iter_jsonl(path: str) -> Iterator[dict]:
     p = str(path or "").strip()
     if not p:
@@ -1639,186 +1710,153 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     emb_cache = str(args.embeddings_cache or "").strip()
 
     if (split_by not in {"agent", "observation", "none"}) and method in {"embedding", "combined"}:
-        if not emb_cache:
+        required_ids_by_bench: Dict[str, List[str]] = {}
+        for b in train_benchmarks:
+            bench_ids = list(item_ids_by_bench.get(str(b), []))
+            if exclude_zero_success and zero_success_set:
+                bench_ids = [tid for tid in bench_ids if tid not in zero_success_set]
+            required_ids_by_bench[str(b)] = bench_ids
 
-            cache_meta = {
-                "backbone": str(args.backbone),
-                "max_length": int(args.max_length),
-                "batch_size": int(args.batch_size),
-                "device_map": str(args.device_map),
-                "torch_dtype": str(args.torch_dtype),
-                "attn_implementation": str(args.attn_implementation),
-                "instruction": str(args.instruction),
-                "instruction_sig": str(instr_sig),
-                "embedding_layer": int(args.embedding_layer),
-                "exclude_zero_success": bool(args.exclude_zero_success),
-                "normalize_item_ids": True,
-                "embed_subset": "response_items",
-                "dataset_sources": str(dataset_sources_str),
-            }
-            cache_key = hashlib.sha1(json.dumps(cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
-            model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
-            short_basename = f"embeddings__{model_short}__{cache_key}__maxlen{int(args.max_length)}.npz"
-            emb_cache = os.path.join(args.out_dir, short_basename)
-
-            try:
-                meta_path = str(emb_cache).replace(".npz", ".meta.json")
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(
-                        {
-                            "cache_path": str(emb_cache),
-                            "cache_key": str(cache_key),
-                            "basename": str(short_basename),
-                            "meta": cache_meta,
-                        },
-                        f,
-                        indent=2,
-                        sort_keys=True,
-                    )
-            except Exception:
-                pass
-
+        expected_total_items = int(len(set([tid for ids in required_ids_by_bench.values() for tid in ids])))
+        explicit_cache = str(args.embeddings_cache or "").strip()
         cache_exists = bool(os.path.exists(emb_cache))
-        if str(args.embeddings_cache or "").strip() and not cache_exists and not bool(args.overwrite):
+        if explicit_cache and not cache_exists and not bool(args.overwrite):
             print(
                 f"WARNING: --embeddings_cache was provided but file does not exist: {emb_cache} "
                 f"(cwd={os.getcwd()}). Will recompute embeddings."
             )
 
-        if os.path.exists(emb_cache) and not args.overwrite:
-            data = base.np.load(emb_cache, allow_pickle=True)
-            task_ids = [str(x) for x in list(data["task_ids"].tolist())]
-            X = data["X"].astype(base.np.float32)
-            counts_kind = str(base._npz_scalar(data.get("counts_kind", None), "")) if "counts_kind" in data else ""
-            cached_layer = int(base._npz_scalar(data.get("embedding_layer", None), -1)) if "embedding_layer" in data else -1
-            if int(args.embedding_layer) != int(cached_layer):
-                raise RuntimeError(
-                    f"Embeddings cache was created with embedding_layer={cached_layer}, but you requested "
-                    f"--embedding_layer={int(args.embedding_layer)}. Use --overwrite, or pick a different cache file."
+        if not bool(args.overwrite):
+            if explicit_cache:
+                loaded = base.load_compatible_embeddings_cache(
+                    emb_cache,
+                    backbone=str(args.backbone),
+                    max_length=int(args.max_length),
+                    instruction_sig=str(instr_sig),
+                    expected_n_items=int(expected_total_items),
                 )
-            print(
-                f"Loaded embeddings cache: {emb_cache} (n={len(task_ids)}, dim={X.shape[1]}, counts_kind={counts_kind or 'unknown'}, embedding_layer={cached_layer})"
-            )
-        else:
-            items: List[base.ItemRecord] = []
-
-            if use_verified:
-                verified_ids = list(item_ids_by_bench.get("verified", []))
-                if exclude_zero_success and zero_success_set:
-                    verified_ids = [tid for tid in verified_ids if tid not in zero_success_set]
-                if not verified_ids:
-                    raise RuntimeError(
-                        "Verified training benchmark: 0 item_ids remain after response-driven filtering "
-                        f"(exclude_zero_success={bool(args.exclude_zero_success)})."
-                    )
-                verified_items, verified_missing = load_swebench_items_by_ids(
-                    dataset_name=str(args.verified_dataset_name),
-                    split=str(args.verified_split),
-                    item_ids=verified_ids,
-                    normalize_item_ids=True,
-                )
-                if verified_missing:
+                if loaded is not None:
+                    task_ids, X, meta = loaded
                     print(
-                        f"WARNING: Verified training benchmark: {len(verified_missing)}/{len(verified_ids)} item_ids were not found in the dataset. "
-                        f"Example: {verified_missing[:10]}"
+                        f"Loaded embeddings cache (explicit): {emb_cache} "
+                        f"(n={len(task_ids)}, dim={X.shape[1]}, embedding_layer={meta.get('embedding_layer', -1)})"
                     )
-                if not verified_items:
-                    raise RuntimeError("Verified training benchmark: loaded 0 items to embed; cannot proceed.")
-                items.extend(list(verified_items))
-
-            if use_pro:
-                pro_ids = list(item_ids_by_bench.get("pro", []))
-                if exclude_zero_success and zero_success_set:
-                    pro_ids = [tid for tid in pro_ids if tid not in zero_success_set]
-                if not pro_ids:
+                elif os.path.exists(emb_cache):
                     raise RuntimeError(
-                        "Pro training benchmark: 0 item_ids remain after response-driven filtering "
-                        f"(exclude_zero_success={bool(args.exclude_zero_success)})."
+                        f"Embeddings cache (explicit) was incompatible with this run: {emb_cache}. "
+                        "Use --overwrite, or point --embeddings_cache to a compatible file."
                     )
-                pro_items, pro_missing = load_swebench_items_by_ids(
-                    dataset_name=str(args.pro_dataset_name),
-                    split=str(args.pro_split),
-                    item_ids=pro_ids,
-                    normalize_item_ids=True,
+            else:
+                concat_loaded = _try_load_concat_embeddings_from_single_benchmark_caches(
+                    train_benchmarks=list(train_benchmarks),
+                    required_ids_by_bench=required_ids_by_bench,
+                    out_dir=str(args.out_dir),
+                    backbone=str(args.backbone),
+                    max_length=int(args.max_length),
+                    embedding_layer=int(args.embedding_layer),
+                    instruction_sig=str(instr_sig),
                 )
-                if pro_missing:
+                if concat_loaded is not None:
+                    task_ids, X, used_files = concat_loaded
+                    emb_cache = ""
                     print(
-                        f"WARNING: Pro training benchmark: {len(pro_missing)}/{len(pro_ids)} item_ids were not found in the dataset. "
-                        f"Example: {pro_missing[:10]}"
+                        "Loaded concatenated benchmark embeddings from individual caches: "
+                        + ", ".join([f"{k}={v}" for k, v in sorted(used_files.items())])
+                        + f" (n={len(task_ids)}, dim={X.shape[1]})"
                     )
-                if not pro_items:
-                    raise RuntimeError("Pro training benchmark: loaded 0 items to embed; cannot proceed.")
-                items.extend(list(pro_items))
 
-            if use_terminal:
-                terminal_ids = list(item_ids_by_bench.get("terminal_bench", []))
-                if exclude_zero_success and zero_success_set:
-                    terminal_ids = [tid for tid in terminal_ids if tid not in zero_success_set]
-                if not terminal_ids:
-                    raise RuntimeError(
-                        "Terminal-Bench training benchmark: 0 task_ids remain after response-driven filtering "
-                        f"(exclude_zero_success={bool(args.exclude_zero_success)})."
-                    )
-                terminal_items, terminal_missing = load_terminal_bench_items_by_ids(
-                    tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
-                    item_ids=terminal_ids,
-                )
-                if terminal_missing:
-                    print(
-                        f"WARNING: Terminal-Bench training benchmark: {len(terminal_missing)}/{len(terminal_ids)} task_ids were not found in tasks JSONL. "
-                        f"Example: {terminal_missing[:10]}"
-                    )
-                if not terminal_items:
-                    raise RuntimeError("Terminal-Bench training benchmark: loaded 0 items to embed; cannot proceed.")
-                items.extend(list(terminal_items))
-
-            if use_gso:
-                gso_ids = list(item_ids_by_bench.get("gso", []))
-                if exclude_zero_success and zero_success_set:
-                    gso_ids = [tid for tid in gso_ids if tid not in zero_success_set]
-                if not gso_ids:
-                    raise RuntimeError(
-                        "GSO training benchmark: 0 item_ids remain after response-driven filtering "
-                        f"(exclude_zero_success={bool(args.exclude_zero_success)})."
-                    )
-                gso_dataset_name = str(args.gso_dataset_name or "").strip()
-                if not gso_dataset_name:
-                    raise ValueError("GSO training requires --gso_dataset_name to load tasks.")
-                gso_items, gso_missing = load_ood_items_by_ids(
-                    dataset_name=gso_dataset_name,
-                    split=str(args.gso_split),
-                    item_ids=gso_ids,
-                    normalize_item_ids=True,
-                    wrap_with_gso_prompt=True,
-                )
-                if gso_missing:
-                    print(
-                        f"WARNING: GSO training benchmark: {len(gso_missing)}/{len(gso_ids)} item_ids were not found in the dataset. "
-                        f"Example: {gso_missing[:10]}"
-                    )
-                if not gso_items:
-                    raise RuntimeError("GSO training benchmark: loaded 0 items to embed; cannot proceed.")
-                items.extend(list(gso_items))
-
-            by_id: Dict[str, base.ItemRecord] = {}
+        if X is None:
+            rows: List["base.np.ndarray"] = []
+            task_ids = []
+            seen_ids: Set[str] = set()
             collisions: List[str] = []
-            for it in items:
-                iid = str(it.item_id)
-                if iid in by_id:
-                    collisions.append(iid)
-                    continue
-                by_id[iid] = it
-            if collisions:
-                print(
-                    f"WARNING: {len(collisions)} duplicate item_ids across benchmarks; keeping first occurrence. "
-                    f"Example: {collisions[:10]}"
-                )
-            items = list(by_id.values())
+            bench_cache_files: Dict[str, str] = {}
+            total_items_loaded = 0
+            bench_ids_by_key: Dict[str, List[str]] = {}
+            bench_dataset_source_by_key: Dict[str, str] = {}
+            bench_items_by_key: Dict[str, List[base.ItemRecord]] = {}
 
-            print(f"Loaded dataset items to embed: {len(items)} (sources={dataset_sources_str})")
+            for bench in train_benchmarks:
+                bench_key = str(bench)
+                bench_ids = [str(tid) for tid in list(required_ids_by_bench.get(bench_key, []))]
+                if not bench_ids:
+                    raise RuntimeError(
+                        f"{bench_key} training benchmark: 0 item_ids remain after response-driven filtering "
+                        f"(exclude_zero_success={bool(args.exclude_zero_success)})."
+                    )
 
-            ids_sorted, emb_by_id, counts_by_id, emb_dim = base.embed_items(
-                items=items,
+                bench_items: List[base.ItemRecord] = []
+                bench_missing: List[str] = []
+                bench_dataset_source = ""
+
+                if bench_key == "verified":
+                    bench_dataset_source = f"verified:{str(args.verified_dataset_name)}:{str(args.verified_split)}"
+                    bench_items, bench_missing = load_swebench_items_by_ids(
+                        dataset_name=str(args.verified_dataset_name),
+                        split=str(args.verified_split),
+                        item_ids=bench_ids,
+                        normalize_item_ids=True,
+                    )
+                elif bench_key == "pro":
+                    bench_dataset_source = f"pro:{str(args.pro_dataset_name)}:{str(args.pro_split)}"
+                    bench_items, bench_missing = load_swebench_items_by_ids(
+                        dataset_name=str(args.pro_dataset_name),
+                        split=str(args.pro_split),
+                        item_ids=bench_ids,
+                        normalize_item_ids=True,
+                    )
+                elif bench_key == "terminal_bench":
+                    bench_dataset_source = (
+                        f"terminal_jsonl:{os.path.basename(str(args.terminal_bench_tasks_jsonl)) or 'terminal_bench_tasks.jsonl'}"
+                    )
+                    bench_items, bench_missing = load_terminal_bench_items_by_ids(
+                        tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
+                        item_ids=bench_ids,
+                    )
+                elif bench_key == "gso":
+                    gso_dataset_name = str(args.gso_dataset_name or "").strip()
+                    if not gso_dataset_name:
+                        raise ValueError("GSO training requires --gso_dataset_name to load tasks.")
+                    bench_dataset_source = f"gso:{str(gso_dataset_name)}:{str(args.gso_split)}"
+                    bench_items, bench_missing = load_ood_items_by_ids(
+                        dataset_name=gso_dataset_name,
+                        split=str(args.gso_split),
+                        item_ids=bench_ids,
+                        normalize_item_ids=True,
+                        wrap_with_gso_prompt=True,
+                    )
+                else:
+                    raise ValueError(f"Unsupported training benchmark: {bench_key!r}")
+
+                if bench_missing:
+                    print(
+                        f"WARNING: {bench_key} training benchmark: {len(bench_missing)}/{len(bench_ids)} item_ids were not found in the dataset. "
+                        f"Example: {bench_missing[:10]}"
+                    )
+                if not bench_items:
+                    raise RuntimeError(f"{bench_key} training benchmark: loaded 0 items to embed; cannot proceed.")
+                total_items_loaded += int(len(bench_items))
+                bench_ids_by_key[bench_key] = list(bench_ids)
+                bench_dataset_source_by_key[bench_key] = str(bench_dataset_source)
+                bench_items_by_key[bench_key] = list(bench_items)
+
+            # Embed once across the union of training-benchmark items so we do not
+            # load a separate backbone copy for each benchmark.
+            merged_items: List[base.ItemRecord] = []
+            merged_seen: Set[str] = set()
+            for bench in train_benchmarks:
+                bench_key = str(bench)
+                for rec in bench_items_by_key.get(bench_key, []):
+                    rid = str(rec.item_id)
+                    if rid in merged_seen:
+                        continue
+                    merged_seen.add(rid)
+                    merged_items.append(rec)
+            if not merged_items:
+                raise RuntimeError("No items were available to embed across training benchmarks.")
+
+            ids_sorted_all, emb_by_id, counts_by_id, emb_dim = base.embed_items(
+                items=list(merged_items),
                 backbone=str(args.backbone),
                 trust_remote_code=bool(args.trust_remote_code),
                 max_length=int(args.max_length),
@@ -1829,23 +1867,88 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 instruction=str(args.instruction),
                 embedding_layer=int(args.embedding_layer),
             )
-            if not ids_sorted:
-                raise RuntimeError("No embeddings were produced (empty ids set).")
+            if not ids_sorted_all:
+                raise RuntimeError("Embeddings produced 0 ids across training benchmarks.")
 
-            X = base.np.stack([emb_by_id[r] for r in ids_sorted], axis=0).astype(base.np.float32)
-            counts_arr = base.np.array([int(counts_by_id.get(r, 0)) for r in ids_sorted], dtype=base.np.int64)
+            for bench in train_benchmarks:
+                bench_key = str(bench)
+                bench_ids = bench_ids_by_key.get(bench_key, [])
+                bench_dataset_source = bench_dataset_source_by_key.get(bench_key, "")
 
-            base.np.savez_compressed(
-                emb_cache,
-                task_ids=base.np.array(ids_sorted, dtype=object),
-                X=X,
-                counts_kind=base.np.array(["text_len_chars"], dtype=object),
-                counts=counts_arr,
-                dataset_name=base.np.array([str(dataset_sources_str)], dtype=object),
-                embedding_layer=base.np.array([int(args.embedding_layer)], dtype=base.np.int64),
+                missing_required = [tid for tid in bench_ids if tid not in emb_by_id]
+                if missing_required:
+                    raise RuntimeError(
+                        f"{bench_key} training benchmark: missing {len(missing_required)} required item_ids after embedding. "
+                        f"Example: {missing_required[:10]}"
+                    )
+                ids_sorted = sorted(set(bench_ids))
+                X_bench = base.np.stack([emb_by_id[r] for r in ids_sorted], axis=0).astype(base.np.float32)
+                counts_arr = base.np.array([int(counts_by_id.get(r, 0)) for r in ids_sorted], dtype=base.np.int64)
+                idx_by_id = {str(tid): int(i) for i, tid in enumerate(ids_sorted)}
+
+                cache_meta_single = {
+                    "backbone": str(args.backbone),
+                    "max_length": int(args.max_length),
+                    "batch_size": int(args.batch_size),
+                    "device_map": str(args.device_map),
+                    "torch_dtype": str(args.torch_dtype),
+                    "attn_implementation": str(args.attn_implementation),
+                    "instruction": str(args.instruction),
+                    "instruction_sig": str(instr_sig),
+                    "embedding_layer": int(args.embedding_layer),
+                    "exclude_zero_success": bool(args.exclude_zero_success),
+                    "normalize_item_ids": True,
+                    "embed_subset": "response_items",
+                    "dataset_sources": str(bench_dataset_source),
+                }
+                cache_key_single = hashlib.sha1(json.dumps(cache_meta_single, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+                model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
+                bench_basename = f"embeddings__{model_short}__{cache_key_single}__maxlen{int(args.max_length)}.npz"
+                bench_cache_path = os.path.join(_shared_embeddings_dir(), bench_basename)
+                base.ensure_dir(os.path.dirname(bench_cache_path) or ".")
+                base.np.savez_compressed(
+                    bench_cache_path,
+                    task_ids=base.np.array(ids_sorted, dtype=object),
+                    X=X_bench,
+                    counts_kind=base.np.array(["text_len_chars"], dtype=object),
+                    counts=counts_arr,
+                    dataset_name=base.np.array([str(bench_dataset_source)], dtype=object),
+                    instruction_signature=base.np.array([str(instr_sig)], dtype=object),
+                    text_format=base.np.array([str(base.EMBEDDING_TEXT_FORMAT)], dtype=object),
+                    includes_solution=base.np.array([True], dtype=base.np.bool_),
+                    backbone=base.np.array([str(args.backbone)], dtype=object),
+                    max_length=base.np.array([int(args.max_length)], dtype=base.np.int64),
+                    embedding_layer=base.np.array([int(args.embedding_layer)], dtype=base.np.int64),
+                )
+                bench_cache_files[bench_key] = str(bench_cache_path)
+                print(f"Saved embeddings cache ({bench_key}): {bench_cache_path} (n={len(ids_sorted)}, dim={emb_dim})")
+
+                for tid in bench_ids:
+                    if tid in seen_ids:
+                        collisions.append(tid)
+                        continue
+                    seen_ids.add(tid)
+                    task_ids.append(tid)
+                    rows.append(X_bench[int(idx_by_id[tid])].astype(base.np.float32, copy=False))
+
+            if collisions:
+                print(
+                    f"WARNING: {len(collisions)} duplicate item_ids across benchmarks; keeping first occurrence. "
+                    f"Example: {collisions[:10]}"
+                )
+            if not rows:
+                raise RuntimeError("No embeddings were produced across training benchmarks.")
+            X = base.np.stack(rows, axis=0).astype(base.np.float32)
+            emb_cache = ""
+            print(
+                f"Loaded dataset items to embed: {total_items_loaded} "
+                f"(unique_embedded={len(merged_items)}, sources={dataset_sources_str})"
             )
-            print(f"Saved embeddings cache: {emb_cache} (n={len(ids_sorted)}, dim={emb_dim})")
-            task_ids = list(ids_sorted)
+            print(
+                "Saved per-benchmark embeddings caches: "
+                + ", ".join([f"{k}={v}" for k, v in sorted(bench_cache_files.items())])
+                + f" (n_total={len(task_ids)}, dim={X.shape[1]})"
+            )
 
         if X is None:
             raise RuntimeError("Internal error: embeddings matrix X was None in embedding/combined mode.")
@@ -3707,39 +3810,74 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         ood_items: List[base.ItemRecord] = []
         ood_missing: List[str] = []
+        ood_ids_sorted: List[str] = []
+        X_ood = None
         if method in {"embedding", "combined"}:
-            if ood_key in {"verified", "pro"}:
-                if not ood_dataset_name:
-                    raise ValueError(f"OOD benchmark {ood_key!r} requires dataset_name to load tasks.")
-                ood_items, ood_missing = load_swebench_items_by_ids(
-                    dataset_name=ood_dataset_name,
-                    split=str(ood_split),
-                    item_ids=ood_item_ids,
-                    normalize_item_ids=True,
-                )
-            elif ood_key == "terminal_bench":
-                ood_items, ood_missing = load_terminal_bench_items_by_ids(
-                    tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
-                    item_ids=ood_item_ids,
+            ood_search_roots: List[str] = []
+            ood_search_roots.extend(base._candidate_embedding_roots(out_dir=str(args.out_dir)))
+            ood_bench_dir = str(_default_benchmark_embedding_dirs().get(str(ood_key), "") or "").strip()
+            if ood_bench_dir:
+                ood_search_roots.append(ood_bench_dir)
+                ood_search_roots.append(os.path.join(ood_bench_dir, "embeddings"))
+            ood_search_roots = [str(r) for r in ood_search_roots if str(r).strip()]
+
+            found_ood_cache = base.find_compatible_embeddings_cache(
+                preferred_paths=[],
+                search_roots=ood_search_roots,
+                backbone=str(args.backbone),
+                max_length=int(args.max_length),
+                instruction_sig=str(instr_sig),
+                required_task_ids=list(ood_item_ids),
+                expected_n_items=int(len(ood_item_ids)),
+                require_single_dataset_source=True,
+            )
+            if found_ood_cache is not None:
+                ood_cache_path, ood_cache_task_ids, ood_cache_X, _ = found_ood_cache
+                ood_idx_by_id = {str(tid): int(i) for i, tid in enumerate(ood_cache_task_ids)}
+                ood_ids_sorted = [str(tid) for tid in ood_item_ids if str(tid) in ood_idx_by_id]
+                if not ood_ids_sorted:
+                    raise RuntimeError("OOD benchmark: compatible cache was found but no required items could be aligned.")
+                X_ood = base.np.stack(
+                    [ood_cache_X[int(ood_idx_by_id[str(iid)])] for iid in ood_ids_sorted],
+                    axis=0,
+                ).astype(base.np.float32)
+                print(
+                    f"Loaded embeddings cache: {ood_cache_path} "
+                    f"(n={len(ood_ids_sorted)}, dim={X_ood.shape[1]})"
                 )
             else:
+                if ood_key in {"verified", "pro"}:
+                    if not ood_dataset_name:
+                        raise ValueError(f"OOD benchmark {ood_key!r} requires dataset_name to load tasks.")
+                    ood_items, ood_missing = load_swebench_items_by_ids(
+                        dataset_name=ood_dataset_name,
+                        split=str(ood_split),
+                        item_ids=ood_item_ids,
+                        normalize_item_ids=True,
+                    )
+                elif ood_key == "terminal_bench":
+                    ood_items, ood_missing = load_terminal_bench_items_by_ids(
+                        tasks_jsonl=str(args.terminal_bench_tasks_jsonl),
+                        item_ids=ood_item_ids,
+                    )
+                else:
 
-                if not ood_dataset_name:
-                    raise ValueError("OOD mode requires a dataset_name to load OOD benchmark tasks.")
-                ood_items, ood_missing = load_ood_items_by_ids(
-                    dataset_name=ood_dataset_name,
-                    split=str(ood_split),
-                    item_ids=ood_item_ids,
-                    normalize_item_ids=bool(ood_normalize_item_ids),
-                    wrap_with_gso_prompt=(ood_key == "gso"),
-                )
-            if ood_missing:
-                print(
-                    f"WARNING: OOD benchmark: {len(ood_missing)}/{len(ood_item_ids)} item_ids were not found in the dataset. "
-                    f"Example: {ood_missing[:10]}"
-                )
-            if not ood_items:
-                raise RuntimeError("OOD benchmark: loaded 0 items to embed; cannot evaluate AUROC.")
+                    if not ood_dataset_name:
+                        raise ValueError("OOD mode requires a dataset_name to load OOD benchmark tasks.")
+                    ood_items, ood_missing = load_ood_items_by_ids(
+                        dataset_name=ood_dataset_name,
+                        split=str(ood_split),
+                        item_ids=ood_item_ids,
+                        normalize_item_ids=bool(ood_normalize_item_ids),
+                        wrap_with_gso_prompt=(ood_key == "gso"),
+                    )
+                if ood_missing:
+                    print(
+                        f"WARNING: OOD benchmark: {len(ood_missing)}/{len(ood_item_ids)} item_ids were not found in the dataset. "
+                        f"Example: {ood_missing[:10]}"
+                    )
+                if not ood_items:
+                    raise RuntimeError("OOD benchmark: loaded 0 items to embed; cannot evaluate AUROC.")
 
         ood_feat_dir_effective = str(ood_feat_dir or "").strip()
         ood_idx: Dict[str, str] = (
@@ -3760,23 +3898,74 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         z_by_item: Dict[str, float] = {}
         if method in {"embedding", "combined"}:
-
-            ood_ids_sorted, ood_emb_by_id, _, _ = base.embed_items(
-                items=list(ood_items),
-                backbone=str(args.backbone),
-                trust_remote_code=bool(args.trust_remote_code),
-                max_length=int(args.max_length),
-                batch_size=int(args.batch_size),
-                device_map=str(args.device_map),
-                torch_dtype=str(args.torch_dtype),
-                attn_implementation=str(args.attn_implementation),
-                instruction=str(args.instruction),
-                embedding_layer=int(args.embedding_layer),
-            )
-            if not ood_ids_sorted:
-                raise RuntimeError("OOD benchmark: embeddings produced 0 ids (unexpected).")
-
-            X_ood = base.np.stack([ood_emb_by_id[iid] for iid in ood_ids_sorted], axis=0).astype(base.np.float32)
+            ood_emb_by_id: Dict[str, base.np.ndarray] = {}
+            if X_ood is None:
+                ood_ids_sorted, ood_emb_by_id, _, _ = base.embed_items(
+                    items=list(ood_items),
+                    backbone=str(args.backbone),
+                    trust_remote_code=bool(args.trust_remote_code),
+                    max_length=int(args.max_length),
+                    batch_size=int(args.batch_size),
+                    device_map=str(args.device_map),
+                    torch_dtype=str(args.torch_dtype),
+                    attn_implementation=str(args.attn_implementation),
+                    instruction=str(args.instruction),
+                    embedding_layer=int(args.embedding_layer),
+                )
+                if not ood_ids_sorted:
+                    raise RuntimeError("OOD benchmark: embeddings produced 0 ids (unexpected).")
+                X_ood = base.np.stack([ood_emb_by_id[iid] for iid in ood_ids_sorted], axis=0).astype(base.np.float32)
+                try:
+                    ood_dataset_source = ""
+                    if ood_key == "terminal_bench":
+                        ood_dataset_source = f"terminal_jsonl:{os.path.basename(str(args.terminal_bench_tasks_jsonl)) or 'terminal_bench_tasks.jsonl'}"
+                    elif ood_key in {"verified", "pro", "gso"}:
+                        ood_dataset_source = f"{ood_key}:{str(ood_dataset_name)}:{str(ood_split)}"
+                    else:
+                        ood_dataset_source = f"{ood_key}:{str(ood_dataset_name)}:{str(ood_split)}"
+                    ood_cache_meta = {
+                        "backbone": str(args.backbone),
+                        "max_length": int(args.max_length),
+                        "batch_size": int(args.batch_size),
+                        "device_map": str(args.device_map),
+                        "torch_dtype": str(args.torch_dtype),
+                        "attn_implementation": str(args.attn_implementation),
+                        "instruction": str(args.instruction),
+                        "instruction_sig": str(instr_sig),
+                        "embedding_layer": int(args.embedding_layer),
+                        "normalize_item_ids": bool(ood_normalize_item_ids),
+                        "embed_subset": "response_items",
+                        "dataset_sources": str(ood_dataset_source),
+                    }
+                    ood_cache_key = hashlib.sha1(json.dumps(ood_cache_meta, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+                    model_short = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(safe_backbone))[:48].strip("_") or "model"
+                    ood_basename = f"embeddings__{model_short}__{ood_cache_key}__maxlen{int(args.max_length)}.npz"
+                    shared_dir = _shared_embeddings_dir()
+                    base.ensure_dir(shared_dir)
+                    ood_cache_path = os.path.join(shared_dir, ood_basename)
+                    ood_counts_arr = base.np.array([0 for _ in ood_ids_sorted], dtype=base.np.int64)
+                    base.np.savez_compressed(
+                        ood_cache_path,
+                        task_ids=base.np.array(ood_ids_sorted, dtype=object),
+                        X=X_ood,
+                        counts_kind=base.np.array(["text_len_chars"], dtype=object),
+                        counts=ood_counts_arr,
+                        dataset_name=base.np.array([str(ood_dataset_source)], dtype=object),
+                        instruction_signature=base.np.array([str(instr_sig)], dtype=object),
+                        text_format=base.np.array([str(base.EMBEDDING_TEXT_FORMAT)], dtype=object),
+                        includes_solution=base.np.array([True], dtype=base.np.bool_),
+                        backbone=base.np.array([str(args.backbone)], dtype=object),
+                        max_length=base.np.array([int(args.max_length)], dtype=base.np.int64),
+                        embedding_layer=base.np.array([int(args.embedding_layer)], dtype=base.np.int64),
+                    )
+                    print(
+                        f"Saved embeddings cache: {ood_cache_path} "
+                        f"(n={len(ood_ids_sorted)}, dim={X_ood.shape[1]})"
+                    )
+                except Exception as e:
+                    print(f"WARNING: failed to save embeddings cache to shared embeddings/ dir: {e}")
+            else:
+                ood_emb_by_id = {str(iid): base.np.asarray(X_ood[i], dtype=base.np.float32) for i, iid in enumerate(ood_ids_sorted)}
             if method == "embedding":
                 z_pred = model.predict(X_ood).astype(base.np.float64)
                 z_by_item = {iid: float(z) for iid, z in zip(ood_ids_sorted, z_pred.tolist())}
