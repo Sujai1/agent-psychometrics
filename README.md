@@ -22,12 +22,14 @@ python -m experiment_new_tasks.run_all_datasets
 # Run Experiment New Responses
 python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
     --split_by observation \
-    --train_benchmarks verified,terminalbench,pro,gso
+    --train_benchmarks verified,terminalbench,pro,gso \
+    --out_dir held_out_responses
 
 # Run Experiment New Agents
 python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
     --split_by agent \
-    --train_benchmarks verified
+    --train_benchmarks verified \
+    --out_dir held_out_agents
 
 # Run Experiment New Benchmarks
 python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
