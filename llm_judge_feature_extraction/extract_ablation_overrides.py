@@ -118,7 +118,10 @@ def assemble_per_level_source(
     extract_cols = ["instance_id"] + [f for f in extracted_features if f in extraction_df.columns]
     extract_df = extraction_df[extract_cols].copy()
 
-    # Merge
+    # Merge — ENVIRONMENT features are included in all per-level source CSVs, but
+    # the downstream ablation code (build_ablation_csvs) only selects features whose
+    # InfoLevel matches the current ablation level, so at the Problem level these are
+    # filtered out and not used.
     merged = extract_df.merge(env_df, on="instance_id", how="inner")
 
     # Warn if extraction has tasks not in natural source (extra tasks, dropped by inner join)

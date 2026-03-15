@@ -115,7 +115,7 @@ python -m llm_judge_feature_extraction.extract_ablation_overrides \
 - `--dry-run` — Show cost estimate without running
 
 **Output:** Per-level source CSVs at `llm_judge_features/information_ablation/per_level_source/{dataset}/{level}.csv`,
-with extracted features merged with ENVIRONMENT features from the natural source.
+with non-ENVIRONMENT features re-extracted at the given info level's context.
 
 ## Datasets
 
