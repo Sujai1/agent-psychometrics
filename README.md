@@ -34,6 +34,7 @@ python experiment_agent_features/predict_question_difficulty_multi_benchmark.py 
     --split_by benchmark \
     --train_benchmarks verified,terminalbench,pro \
     --ood_benchmark gso \
+    --out_dir data/held_out_benchmark \
     --method judge
 
 # Run Appendix H Hard Tasks (frontier task difficulty prediction)

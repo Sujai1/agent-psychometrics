@@ -14,10 +14,8 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 export PYTHONUNBUFFERED=1
 
 python -u predict_question_difficulty_multi_benchmark.py \
-  --trust_remote_code \
+  --split_by benchmark \
   --train_benchmarks verified,terminalbench,pro \
   --ood_benchmark gso \
   --out_dir data/held_out_benchmark \
-  --method combined \
-  --split_by benchmark \
-  --overwrite
+  --method combined
