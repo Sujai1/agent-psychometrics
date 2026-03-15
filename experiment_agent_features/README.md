@@ -16,7 +16,8 @@ python -m experiment_agent_features.predict_question_difficulty_multi_benchmark 
 # New Agents (Section 4.3, Table 4)
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
     --split_by agent \
-    --train_benchmarks verified
+    --train_benchmarks verified \
+    --out_dir data/held_out_agents
 
 # New Benchmark (Section 4.3, Table 5)
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
