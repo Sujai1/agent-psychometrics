@@ -16,17 +16,17 @@ source .venv/bin/activate
 python -m experiment_new_tasks.run_all_datasets
 
 # Run Experiment New Responses
-python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
     --split_by observation \
     --train_benchmarks verified,terminalbench,pro,gso
 
 # Run Experiment New Agents
-python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
     --split_by agent \
     --train_benchmarks verified
 
 # Run Experiment New Benchmarks
-python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+python experiment_agent_features/predict_question_difficulty_multi_benchmark.py \
     --split_by benchmark \
     --train_benchmarks verified,terminalbench,pro \
     --ood_benchmark gso \
