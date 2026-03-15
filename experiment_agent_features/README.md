@@ -53,4 +53,5 @@ Embedding generation requires a GPU. Use `--embeddings_cache` with pre-computed 
 | `predict_question_difficulty_multi_benchmark.py` | Multi- and single-benchmark experiments with agent features |
 | `run_single.sh` | SLURM script for `predict_question_difficulty.py` |
 | `run_multi.sh` | SLURM script for `predict_question_difficulty_multi_benchmark.py` |
+| `analyze_difficulty_scores.py` | Plots IRT difficulty score distributions across benchmarks |
 | `terminalbench_scatterplot.py` | Generates validation scatter plot (Figure 3) |
