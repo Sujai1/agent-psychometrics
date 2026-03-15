@@ -97,9 +97,9 @@ All input data lives under `data/{dataset}/`:
 
 | File | Purpose |
 |------|---------|
-| `experiment_new_tasks/run_all_datasets.py` | Run Experiment New Tasks (Table 1) |
-| `experiment_new_tasks/run_information_ablation.py` | Feature source ablation (Table 2) |
-| `experiment_agent_features/predict_question_difficulty_multi_benchmark.py` | Agent feature experiments (Tables 3-5) |
+| `experiment_new_tasks/run_all_datasets.py` | Run Experiment New Tasks (Table 2) |
+| `experiment_new_tasks/run_information_ablation.py` | Feature source ablation (Table 3) |
+| `experiment_agent_features/predict_question_difficulty_multi_benchmark.py` | Agent feature experiments (Tables 4-6) |
 | `swebench_irt/train.py` | Train IRT models |
 
 ## Citation
