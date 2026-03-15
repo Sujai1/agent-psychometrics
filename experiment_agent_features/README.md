@@ -11,13 +11,13 @@ source .venv/bin/activate
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
     --split_by observation \
     --train_benchmarks verified,pro,terminal_bench,gso \
-    --out_dir data/held_out_responses
+    --out_dir data/held_out_responses/all_benchmarks
 
 # New Agents (Section 4.3, Table 4)
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
     --split_by agent \
     --train_benchmarks verified \
-    --out_dir data/held_out_agents
+    --out_dir data/held_out_agents/swebench_verified
 
 # New Benchmark (Section 4.3, Table 5)
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
@@ -25,7 +25,7 @@ python -m experiment_agent_features.predict_question_difficulty_multi_benchmark 
     --method combined \
     --train_benchmarks verified,pro,terminal_bench \
     --ood_benchmark gso \
-    --out_dir data/held_out_benchmark
+    --out_dir data/held_out_benchmark/gso
 ```
 
 ## Experiments
