@@ -6,10 +6,44 @@ We present a framework for predicting success or failure on individual tasks tai
   <img src="https://github.com/user-attachments/assets/e87e7dec-b1c4-4a77-beb0-5e5bde815f57" alt="Agent Psychometrics" width="600">
 </p>
 
+## Quick Start
+
+```bash
+# Activate the virtual environment
+source .venv/bin/activate
+
+# Run Experiment New Tasks on all datasets
+python -m experiment_new_tasks.run_all_datasets
+
+# Run Experiment New Responses
+python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+    --split_by observation \
+    --train_benchmarks verified,terminalbench,pro,gso
+
+# Run Experiment New Agents
+python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+    --split_by agent \
+    --train_benchmarks verified
+
+# Run Experiment New Benchmarks
+python experiment_agent_features.predict_question_difficulty_multi_benchmark.py \
+    --split_by benchmark \
+    --train_benchmarks verified,terminalbench,pro \
+    --ood_benchmark gso \
+    --method judge
+
+# Run Appendix H Hard Tasks (frontier task difficulty prediction)
+python -m experiment_appendix_h_hard_tasks.compare_methods
+
+# Train IRT model
+python swebench_irt/train.py --dims 1 --model 1pl \
+    --data_path data/swebench_verified/responses.jsonl
+```
+
 ## Repository Structure
 
 ```
-/
+agent-psychometrics/
 ├── experiment_new_tasks/              # New Tasks experiment
 ├── experiment_agent_features/         # Experiments involving agent features: New Responses, New Agents, and New Benchmarks
 ├── experiment_appendix_h_hard_tasks/  # Frontier task difficulty prediction
@@ -25,24 +59,6 @@ We present a framework for predicting success or failure on individual tasks tai
 ├── swebench_irt/                      # IRT model training
 ├── py_irt/                            # IRT library (local fork)
 └── data/                              # Input data + IRT models
-```
-
-## Quick Start
-
-**Important:** This project uses a Python virtual environment. Always activate it before running any Python commands:
-
-```bash
-source .venv/bin/activate
-
-# Run Experiment New Tasks on all datasets
-python -m experiment_new_tasks.run_all_datasets
-
-# Run Appendix H Hard Tasks (frontier task difficulty prediction)
-python -m experiment_appendix_h_hard_tasks.compare_methods
-
-# Train IRT model
-python swebench_irt/train.py --dims 1 --model 1pl \
-    --data_path data/swebench_verified/responses.jsonl
 ```
 
 ## Datasets
