@@ -33,38 +33,38 @@ python -m experiment_new_tasks.run_all_datasets --datasets gso terminalbench
 
 Run with: `python -m experiment_new_tasks.run_all_datasets`
 
-| Dataset | Oracle | Combined | LLM Judge | Embedding | Baseline |
-|---------|--------|----------|-----------|-----------|----------|
-| SWE-bench Verified | 0.9447 | **0.8427** | 0.8415 | 0.8244 | 0.7175 |
-| GSO | 0.9139 | **0.8048** | 0.7971 | 0.7624 | 0.7140 |
-| TerminalBench | 0.9317 | **0.8207** | 0.8059 | 0.8171 | 0.7334 |
-| SWE-bench Pro | 0.9183 | **0.7622** | 0.7417 | 0.7548 | 0.6565 |
+| Benchmark | Baseline | Embedding | LLM-as-a-Judge | Combined | Oracle |
+|-----------|----------|-----------|----------------|----------|--------|
+| SWE-bench Verified | 0.7175 | 0.8244 | 0.8415 | **0.8427** | 0.9447 |
+| SWE-bench Pro | 0.6565 | 0.7548 | 0.7417 | **0.7622** | 0.9183 |
+| GSO | 0.7140 | 0.7624 | 0.7971 | **0.8048** | 0.9139 |
+| Terminal-Bench 2.0 | 0.7334 | 0.8171 | 0.8059 | **0.8207** | 0.9317 |
 
 ### Feature Source Ablation (Table 2)
 
 Run with: `python -m experiment_new_tasks.run_information_ablation`
 
-LLM Judge AUC by information level, progressively adding features:
+LLM-as-a-Judge AUC by information level, progressively adding features:
 
-| Info Level | SWE-bench Verified | GSO | TerminalBench | SWE-bench Pro |
+| Info Level | SWE-bench Verified | SWE-bench Pro | GSO | Terminal-Bench 2.0 |
 |---|---|---|---|---|
-| Baseline | 0.7175 | 0.7140 | 0.7334 | 0.6565 |
-| Problem | 0.7873 | 0.7257 | 0.7987 | 0.7181 |
-| + Auditor | 0.7984 | 0.7270 | 0.8070 | 0.7369 |
-| + Test | 0.8343 | 0.7251 | 0.8070 | 0.7489 |
-| + Solution (Full) | 0.8483 | 0.7971 | 0.8103 | 0.7501 |
-| Oracle | 0.9447 | 0.9139 | 0.9317 | 0.9183 |
+| Baseline | 0.7175 | 0.6565 | 0.7140 | 0.7334 |
+| Problem | 0.7873 | 0.7181 | 0.7257 | 0.7987 |
+| + Auditor | 0.7984 | 0.7369 | 0.7270 | 0.8070 |
+| + Test | 0.8343 | 0.7489 | 0.7251 | 0.8070 |
+| + Solution (Full) | 0.8483 | 0.7501 | 0.7971 | 0.8103 |
+| Oracle | 0.9447 | 0.9183 | 0.9139 | 0.9317 |
 
 ### Backbone Ablation (Appendix C)
 
 Ablates the model used to extract 12 non-repository-state LLM-as-a-judge features, keeping the same 15 features. The 3 repository state features are kept constant.
 
-| Dataset | Claude Opus 4.6 | GPT-5.4 | Claude Sonnet 4.6 |
-|---------|----------------|---------|-------------------|
+| Benchmark | Claude Opus 4.6 | GPT-5.4 | Claude Sonnet 4.6 |
+|-----------|----------------|---------|-------------------|
 | SWE-bench Verified | **0.8427** | 0.8367 | 0.8413 |
 | SWE-bench Pro | 0.7622 | **0.7654** | 0.7619 |
 | GSO | **0.8048** | 0.7334 | 0.7652 |
-| TerminalBench | 0.8207 | **0.8367** | 0.8334 |
+| Terminal-Bench 2.0 | 0.8207 | **0.8367** | 0.8334 |
 
 ## Evaluation Protocol
 
@@ -84,7 +84,7 @@ The IRT model is trained separately on train tasks to avoid data leakage. A full
 Pre-computed embeddings from DeepSeek-R1-Distill-Qwen-32B, stored in `embeddings/`:
 - SWE-bench Verified: `embeddings/embeddings__...__princeton-nlp_SWE-bench_Verified__test__maxlen8192.npz`
 - SWE-bench Pro: `embeddings/embeddings__...__ScaleAI_SWE-bench_Pro__test__maxlen8192.npz`
-- TerminalBench: `embeddings/embeddings__...__json_terminal_bench_tasks.jsonl__test__maxlen8192.npz`
+- Terminal-Bench 2.0: `embeddings/embeddings__...__json_terminal_bench_tasks.jsonl__test__maxlen8192.npz`
 - GSO: `embeddings/embeddings__...__gso-bench_gso__test__maxlen8192.npz`
 
 ### LLM Judge Features

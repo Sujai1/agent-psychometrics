@@ -24,7 +24,7 @@ from experiment_new_tasks.config import DATASET_DEFAULTS
 ROOT = Path(__file__).resolve().parents[1]
 
 # All datasets in display order
-ALL_DATASETS = ["swebench_verified", "gso", "terminalbench", "swebench_pro"]
+ALL_DATASETS = ["swebench_verified", "swebench_pro", "gso", "terminalbench"]
 
 
 def run_single_dataset(
@@ -98,8 +98,8 @@ def extract_metrics(results: Dict[str, Any]) -> Dict[str, Optional[float]]:
     name_mappings = {
         "oracle": "Oracle",
         "embedding": "Embedding",
-        "llm_judge": "LLM Judge",
-        "grouped": "Grouped",
+        "llm_judge": "LLM-as-a-Judge",
+        "grouped": "Combined",
         "constant_baseline": "Baseline",
     }
 
@@ -128,7 +128,7 @@ def format_results_table(
         Formatted markdown table string with proper column alignment.
     """
     if methods is None:
-        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge", "Baseline"]
+        methods = ["Baseline", "Embedding", "LLM-as-a-Judge", "Combined", "Oracle"]
 
     # Build data rows first to calculate column widths
     data_rows = []
@@ -145,7 +145,7 @@ def format_results_table(
         data_rows.append((dataset_name, values))
 
     # Calculate column widths
-    col_widths = [max(len("Dataset"), max(len(row[0]) for row in data_rows))]
+    col_widths = [max(len("Benchmark"), max(len(row[0]) for row in data_rows))]
     for i, method in enumerate(methods):
         method_width = len(method)
         value_width = max(len(row[1][i]) for row in data_rows)
@@ -155,7 +155,7 @@ def format_results_table(
     def pad(text: str, width: int) -> str:
         return text.ljust(width)
 
-    header = "| " + " | ".join(pad(col, col_widths[i]) for i, col in enumerate(["Dataset"] + methods)) + " |"
+    header = "| " + " | ".join(pad(col, col_widths[i]) for i, col in enumerate(["Benchmark"] + methods)) + " |"
     separator = "|" + "|".join("-" * (w + 2) for w in col_widths) + "|"
 
     rows = [header, separator]
@@ -183,11 +183,11 @@ def save_results_csv(
     import csv
 
     if methods is None:
-        methods = ["Oracle", "Grouped", "Embedding", "LLM Judge", "Baseline"]
+        methods = ["Baseline", "Embedding", "LLM-as-a-Judge", "Combined", "Oracle"]
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Dataset"] + methods)
+        writer.writerow(["Benchmark"] + methods)
 
         for dataset_name, metrics in all_results.items():
             row = [dataset_name]
@@ -298,10 +298,10 @@ def main():
                 print(f"  ERROR: {str(metrics['error'])[:100]}...")
             else:
                 oracle = metrics.get('Oracle')
-                grouped = metrics.get('Grouped')
+                combined = metrics.get('Combined')
                 oracle_str = f"{oracle:.4f}" if oracle else "N/A"
-                grouped_str = f"{grouped:.4f}" if grouped else "N/A"
-                print(f"  Done: Oracle={oracle_str}, Grouped={grouped_str}")
+                combined_str = f"{combined:.4f}" if combined else "N/A"
+                print(f"  Done: Oracle={oracle_str}, Combined={combined_str}")
     else:
         # Parallel execution
         with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
@@ -329,10 +329,10 @@ def main():
                         print(f"{name}: ERROR - {str(metrics['error'])[:80]}...")
                     else:
                         oracle = metrics.get('Oracle')
-                        grouped = metrics.get('Grouped')
+                        combined = metrics.get('Combined')
                         oracle_str = f"{oracle:.4f}" if oracle else "N/A"
-                        grouped_str = f"{grouped:.4f}" if grouped else "N/A"
-                        print(f"{name}: Oracle={oracle_str}, Grouped={grouped_str}")
+                        combined_str = f"{combined:.4f}" if combined else "N/A"
+                        print(f"{name}: Oracle={oracle_str}, Combined={combined_str}")
                 except Exception as e:
                     all_results[dataset_name] = {"error": str(e)}
                     print(f"{dataset_name}: EXCEPTION - {e}")

@@ -79,7 +79,7 @@ DATASET_DEFAULTS: Dict[str, Dict[str, Any]] = {
         },
     },
     "terminalbench": {
-        "display_name": "TerminalBench",
+        "display_name": "Terminal-Bench 2.0",
         "abilities_path": Path("data/terminalbench/irt/1d_1pl/abilities.csv"),
         "items_path": Path("data/terminalbench/irt/1d_1pl/items.csv"),
         "responses_path": Path("data/terminalbench/responses.jsonl"),
