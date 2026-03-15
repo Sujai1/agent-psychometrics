@@ -9,17 +9,15 @@ We present a framework for predicting success or failure on individual tasks tai
 ## Repository Structure
 
 ```
-model_irt/
-├── experiment_new_tasks/              # Main experiment on the solvable regime (+ shared IRT infrastructure)
+/
+├── experiment_new_tasks/              # New Tasks experiment
+├── experiment_agent_features/         # Experiments involving agent features: New Responses, New Agents, and New Benchmarks
 ├── experiment_appendix_h_hard_tasks/  # Frontier task difficulty prediction
-│   ├── trajectory_data/               #   Downloaded trajectories (76 agents)
-│   ├── trajectory_summarization_api/  #   Trajectory summarization
-│   └── trajectory_upload/             #   Trajectory conversion and upload
 ├── llm_judge_feature_extraction/      # LLM-based task feature extraction
+├── llm_judge_features/                # LLM-as-a-judge feature CSV files
 ├── swebench_irt/                      # IRT model training
 ├── py_irt/                            # IRT library (local fork)
 ├── data/                              # Input data + IRT models (data/{dataset}/irt/)
-└── output/                            # Outputs and results (gitignored)
 ```
 
 ## Quick Start
