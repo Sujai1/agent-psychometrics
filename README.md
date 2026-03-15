@@ -9,8 +9,12 @@ We present a framework for predicting success or failure on individual tasks tai
 ## Quick Start
 
 ```bash
-# Activate the virtual environment
+# Create and activate the virtual environment
+python -m venv .venv
 source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 
 # Run Experiment New Tasks on all datasets
 python -m experiment_new_tasks.run_all_datasets
