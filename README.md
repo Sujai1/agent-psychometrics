@@ -29,13 +29,13 @@ python -m experiment_new_tasks.run_information_ablation
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
     --split_by observation \
     --train_benchmarks verified,terminalbench,pro,gso \
-    --out_dir held_out_responses
+    --out_dir data/held_out_responses
 
 # Run Experiment New Agents
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
     --split_by agent \
     --train_benchmarks verified \
-    --out_dir held_out_agents
+    --out_dir data/held_out_agents
 
 # Run Experiment New Benchmarks
 python -m experiment_agent_features.predict_question_difficulty_multi_benchmark \
