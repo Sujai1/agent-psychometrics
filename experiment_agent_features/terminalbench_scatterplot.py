@@ -14,7 +14,13 @@ MODEL_ABILITIES = Path(
 AGENT_ABILITIES = Path("data/terminalbench/irt_oracle/abilities.csv")
 AGENT_SPLITS = Path("data/terminalbench/1d_1pl/agent_splits.csv")
 
-OUT = Path("data/terminalbench_scatterplot.png")
+OUT = Path("data/terminalbench_scatterplot.pdf")
+
+ANNOTATION_FONT_SIZE = 8
+AXIS_LABEL_FONT_SIZE = 14
+TICK_LABEL_FONT_SIZE = 12
+TITLE_FONT_SIZE = 14
+LEGEND_FONT_SIZE = 12
 
 
 def read_theta(path: Path) -> dict[str, float]:
@@ -160,20 +166,22 @@ for i, (x, y, mid, sid) in enumerate(points):
         xytext=(dx, dy),
         ha="left" if dx >= 0 else "right",
         va="bottom" if dy >= 0 else "top",
-        fontsize=6.0,
+        fontsize=ANNOTATION_FONT_SIZE,
         alpha=0.9,
         bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.62),
     )
 
 plt.xlim(left=-6)
-plt.xlabel("LLM ability")
-plt.ylabel("Terminus 2 agent ability")
+plt.xlabel("LLM ability", fontsize=AXIS_LABEL_FONT_SIZE)
+plt.ylabel("Terminus 2 agent ability", fontsize=AXIS_LABEL_FONT_SIZE)
 plt.title(
     f"Terminal-Bench: Terminus 2 (standard IRT) vs full data (IRT-Agent)"
-    f" – n={len(points)}, r={r:.3f}"
+    f" – n={len(points)}, r={r:.3f}",
+    fontsize=TITLE_FONT_SIZE,
 )
+plt.tick_params(axis="both", labelsize=TICK_LABEL_FONT_SIZE)
 plt.grid(True, alpha=0.25)
-plt.legend(loc="lower right", fontsize=8)
+plt.legend(loc="lower right", fontsize=LEGEND_FONT_SIZE)
 plt.tight_layout()
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
