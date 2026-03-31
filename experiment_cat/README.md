@@ -41,8 +41,11 @@ python -m experiment_cat.run_experiment
 # Custom predictions file
 python -m experiment_cat.run_experiment --predictions_csv path/to/predictions.csv
 
+# Custom seeds (results are averaged across all seeds)
+python -m experiment_cat.run_experiment --seeds 42 7 123
+
 # Adjust parameters
-python -m experiment_cat.run_experiment --max_steps 300 --seed 123 --prior_sigma 5.0
+python -m experiment_cat.run_experiment --max_steps 300 --prior_sigma 5.0
 ```
 
 ## How It Works
@@ -67,7 +70,7 @@ All three methods share the same loop:
    - Update the agent's score
 2. At each step, compute empirical reliability of agent ability estimates (using oracle IRT difficulties for all methods)
 
-For Fisher methods, the selector is adaptive (depends on the agent's evolving θ̂ after each response). For Random, all agents share the same fixed task ordering.
+For Fisher methods, the selector is adaptive (depends on the agent's evolving θ̂ after each response). For Random, all agents share the same fixed task ordering. Since Random depends on task order, results are averaged across multiple random seeds (5 by default).
 
 ### MLE Ability Estimation
 
@@ -81,12 +84,10 @@ Optimized with L-BFGS-B, bounded to [-6, 6].
 
 ## Output
 
-Each run creates a unique subdirectory under `output/experiment_cat/` (hashed from config):
-
 ```
-output/experiment_cat/<hash>/
-├── config.json              # Experiment parameters
-├── results.csv              # Empirical reliability at each step
+output/experiment_cat/averaged/
+├── config.json              # Experiment parameters (including seeds)
+├── results.csv              # Averaged empirical reliability at each step
 └── reliability_curves.png   # Main figure
 ```
 

@@ -16,27 +16,15 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from .cat_simulation import ExperimentConfig, run_experiment
 
-
-def _config_hash(config: ExperimentConfig) -> str:
-    """Short hash of config for creating unique result directories."""
-    key = json.dumps({
-        "predictions_csv": str(config.predictions_csv),
-        "oracle_items_path": str(config.oracle_items_path),
-        "responses_path": str(config.responses_path),
-        "max_steps": config.max_steps,
-        "seed": config.seed,
-        "prior_sigma": config.prior_sigma,
-    }, sort_keys=True)
-    return hashlib.sha256(key.encode()).hexdigest()[:8]
 
 
 def plot_spearman_curves(
@@ -127,7 +115,7 @@ def main():
         help="Path to response matrix JSONL.",
     )
     parser.add_argument("--max_steps", type=int, default=200)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seeds", type=int, nargs="+", default=[42, 7, 123, 314, 999])
     parser.add_argument("--prior_sigma", type=float, default=3.0)
     parser.add_argument("--output_dir", type=str, default="output/experiment_cat")
     args = parser.parse_args()
@@ -145,51 +133,54 @@ def main():
             f"      --method judge"
         )
 
-    config = ExperimentConfig(
-        responses_path=Path(args.responses),
-        oracle_items_path=Path(args.oracle_items),
-        predictions_csv=predictions_path,
-        max_steps=args.max_steps,
-        seed=args.seed,
-        prior_sigma=args.prior_sigma,
-    )
+    # Run experiment for each seed and collect results
+    reliability_keys = [
+        "fisher_predicted_reliability", "fisher_oracle_reliability", "random_reliability",
+    ]
+    all_runs: list[dict[str, list[float]]] = []
+    for seed in args.seeds:
+        print(f"\n=== Seed {seed} ===")
+        config = ExperimentConfig(
+            responses_path=Path(args.responses),
+            oracle_items_path=Path(args.oracle_items),
+            predictions_csv=predictions_path,
+            max_steps=args.max_steps,
+            seed=seed,
+            prior_sigma=args.prior_sigma,
+        )
+        all_runs.append(run_experiment(config))
 
-    # Create a unique results subdirectory for this config
-    run_dir = Path(args.output_dir) / _config_hash(config)
+    # Average reliability across seeds
+    steps = all_runs[0]["step"]
+    avg_results: dict[str, list[float]] = {"step": steps}
+    for k in reliability_keys:
+        arr = np.array([run[k] for run in all_runs])
+        avg_results[k] = np.nanmean(arr, axis=0).tolist()
+
+    # Save config and averaged results
+    run_dir = Path(args.output_dir) / "averaged"
     os.makedirs(run_dir, exist_ok=True)
 
-    # Save config
     with open(run_dir / "config.json", "w") as f:
         json.dump({
-            "predictions_csv": str(config.predictions_csv),
-            "oracle_items_path": str(config.oracle_items_path),
-            "responses_path": str(config.responses_path),
-            "max_steps": config.max_steps,
-            "seed": config.seed,
-            "prior_sigma": config.prior_sigma,
+            "predictions_csv": str(predictions_path),
+            "oracle_items_path": args.oracle_items,
+            "responses_path": args.responses,
+            "max_steps": args.max_steps,
+            "seeds": args.seeds,
+            "prior_sigma": args.prior_sigma,
         }, f, indent=2)
 
-    results = run_experiment(config)
-
-    # Save results CSV
     results_csv = run_dir / "results.csv"
     with open(results_csv, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "step",
-            "fisher_predicted_reliability", "fisher_oracle_reliability", "random_reliability",
-        ])
-        for i in range(len(results["step"])):
-            writer.writerow([
-                results["step"][i],
-                results["fisher_predicted_reliability"][i],
-                results["fisher_oracle_reliability"][i],
-                results["random_reliability"][i],
-            ])
-    print(f"Saved results: {results_csv}")
+        writer.writerow(["step"] + reliability_keys)
+        for i in range(len(steps)):
+            writer.writerow([steps[i]] + [avg_results[k][i] for k in reliability_keys])
+    print(f"\nSaved averaged results: {results_csv}")
 
     # Plot
-    plot_reliability_curves(results, run_dir / "reliability_curves.png")
+    plot_reliability_curves(avg_results, run_dir / "reliability_curves.png")
 
     print(f"All outputs in: {run_dir}")
 
