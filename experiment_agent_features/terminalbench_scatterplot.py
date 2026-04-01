@@ -16,11 +16,31 @@ AGENT_SPLITS = Path("data/terminalbench/1d_1pl/agent_splits.csv")
 
 OUT = Path("data/terminalbench_scatterplot.pdf")
 
-ANNOTATION_FONT_SIZE = 8
+ANNOTATION_FONT_SIZE = 10
 AXIS_LABEL_FONT_SIZE = 14
 TICK_LABEL_FONT_SIZE = 12
 TITLE_FONT_SIZE = 14
 LEGEND_FONT_SIZE = 12
+
+LABELED_MODEL_IDS = {
+    "Claude Opus 4.6",
+    "Claude Sonnet 4.5",
+    "GPT-5",
+    "GPT-5.2",
+    "GPT-5.3-Codex",
+    "Gemini 3 Pro",
+    "GLM 5",
+    "Kimi K2.5",
+    "GLM 4.7",
+    "MiniMax M2.1",
+    "Claude Haiku 4.5",
+    "GPT-5-Mini",
+    "Grok 4",
+    "GPT OSS 120B",
+    "Gemini 2.5 Flash",
+    "GPT-5-Nano",
+    "GPT OSS 20B",
+}
 
 
 def read_theta(path: Path) -> dict[str, float]:
@@ -132,7 +152,25 @@ r = pearsonr(xs, ys)
 a, b = ols_fit(xs, ys) if xs else (float("nan"), float("nan"))
 
 plt.figure(figsize=(9.4, 7.8), dpi=210)
-plt.scatter(xs, ys, s=26, alpha=0.82)
+unlabeled_points = [p for p in points if p[2] not in LABELED_MODEL_IDS]
+labeled_points = [p for p in points if p[2] in LABELED_MODEL_IDS]
+
+if unlabeled_points:
+    plt.scatter(
+        [p[0] for p in unlabeled_points],
+        [p[1] for p in unlabeled_points],
+        s=26,
+        alpha=0.82,
+        color="tab:blue",
+    )
+if labeled_points:
+    plt.scatter(
+        [p[0] for p in labeled_points],
+        [p[1] for p in labeled_points],
+        s=26,
+        alpha=0.82,
+        color="tab:blue",
+    )
 
 all_vals = xs + ys
 if all_vals:
@@ -156,7 +194,7 @@ if all_vals:
             label=f"fit: y={a:.2f}+{b:.2f}x",
         )
 
-for i, (x, y, mid, sid) in enumerate(points):
+for i, (x, y, mid, sid) in enumerate(labeled_points):
     dx = 5 if (i % 2 == 0) else -5
     dy = 5 if (i % 3 == 0) else (-5 if (i % 3 == 1) else 0)
     plt.annotate(
