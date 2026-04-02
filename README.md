@@ -104,15 +104,14 @@ All input data lives under `data/{dataset}/`:
 
 ## Citation
 
-*Citation will be added once the paper is publicly available.*
-
-<!-- TODO: Fill in once the paper is available on arxiv/Google Scholar
 ```bibtex
-@inproceedings{agent-psychometrics,
-    title={Agent Psychometrics: Task-Level Performance Prediction in Agentic Coding Benchmarks},
-    author={},
-    booktitle={ICLR},
-    year={2026}
+@misc{agent-psychometrics,
+      title={Agent psychometrics: Task-level performance prediction in agentic coding benchmarks}, 
+      author={Chris Ge and Daria Kryvosheieva and Daniel Fried and Uzay Girit and Kaivalya Hariharan},
+      year={2026},
+      eprint={2604.00594},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2604.00594}, 
 }
 ```
--->
