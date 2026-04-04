@@ -25,6 +25,9 @@ python -m experiment_new_tasks.run_information_ablation
 
 # Run specific datasets only
 python -m experiment_new_tasks.run_all_datasets --datasets gso terminalbench
+
+# Plot feature source ablation bar graph (Table 3)
+python -m experiment_new_tasks.plot_information_ablation
 ```
 
 ## Results
