@@ -50,7 +50,7 @@ AXIS_LABEL_SIZE = 14
 TICK_LABEL_SIZE = 11
 LEGEND_SIZE = 10
 
-OUT = Path("output/information_ablation_barplot.pdf")
+OUT = Path("output/information_ablation_barplot.png")
 
 
 def compute_segments(
@@ -120,12 +120,12 @@ def main() -> None:
     # ── Legend ──────────────────────────────────────────────────────────────
     legend_handles = [
         mpatches.Patch(facecolor=COLOR_BASELINE, edgecolor="white", label="Baseline"),
-        mpatches.Patch(facecolor=COLOR_PROBLEM, edgecolor="white", label="Problem"),
+        mpatches.Patch(facecolor=COLOR_PROBLEM, edgecolor="white", label="Problem Statement"),
         mpatches.Patch(facecolor=COLOR_REPO, edgecolor="white", label="+ Repo State"),
         mpatches.Patch(facecolor=COLOR_TESTS, edgecolor="white", label="+ Tests"),
         mpatches.Patch(facecolor=COLOR_SOLUTION, edgecolor="white", label="+ Solution"),
     ]
-    ax.legend(
+    leg = ax.legend(
         handles=legend_handles,
         fontsize=LEGEND_SIZE,
         loc="upper left",
@@ -136,8 +136,38 @@ def main() -> None:
 
     fig.tight_layout()
 
+    # Draw bracket after layout is finalized, using display coords → figure coords
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    inv_fig = fig.transFigure.inverted()
+
+    texts = leg.get_texts()
+    top_bb = texts[2].get_window_extent(renderer)  # "+ Repo State"
+    bot_bb = texts[4].get_window_extent(renderer)  # "+ Solution"
+    leg_bb = leg.get_window_extent(renderer)
+
+    # Convert to figure coordinates
+    top_y = inv_fig.transform((0, top_bb.y1))[1]
+    bot_y = inv_fig.transform((0, bot_bb.y0))[1]
+    brace_x = inv_fig.transform((leg_bb.x1 + 4, 0))[0]
+    tick_len = 0.006
+    mid_y = (top_y + bot_y) / 2
+
+    bracket_style = dict(color="black", linewidth=1.2, clip_on=False,
+                         transform=fig.transFigure)
+    fig.lines.extend([
+        plt.Line2D([brace_x, brace_x], [bot_y, top_y], **bracket_style),
+        plt.Line2D([brace_x, brace_x - tick_len], [top_y, top_y], **bracket_style),
+        plt.Line2D([brace_x, brace_x - tick_len], [bot_y, bot_y], **bracket_style),
+    ])
+
+    fig.text(
+        brace_x + 0.008, mid_y, "Agentic\nartifacts",
+        fontsize=LEGEND_SIZE, va="center", ha="left", fontstyle="italic",
+    )
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT, bbox_inches="tight")
+    fig.savefig(OUT, bbox_inches="tight", pad_inches=0.15)
     print(OUT)
 
 
